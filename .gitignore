@@ -1,0 +1,6 @@
+*.DS_Store
+/mongodb_data
+*.env
+*.pem
+utils/MonApp.iconset
+*.xcodeproj
