@@ -9,6 +9,23 @@ services:
         volumes:
             - ./mongodb_data:/data/db:rw
 
+    web:
+        build:
+            context: ./
+            target: web
+        restart: unless-stopped
+        ports:
+            - "5173:5173"
+        volumes:
+            - ./app:/app:rw
+            - node_modules:/app/node_modules
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:5173"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
 volumes:
     mongodb_data:
         driver: local
+    node_modules:

@@ -1,6 +1,10 @@
+*.vscode
 *.DS_Store
-/mongodb_data
 *.env
 *.pem
-utils/MonApp.iconset
-*.xcodeproj
+mongodb_data
+utils/Nitflex.iconset
+app/node_modules
+app/pnpm-lock.yaml
+app/dist
+app/Nitflex.app
