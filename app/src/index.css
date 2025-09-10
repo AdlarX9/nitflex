@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @font-face {
 	font-family: 'Netflix Sans';
@@ -28,6 +28,10 @@
 	font-style: normal;
 }
 
+:root {
+	font-size: clamp(5px, min(3svh, 3vw), 16px);
+}
+
 body {
 	margin: 0;
 	padding: 0;
@@ -35,10 +39,30 @@ body {
 	color: white;
 	font-family: 'Netflix Sans';
 	font-weight: 400;
+	--red: rgb(213, 53, 34); /* #D53522 */
+	font-size: 2rem;
+}
+
+body::-webkit-scrollbar {
+	width: 0.4rem;
+}
+
+body::-webkit-scrollbar-thumb {
+	background: var(--red);
+	border-radius: calc(infinity * 1px);
+}
+
+body::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+#root {
+	transform: scale(var(--body-sizing));
+	transition: transform 0.1s ease;
 }
 
 .red {
-	color: rgb(213, 53, 34);
+	color: var(--red);
 }
 
 .show {
@@ -46,5 +70,13 @@ body {
 
 	& * {
 		border: 1px solid red;
+	}
+}
+
+.lighten {
+	transition: 0.1s linear;
+
+	&:hover {
+		filter: brightness(1.2);
 	}
 }
