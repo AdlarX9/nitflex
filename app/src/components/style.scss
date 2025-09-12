@@ -14,3 +14,8 @@
 		transform: rotate(360deg);
 	}
 }
+
+.navbar {
+	transform: scale(var(--body-sizing, 1)) translateX(calc((1 - var(--body-sizing)) * 50vw));
+	transition: transform 0.2s ease;
+}

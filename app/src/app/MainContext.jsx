@@ -12,7 +12,7 @@ const interactStorage = (key, value = null) => {
 export const MainProvider = ({ children }) => {
 	const [user, setUser] = useState(interactStorage('user'))
 	const [onGoingMovies, setOnGoingMovies] = useState(null)
-	const [bodySizing, setBodySizing] = useState(1)
+	const [bodyBlur, setBodyBlur] = useState(false)
 	const navigate = useNavigate()
 
 	useEffect(() => {
@@ -26,12 +26,18 @@ export const MainProvider = ({ children }) => {
 	}, [user])
 
 	useEffect(() => {
-		document.body.style.setProperty('--body-sizing', bodySizing)
-	}, [bodySizing])
+		if (bodyBlur) {
+			document.body.style.setProperty('--body-sizing', 0.9)
+			document.body.style.setProperty('--body-blur', '10px')
+		} else {
+			document.body.style.setProperty('--body-sizing', 1)
+			document.body.style.setProperty('--body-blur', '0px')
+		}
+	}, [bodyBlur])
 
 	return (
 		<MainContext.Provider
-			value={{ user, setUser, onGoingMovies, setOnGoingMovies, setBodySizing }}
+			value={{ user, setUser, onGoingMovies, setOnGoingMovies, setBodyBlur }}
 		>
 			{children}
 		</MainContext.Provider>

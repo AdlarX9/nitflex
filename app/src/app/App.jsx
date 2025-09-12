@@ -2,11 +2,13 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import Home from '../pages/Home.jsx'
 import Explorer from '../pages/Explorer.jsx'
+import Account from '../pages/Account.jsx'
 import Search from '../pages/Search.jsx'
 import Viewer from '../pages/Viewer.jsx'
 import { MainProvider } from './MainContext.jsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import NavBar from '../components/NavBar.jsx'
+import Confirmation from '../components/Confirmation.jsx'
 
 const queryClient = new QueryClient()
 
@@ -16,10 +18,12 @@ const App = () => {
 			<BrowserRouter>
 				<MainProvider>
 					<NavBar />
+					<Confirmation />
 					<Routes>
 						<Route path='/' element={<Home />} />
 						<Route path='/explorer' element={<Explorer />} />
 						<Route path='/search' element={<Search />} />
+						<Route path='/account' element={<Account />} />
 						<Route path='/viewer' element={<Viewer />} />
 					</Routes>
 				</MainProvider>

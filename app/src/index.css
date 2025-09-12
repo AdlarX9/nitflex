@@ -35,11 +35,12 @@
 body {
 	margin: 0;
 	padding: 0;
-	background: rgb(30, 30, 30);
+	background: var(--black);
 	color: white;
 	font-family: 'Netflix Sans';
 	font-weight: 400;
 	--red: rgb(213, 53, 34); /* #D53522 */
+	--black: rgb(30, 30, 30); /* #141414 */
 	font-size: 2rem;
 }
 
@@ -57,8 +58,9 @@ body::-webkit-scrollbar-track {
 }
 
 #root {
-	transform: scale(var(--body-sizing));
-	transition: transform 0.1s ease;
+	transform: scale(var(--body-sizing, 1));
+	transition: transform 0.2s ease, filter 0.2s ease;
+	filter: blur(var(--body-blur, 0px));
 }
 
 .red {
@@ -79,4 +81,33 @@ body::-webkit-scrollbar-track {
 	&:hover {
 		filter: brightness(1.2);
 	}
+}
+
+.dotted-txt {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.scrollable {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	scrollbar-color: var(--red) transparent;
+}
+
+.scrollable::-webkit-scrollbar {
+	background: transparent;
+	width: 1.5rem;
+	margin: 1rem;
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+	background: var(--red);
+	border-radius: 50rem;
+	width: 80%;
+	cursor: grab;
+}
+
+.scrollable::-webkit-scrollbar-thumb:active {
+	cursor: grabbing;
 }

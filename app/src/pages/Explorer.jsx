@@ -10,7 +10,7 @@ const Explorer = () => {
 
 	return (
 		<div>
-			<h1 className='mt-10'>Welcome to the Explorer Page</h1>
+			<h1 className='mt-30'>Welcome to the Explorer Page</h1>
 		</div>
 	)
 }

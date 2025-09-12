@@ -4,6 +4,7 @@ import axios from 'axios'
 
 export const MainContext = createContext()
 export const useMainContext = () => useContext(MainContext)
+export const mainColor = '#D53522'
 
 const axiosGET = async (endpoint, params) => {
 	return axios

@@ -56,7 +56,7 @@ const Home = () => {
 	}
 
 	return (
-		<div className='flex flex-col items-center justify-center min-h-screen gap-4 py-4'>
+		<div className='flex flex-col items-center justify-center min-h-svh gap-4 py-4'>
 			{createPortal(
 				<button
 					className='top-5 right-5 p-2 rounded-full cursor-pointer fixed'

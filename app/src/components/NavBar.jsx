@@ -5,10 +5,14 @@ import {
 	IoHomeOutline,
 	IoSearch,
 	IoSearchOutline,
-	IoDownload,
-	IoDownloadOutline
+	IoPersonCircle,
+	IoPersonCircleOutline,
+	IoChevronBackOutline
 } from 'react-icons/io5'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import './style.scss'
+import Button from './Button'
+import { mainColor } from '../hooks/hooks'
 
 const NavBar = () => {
 	const currentPage = window.location.pathname.slice(1)
@@ -26,29 +30,32 @@ const NavBar = () => {
 	return (
 		<>
 			{createPortal(
-				<>
+				<div className='pointer-events-none navbar h-svh fixed top-0'>
 					<header
-						className='fixed w-screen top-0 flex'
+						className='fixed top-0 flex p-3'
 						style={{ display: !displayNav && 'none' }}
 					>
-						<div>Profil</div>
-						<div></div>
+						<Link to='/' className='rounded-full shadow-md shadow-black pointer-events-auto'>
+							<Button>
+								<IoChevronBackOutline />
+							</Button>
+						</Link>
 					</header>
 					<footer
-						className='fixed w-screen bottom-0 flex justify-around p-3'
-						style={{ display: !displayNav && 'none' }}
+						className='fixed w-screen bottom-0 flex justify-around p-4 bg-white/10 pointer-events-auto'
+						style={{ display: !displayNav && 'none', backdropFilter: 'blur(10px)' }}
 					>
 						<button onClick={() => navigate('/explorer')} className='cursor-pointer'>
-							{currentPage === 'explorer' ? <IoHome /> : <IoHomeOutline />}
-						</button>
-						<button onClick={() => navigate('/downloads')} className='cursor-pointer'>
-							{currentPage === 'downloads' ? <IoDownload /> : <IoDownloadOutline />}
+							{currentPage === 'explorer' ? <IoHome color={mainColor} /> : <IoHomeOutline />}
 						</button>
 						<button onClick={() => navigate('/search')} className='cursor-pointer'>
-							{currentPage === 'search' ? <IoSearch /> : <IoSearchOutline />}
+							{currentPage === 'search' ? <IoSearch color={mainColor} /> : <IoSearchOutline />}
+						</button>
+						<button onClick={() => navigate('/account')} className='cursor-pointer'>
+							{currentPage === 'account' ? <IoPersonCircle color={mainColor} /> : <IoPersonCircleOutline />}
 						</button>
 					</footer>
-				</>,
+				</div>,
 				document.body
 			)}
 		</>
