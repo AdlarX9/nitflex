@@ -59,7 +59,9 @@ body::-webkit-scrollbar-track {
 
 #root {
 	transform: scale(var(--body-sizing, 1));
-	transition: transform 0.2s ease, filter 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		filter 0.2s ease;
 	filter: blur(var(--body-blur, 0px));
 }
 

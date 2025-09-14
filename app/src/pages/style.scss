@@ -1,0 +1,29 @@
+.explorer-bg {
+	position: relative;
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: 15rem;
+		left: 10%;
+		width: 30%;
+		height: 30rem;
+		border-radius: 50%;
+		filter: blur(15rem);
+		background: rgb(255, 196, 0);
+		z-index: -1;
+	}
+
+	&::after {
+		content: '';
+		position: absolute;
+		top: 10rem;
+		right: 10%;
+		width: 30%;
+		height: 30rem;
+		border-radius: 50%;
+		filter: blur(15rem);
+		background: green;
+		z-index: -1;
+	}
+}

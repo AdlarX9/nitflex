@@ -6,12 +6,12 @@ const Search = () => {
 	const ORDERING = {
 		'title:asc': 'Titre A-Z',
 		'title:desc': 'Titre Z-A',
-		'date:desc': "Plus récents d'abord",
-		'date:asc': "Plus vieux d'abord"
+		'date:desc': "Récents d'abord",
+		'date:asc': "Vieux d'abord"
 	}
 
 	const GENRES = {
-		'': 'none',
+		'': 'Tout',
 		action: 'Action',
 		animation: 'Animation',
 		adventure: 'Aventure',
@@ -44,8 +44,47 @@ const Search = () => {
 
 	return (
 		<main className='flex h-svh w-screen'>
-			<section className='h-svh w-1/4 bg-gray-700 flex flex-col flex-shrink-0'>
-				<h2 className='text-center mt-15'>Paramètres</h2>
+			<section className='h-svh min-w-80 w-1/4 bg-gray-700 flex flex-col flex-shrink-0'>
+				<h2 className='text-center my-15 text-5xl font-bold'>Paramètres</h2>
+				<div className='scrollable'>
+					<legend className='ml-4 text-4xl font-medium'>Genre</legend>
+					{Object.entries(GENRES).map(([key, value]) => {
+						return (
+							<>
+								<label className='pl-5 dotted-txt box-border flex items-center gap-2'>
+									<input
+										type='radio'
+										value={key}
+										name='genre'
+										checked={key === genre}
+										onChange={() => setGenre(key)}
+									/>
+									{value}
+								</label>
+							</>
+						)
+					})}
+					<br />
+					<legend className='ml-4 text-4xl font-medium'>Ordre</legend>
+					{Object.entries(ORDERING).map(([key, value]) => {
+						return (
+							<>
+								<label className='pl-5 dotted-txt box-border flex items-center gap-2'>
+									<input
+										type='radio'
+										value={key}
+										name='order'
+										checked={key === order}
+										onChange={() => setOrder(key)}
+									/>
+									{value}
+								</label>
+							</>
+						)
+					})}
+					<br />
+					<br />
+				</div>
 			</section>
 			<section className='flex flex-col flex-1'>
 				<input
@@ -56,7 +95,7 @@ const Search = () => {
 					onChange={e => setTitle(e.target.value)}
 				/>
 				<h2 className='text-5xl red p-5'>Résultats</h2>
-				<div className='scrollable w-[100%] h-[100%] flex flex-wrap gap-5 p-5 justify-center'>
+				<div className='scrollable w-[100%] max-h-[100%] flex flex-wrap gap-5 p-5 justify-center'>
 					{movies.length === 0 ? (
 						<p className='pl-5'>Aucun résultat trouvé</p>
 					) : (

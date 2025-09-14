@@ -35,7 +35,10 @@ const NavBar = () => {
 						className='fixed top-0 flex p-3'
 						style={{ display: !displayNav && 'none' }}
 					>
-						<Link to='/' className='rounded-full shadow-md shadow-black pointer-events-auto'>
+						<Link
+							to='/'
+							className='rounded-full shadow-md shadow-black pointer-events-auto'
+						>
 							<Button>
 								<IoChevronBackOutline />
 							</Button>
@@ -46,13 +49,25 @@ const NavBar = () => {
 						style={{ display: !displayNav && 'none', backdropFilter: 'blur(10px)' }}
 					>
 						<button onClick={() => navigate('/explorer')} className='cursor-pointer'>
-							{currentPage === 'explorer' ? <IoHome color={mainColor} /> : <IoHomeOutline />}
+							{currentPage === 'explorer' ? (
+								<IoHome color={mainColor} />
+							) : (
+								<IoHomeOutline />
+							)}
 						</button>
 						<button onClick={() => navigate('/search')} className='cursor-pointer'>
-							{currentPage === 'search' ? <IoSearch color={mainColor} /> : <IoSearchOutline />}
+							{currentPage === 'search' ? (
+								<IoSearch color={mainColor} />
+							) : (
+								<IoSearchOutline />
+							)}
 						</button>
 						<button onClick={() => navigate('/account')} className='cursor-pointer'>
-							{currentPage === 'account' ? <IoPersonCircle color={mainColor} /> : <IoPersonCircleOutline />}
+							{currentPage === 'account' ? (
+								<IoPersonCircle color={mainColor} />
+							) : (
+								<IoPersonCircleOutline />
+							)}
 						</button>
 					</footer>
 				</div>,
