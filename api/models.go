@@ -12,7 +12,7 @@ type Movie struct {
 	ID              primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Title           string             `json:"title" bson:"title"`
 	Genre           string             `json:"genre" bson:"genre"`
-	Date            primitive.DateTime  `json:"date" bson:"date"`
+	Date            primitive.DateTime `json:"date" bson:"date"`
 	Rating          float64            `json:"rating" bson:"rating"`
 	Description     string             `json:"description" bson:"description"`
 	LongDescription string             `json:"longDescription" bson:"longDescription"`

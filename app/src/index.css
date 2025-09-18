@@ -69,6 +69,10 @@ body::-webkit-scrollbar-track {
 	color: var(--red);
 }
 
+.bg-nitflex-red {
+	background-color: var(--red);
+}
+
 .show {
 	border: 1px solid red;
 

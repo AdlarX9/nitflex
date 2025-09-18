@@ -1,6 +1,6 @@
 /* eslint-disable-next-line */
 import { motion } from 'framer-motion'
-import { useMainContext } from '../hooks/hooks'
+import { useMainContext } from '../app/hooks'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 

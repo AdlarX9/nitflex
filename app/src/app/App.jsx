@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import Home from '../pages/Home.jsx'
+import MovieUploader from '../pages/MovieUploader.jsx'
 import Explorer from '../pages/Explorer.jsx'
 import Account from '../pages/Account.jsx'
 import Search from '../pages/Search.jsx'
@@ -21,6 +22,7 @@ const App = () => {
 					<Confirmation />
 					<Routes>
 						<Route path='/' element={<Home />} />
+						<Route path='/upload' element={<MovieUploader />} />
 						<Route path='/explorer' element={<Explorer />} />
 						<Route path='/search' element={<Search />} />
 						<Route path='/account' element={<Account />} />

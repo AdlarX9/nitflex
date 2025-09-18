@@ -12,7 +12,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import './style.scss'
 import Button from './Button'
-import { mainColor } from '../hooks/hooks'
+import { mainColor } from '../app/hooks'
 
 const NavBar = () => {
 	const currentPage = window.location.pathname.slice(1)
@@ -20,10 +20,14 @@ const NavBar = () => {
 	const [displayNav, setDisplayNav] = useState(false)
 
 	useEffect(() => {
-		if (window.location.pathname === '/') {
-			setDisplayNav(false)
-		} else {
+		if (
+			window.location.pathname === '/explorer' ||
+			window.location.pathname === '/search' ||
+			window.location.pathname === '/account'
+		) {
 			setDisplayNav(true)
+		} else {
+			setDisplayNav(false)
 		}
 	}, [navigate])
 

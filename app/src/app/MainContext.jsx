@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MainContext } from '../hooks/hooks'
+import { MainContext } from './hooks'
 import { useNavigate } from 'react-router-dom'
 
 const interactStorage = (key, value = null) => {
@@ -10,13 +10,12 @@ const interactStorage = (key, value = null) => {
 }
 
 export const MainProvider = ({ children }) => {
-	const [user, setUser] = useState(interactStorage('user'))
-	const [onGoingMovies, setOnGoingMovies] = useState(null)
+	const [user, setUser] = useState(interactStorage('user') || {})
 	const [bodyBlur, setBodyBlur] = useState(false)
 	const navigate = useNavigate()
 
 	useEffect(() => {
-		if (!user && window.location.pathname !== '/') {
+		if ((!user || JSON.stringify(user) === '{}') && window.location.pathname !== '/') {
 			navigate('/')
 		}
 	}, [user, navigate])
@@ -36,9 +35,7 @@ export const MainProvider = ({ children }) => {
 	}, [bodyBlur])
 
 	return (
-		<MainContext.Provider
-			value={{ user, setUser, onGoingMovies, setOnGoingMovies, setBodyBlur }}
-		>
+		<MainContext.Provider value={{ user, setUser, setBodyBlur }}>
 			{children}
 		</MainContext.Provider>
 	)

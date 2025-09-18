@@ -1,12 +1,12 @@
 import { useRef } from 'react'
-import { useAPIAfter, useMainContext } from '../hooks/hooks.js'
+import { useAPIAfter, useMainContext } from '../app/hooks.js'
 import { IoTrashBin, IoSend } from 'react-icons/io5'
 import { confirm } from '../components/Confirmation.jsx'
 
 const Account = () => {
 	const { user, setUser } = useMainContext()
-	const { triggerAsync: changeName } = useAPIAfter('POST', '/user/change_name')
-	const { triggerAsync: deleteAccount } = useAPIAfter('DELETE', '/user/delete')
+	const { triggerAsync: changeName } = useAPIAfter('POST', '/users/change_name/' + user.id)
+	const { triggerAsync: deleteAccount } = useAPIAfter('DELETE', '/users/' + user.id)
 	const nameRef = useRef(null)
 	const errorRef = useRef(null)
 
@@ -20,8 +20,8 @@ const Account = () => {
 			if (res.error) {
 				errorRef.current.innerText = res.error
 			} else {
-				nameRef.current.value = ''
 				setUser({ ...user, name: nameRef.current.value })
+				nameRef.current.value = ''
 			}
 		})
 	}
@@ -30,10 +30,10 @@ const Account = () => {
 		confirm({ message: 'Êtes-vous sûr de vouloir supprimer votre compte ?' }).then(res => {
 			if (res) {
 				deleteAccount({ id: user.id }).then(res => {
-					if (res.error) {
+					if (res?.error) {
 						console.log('error', res.error)
 					} else {
-						setUser(null)
+						setUser({})
 					}
 				})
 			} else {

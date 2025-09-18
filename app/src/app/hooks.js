@@ -14,9 +14,15 @@ const axiosGET = async (endpoint, params) => {
 }
 
 const axiosPOST = async (endpoint, body) => {
-	console.log(body)
 	return axios
 		.post(import.meta.env.VITE_API + endpoint, body)
+		.then(res => res.data)
+		.catch(() => null)
+}
+
+const axiosDELETE = async (endpoint, body) => {
+	return axios
+		.delete(import.meta.env.VITE_API + endpoint, { data: body })
 		.then(res => res.data)
 		.catch(() => null)
 }
@@ -27,6 +33,8 @@ const axiosAPI = async (method, endpoint, body, params) => {
 			return axiosGET(endpoint, params)
 		case 'POST':
 			return axiosPOST(endpoint, body)
+		case 'DELETE':
+			return axiosDELETE(endpoint, body)
 		default:
 			return null
 	}

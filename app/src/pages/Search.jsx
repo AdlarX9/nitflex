@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAPIAfter } from '../hooks/hooks'
+import { useAPIAfter } from '../app/hooks'
 import Movie from '../components/Movie.jsx'
 
 const Search = () => {
@@ -50,36 +50,38 @@ const Search = () => {
 					<legend className='ml-4 text-4xl font-medium'>Genre</legend>
 					{Object.entries(GENRES).map(([key, value]) => {
 						return (
-							<>
-								<label className='pl-5 dotted-txt box-border flex items-center gap-2'>
-									<input
-										type='radio'
-										value={key}
-										name='genre'
-										checked={key === genre}
-										onChange={() => setGenre(key)}
-									/>
-									{value}
-								</label>
-							</>
+							<label
+								className='pl-5 dotted-txt box-border flex items-center gap-2'
+								key={key}
+							>
+								<input
+									type='radio'
+									value={key}
+									name='genre'
+									checked={key === genre}
+									onChange={() => setGenre(key)}
+								/>
+								{value}
+							</label>
 						)
 					})}
 					<br />
 					<legend className='ml-4 text-4xl font-medium'>Ordre</legend>
 					{Object.entries(ORDERING).map(([key, value]) => {
 						return (
-							<>
-								<label className='pl-5 dotted-txt box-border flex items-center gap-2'>
-									<input
-										type='radio'
-										value={key}
-										name='order'
-										checked={key === order}
-										onChange={() => setOrder(key)}
-									/>
-									{value}
-								</label>
-							</>
+							<label
+								className='pl-5 dotted-txt box-border flex items-center gap-2'
+								key={key}
+							>
+								<input
+									type='radio'
+									value={key}
+									name='order'
+									checked={key === order}
+									onChange={() => setOrder(key)}
+								/>
+								{value}
+							</label>
 						)
 					})}
 					<br />

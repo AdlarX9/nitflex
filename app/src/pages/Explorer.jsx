@@ -1,9 +1,14 @@
-import { useMainContext } from '../hooks/hooks'
+import { useMainContext } from '../app/hooks'
 import { IoPlay } from 'react-icons/io5'
 import './style.scss'
+import { useEffect } from 'react'
 
 const Explorer = () => {
 	const { user } = useMainContext()
+
+	useEffect(() => {
+		console.log(user)
+	}, [user])
 
 	return (
 		<div className='flex items-start flex-col explorer-bg'>
