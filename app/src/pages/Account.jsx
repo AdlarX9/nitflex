@@ -44,7 +44,7 @@ const Account = () => {
 
 	return (
 		<center>
-			<div className='max-w-180 w-screen p-5 pt-15 h-svh' style={{ textAlign: 'left' }}>
+			<div className='max-w-180 w-screen p-5 pt-15 h-dvh' style={{ textAlign: 'left' }}>
 				<center>
 					<h1 className='text-6xl'>{user.name}</h1>
 				</center>

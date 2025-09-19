@@ -2,6 +2,7 @@
 *.DS_Store
 *.env
 *.pem
+api/uploads
 mongodb_data
 utils/Nitflex.iconset
 app/node_modules

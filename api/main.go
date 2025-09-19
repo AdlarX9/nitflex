@@ -1,12 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"os"
 )
 
 func main() {
-	r := gin.Default()
+	err := os.MkdirAll("./uploads", os.ModePerm)
+	if err != nil {
+		fmt.Printf("Failed to create uploads directory: %s\n", err.Error())
+		return
+	}
 
 	// r.Use(cors.New(cors.Config{
 	//     AllowOrigins:     []string{"http://192.168.0.210:5174"},
@@ -16,6 +22,7 @@ func main() {
 	//     AllowCredentials: true,
 	// }))
 
+	r := gin.Default()
 	r.Use(cors.Default())
 
 	// Users
@@ -27,9 +34,9 @@ func main() {
 
 	// Movies
 	r.POST("/movies", UploadMovie)
+	r.POST("/movies/upload", UploadMovieFile)
 	r.GET("/movies", GetMovies)
 	r.GET("/movies/:id", GetMovieByID)
-	r.POST("/movies/upload_chunk", UploadChunk)
 
 	// Ongoing Movies
 	r.POST("/ongoing_movies", UpdateOnGoingMovie)

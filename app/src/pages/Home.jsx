@@ -84,9 +84,12 @@ const Accounts = () => {
 
 const Home = () => {
 	return (
-		<div className='flex flex-col items-center justify-center min-h-svh gap-4 py-4'>
+		<div className='flex flex-col items-center justify-center min-h-dvh gap-4 py-4'>
 			{createPortal(
-				<Link to='/upload' className='fixed top-5 right-5 p-2 px-4 rounded-full cursor-pointer bg-nitflex-red lighten flex items-center gap-2'>
+				<Link
+					to='/upload'
+					className='fixed top-5 right-5 p-2 px-4 rounded-full cursor-pointer bg-nitflex-red lighten flex items-center gap-2'
+				>
 					<IoCloudUploadOutline />
 					<span className='text-2xl'>Uploader film</span>
 				</Link>,

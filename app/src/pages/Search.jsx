@@ -43,8 +43,8 @@ const Search = () => {
 	}, [title, genre, order])
 
 	return (
-		<main className='flex h-svh w-screen'>
-			<section className='h-svh min-w-80 w-1/4 bg-gray-700 flex flex-col flex-shrink-0'>
+		<main className='flex h-dvh w-screen'>
+			<section className='h-dvh min-w-80 w-1/4 bg-gray-700 flex flex-col flex-shrink-0'>
 				<h2 className='text-center my-15 text-5xl font-bold'>Paramètres</h2>
 				<div className='scrollable'>
 					<legend className='ml-4 text-4xl font-medium'>Genre</legend>
@@ -97,7 +97,7 @@ const Search = () => {
 					onChange={e => setTitle(e.target.value)}
 				/>
 				<h2 className='text-5xl red p-5'>Résultats</h2>
-				<div className='scrollable w-[100%] max-h-[100%] flex flex-wrap gap-5 p-5 justify-center'>
+				<div className='scrollable w-[100%] max-h-[100%] flex flex-wrap gap-5 p-5 justify-center pb-20'>
 					{movies.length === 0 ? (
 						<p className='pl-5'>Aucun résultat trouvé</p>
 					) : (

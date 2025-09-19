@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -81,6 +85,40 @@ func UploadMovie(c *gin.Context) {
 		return
 	}
 	c.JSON(201, movie)
+}
+
+// POST /movies/upload
+func UploadMovieFile(c *gin.Context) {
+	// Récupération du fichier
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to get file: %s", err.Error())})
+		return
+	}
+	defer file.Close()
+
+	// Définir le chemin de destination
+	dst := filepath.Join("./uploads", header.Filename)
+
+	// Créer le fichier de destination
+	out, err := os.Create(dst)
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create file: %s", err.Error())})
+		return
+	}
+	defer out.Close()
+
+	// Copier les données du fichier dans le fichier de destination
+	_, err = io.Copy(out, file)
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to write file: %s", err.Error())})
+		return
+	}
+
+	// Répondre avec une URL JSON (exemple d'URL fictive)
+	c.JSON(200, gin.H{
+		"url": fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+	})
 }
 
 // GET /movies
