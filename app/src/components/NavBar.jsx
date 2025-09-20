@@ -16,13 +16,21 @@ import { mainColor } from '../app/hooks'
 
 export const Back = ({ to = '/' }) => {
 	return (
-		<header className='fixed top-0 left-0 flex p-3'>
-			<Link to={to} className='rounded-full shadow-md shadow-black pointer-events-auto'>
-				<Button>
-					<IoChevronBackOutline />
-				</Button>
-			</Link>
-		</header>
+		<>
+			{createPortal(
+				<header className='fixed top-0 left-0 flex p-3'>
+					<Link
+						to={to}
+						className='rounded-full shadow-md shadow-black pointer-events-auto'
+					>
+						<Button>
+							<IoChevronBackOutline />
+						</Button>
+					</Link>
+				</header>,
+				document.body
+			)}
+		</>
 	)
 }
 
@@ -47,7 +55,6 @@ const NavBar = () => {
 		<>
 			{createPortal(
 				<div className='pointer-events-none navbar h-dvh fixed top-0'>
-					{displayNav && <Back />}
 					<footer
 						className='fixed w-screen bottom-0 flex justify-around p-4 bg-white/10 pointer-events-auto'
 						style={{ display: !displayNav && 'none', backdropFilter: 'blur(10px)' }}

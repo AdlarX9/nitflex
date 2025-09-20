@@ -34,7 +34,6 @@ func main() {
 
 	// Movies
 	r.POST("/movies", UploadMovie)
-	r.POST("/movies/upload", UploadMovieFile)
 	r.GET("/movies", GetMovies)
 	r.GET("/movies/:id", GetMovieByID)
 

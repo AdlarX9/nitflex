@@ -21,6 +21,7 @@
 		"format": "prettier prettier --write . --loglevel debug"
 	},
 	"dependencies": {
+		"@headlessui/react": "^2.2.8",
 		"@tailwindcss/vite": "^4.1.13",
 		"@tanstack/react-query": "^5.89.0",
 		"@uppy/core": "^5.0.2",

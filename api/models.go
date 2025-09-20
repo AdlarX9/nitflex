@@ -11,8 +11,10 @@ type User struct {
 type Movie struct {
 	ID              primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Title           string             `json:"title" bson:"title"`
+	ImdbID          string             `json:"imdbID" bson:"imdbID"`
 	Genre           string             `json:"genre" bson:"genre"`
 	Date            primitive.DateTime `json:"date" bson:"date"`
+	Year            uint16             `json:"year" bson:"year"`
 	Rating          float64            `json:"rating" bson:"rating"`
 	Description     string             `json:"description" bson:"description"`
 	LongDescription string             `json:"longDescription" bson:"longDescription"`

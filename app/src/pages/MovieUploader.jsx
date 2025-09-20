@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 import fr_FR from '@uppy/locales/lib/fr_FR.js'
@@ -21,61 +21,79 @@ const MovieUploader = () => {
 
 	useEffect(() => {
 		uppy.use(XHRUpload, {
-			endpoint: 'http://localhost:8080/upload', // URL de l'API backend
+			endpoint: import.meta.env.VITE_API + '/movies', // URL de l'API backend
 			formData: true, // Utiliser FormData pour envoyer le fichier
 			fieldName: 'file', // Nom du champ correspondant au fichier
 			getResponseData: responseText => {
 				// Analyser la réponse manuellement si elle n'est pas en JSON
 				return {
-					url: responseText // Supposons que le serveur retourne une URL brute
+					url: responseText
 				}
 			}
 		})
-
 		uppy.on('complete', result => {
 			console.log('Upload terminé:', result.successful)
-			alert('Upload réussi !')
 		})
 
 		return () => uppy.destroy()
 	}, [uppy])
 
+	const [movieName, setMovieName] = useState('')
+	const [imdbID, setImdbID] = useState(null)
+
+	useEffect(() => {
+		uppy.on('file-added', file => {
+			uppy.setFileMeta(file.id, { movieName, imdbID })
+		})
+	}, [movieName, uppy, imdbID])
+
 	const [newMovie, setNewMovie] = useState(null)
-	const movieNameRef = useRef('')
 
 	useEffect(() => {
 		if (newMovie) {
-			console.log(newMovie)
+			setMovieName(newMovie.Title)
+			setImdbID(newMovie.imdbID)
+		} else {
+			setMovieName('')
+			setImdbID(null)
 		}
 	}, [newMovie])
 
 	return (
 		<div className='w-screen h-dvh flex justify-center items-center scrollable'>
 			<Back />
-			<div className='flex justify-center items-center flex-col gap-5'>
-				<h1 className='text-5xl uppercase red font-bold'>Uploader un film</h1>
-				<main className='bg-gray-700 w-[100%] p-4 rounded-md'>
+			<div className='flex justify-center items-center flex-col gap-5 w-full max-w-[750px] px-4'>
+				<h1 className='text-5xl uppercase red font-bold text-center'>Uploader un film</h1>
+				<main className='bg-gray-700 w-full p-4 rounded-md'>
 					Identifier son film
 					<MovieSearch onSelect={movie => setNewMovie(movie)} />
 					{newMovie && (
-						<>
+						<div className='flex flex-col pt-5'>
 							<label className='text-white'>Renommer le film</label>
-							<input type='text' ref={movieNameRef} defaultValue={newMovie.Title} />
-						</>
+							<input
+								type='text'
+								value={movieName}
+								onChange={e => setMovieName(e.target.value)}
+								className='w-full px-4 py-2 border border-gray-300 rounded-md'
+							/>
+						</div>
 					)}
 				</main>
-				<div className='uppy-Root'>
-					<Dashboard
-						uppy={uppy}
-						proudlyDisplayPoweredByUppy={false}
-						height={400}
-						note='Sélectionner un film'
-						theme='dark'
-						showProgressDetails={true}
-						lang='fr_FR'
-						locale={fr_FR}
-					/>
-				</div>
+				{movieName.length > 0 && (
+					<div className='uppy-Root w-full'>
+						<Dashboard
+							uppy={uppy}
+							proudlyDisplayPoweredByUppy={false}
+							height={400}
+							width='100%'
+							note='Sélectionner un film'
+							theme='dark'
+							showProgressDetails={true}
+							lang='fr_FR'
+							locale={fr_FR}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
 	)

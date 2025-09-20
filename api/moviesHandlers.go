@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -61,34 +62,102 @@ func DeleteOnGoingMovie(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"deleted": res.DeletedCount})
 }
 
-// POST /movies
-func UploadMovie(c *gin.Context) {
-	var movie Movie
-	if err := c.ShouldBindJSON(&movie); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+func fetchMovie(imdbID string, ch chan<- Movie) {
+	apiKey := os.Getenv("OMDB_API_KEY")
+	if apiKey == "" {
+		fmt.Println("Erreur : la clé API OMDB_API_KEY n'est pas définie")
+		ch <- Movie{}
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Construire l'URL de la requête
+	url := fmt.Sprintf("http://www.omdbapi.com/?i=%s&apikey=%s", imdbID, apiKey)
 
-	res, err := GetCollection("movies").InsertOne(ctx, movie)
+	// Faire la requête HTTP GET
+	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		fmt.Printf("Erreur lors de la requête pour %s : %v\n", imdbID, err)
+		ch <- Movie{}
+		return
+	}
+	defer resp.Body.Close()
+
+	// Vérifier le statut HTTP
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Erreur HTTP pour %s : statut %d\n", imdbID, resp.StatusCode)
+		ch <- Movie{}
 		return
 	}
 
-	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
-		movie.ID = oid // Assigne l'ID généré par MongoDB
-	} else {
-		c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
+	// Structure pour parser la réponse JSON de l'API OMDB
+	var omdbResponse struct {
+		Title      string  `json:"Title"`
+		Year       string  `json:"Year"`
+		Genre      string  `json:"Genre"`
+		Plot       string  `json:"Plot"`
+		Actors     string  `json:"Actors"`
+		Director   string  `json:"Director"`
+		ImdbRating string  `json:"imdbRating"`
+	}
+
+	// Décoder la réponse JSON
+	if err := json.NewDecoder(resp.Body).Decode(&omdbResponse); err != nil {
+		fmt.Printf("Erreur lors du décodage JSON pour %s : %v\n", imdbID, err)
+		ch <- Movie{}
 		return
 	}
-	c.JSON(201, movie)
+
+	// Convertir les champs pour les mapper à Movie
+	year, _ := parseYear(omdbResponse.Year)
+	rating, _ := parseFloat(omdbResponse.ImdbRating)
+	actors := strings.Split(omdbResponse.Actors, ", ")
+
+	// Créer l'objet Movie avec les champs mappés
+	updatedMovie := Movie{
+		ID:              primitive.NewObjectID(),
+		Title:           omdbResponse.Title,
+		ImdbID:          imdbID,
+		Genre:           omdbResponse.Genre,
+		Date:            primitive.NewDateTimeFromTime(time.Now()),
+		Year:            year,
+		Rating:          rating,
+		Description:     omdbResponse.Plot,
+		LongDescription: omdbResponse.Plot, // Assigner Plot à LongDescription si aucun autre champ n'est disponible
+		Actors:          actors,
+		Realisator:      omdbResponse.Director,
+	}
+
+	// Envoyer le film mis à jour dans le canal
+	ch <- updatedMovie
+}
+
+// parseYear convertit une chaîne de caractères (année) en uint16
+func parseYear(yearStr string) (uint16, error) {
+	var year uint16
+	_, err := fmt.Sscanf(yearStr, "%d", &year)
+	return year, err
+}
+
+// parseFloat convertit une chaîne de caractères en float64
+func parseFloat(floatStr string) (float64, error) {
+	var value float64
+	_, err := fmt.Sscanf(floatStr, "%f", &value)
+	return value, err
 }
 
 // POST /movies/upload
-func UploadMovieFile(c *gin.Context) {
+func UploadMovie(c *gin.Context) {
+	// Récupération des métadonnées
+	movieName := c.PostForm("movieName")
+	imdbID := c.PostForm("imdbID")
+	if movieName == "" || imdbID == "" {
+		c.JSON(400, gin.H{"error": "movieName and imdbID are required"})
+		return
+	}
+
+	ch := make(chan Movie, 1)
+	go fetchMovie(imdbID, ch)
+
 	// Récupération du fichier
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -115,10 +184,31 @@ func UploadMovieFile(c *gin.Context) {
 		return
 	}
 
+	movie := <-ch
+	movie.Title = movieName
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	res, err := GetCollection("movies").InsertOne(ctx, movie)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+		movie.ID = oid // Assigne l'ID généré par MongoDB
+	} else {
+		c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
+		return
+	}
+
 	// Répondre avec une URL JSON (exemple d'URL fictive)
 	c.JSON(200, gin.H{
 		"url": fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
 	})
+
+	
 }
 
 // GET /movies
