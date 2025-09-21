@@ -2,20 +2,33 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
-	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type Task struct {
+	ID     string
+	Status string
+	Output string
+}
+
+var (
+	tasks = make([]*Task, 0) // Slice pour stocker les tâches
+	mu    sync.Mutex         // Mutex pour éviter les conflits d'accès
 )
 
 // POST /ongoing_movies
@@ -73,6 +86,8 @@ func fetchMovie(imdbID string, ch chan<- Movie) {
 	// Construire l'URL de la requête
 	url := fmt.Sprintf("http://www.omdbapi.com/?i=%s&apikey=%s", imdbID, apiKey)
 
+	fmt.Printf("Requête HTTP pour %s : %s\n", imdbID, url)
+
 	// Faire la requête HTTP GET
 	resp, err := http.Get(url)
 	if err != nil {
@@ -91,13 +106,19 @@ func fetchMovie(imdbID string, ch chan<- Movie) {
 
 	// Structure pour parser la réponse JSON de l'API OMDB
 	var omdbResponse struct {
-		Title      string  `json:"Title"`
-		Year       string  `json:"Year"`
-		Genre      string  `json:"Genre"`
-		Plot       string  `json:"Plot"`
-		Actors     string  `json:"Actors"`
-		Director   string  `json:"Director"`
-		ImdbRating string  `json:"imdbRating"`
+		Title      string `json:"Title"`
+		Year       string `json:"Year"`
+		Genre      string `json:"Genre"`
+		Plot       string `json:"Plot"`
+		Actors     string `json:"Actors"`
+		Director   string `json:"Director"`
+		ImdbRating string `json:"imdbRating"`
+		Poster     string `json:"Poster"`
+		BoxOffice  string `json:"BoxOffice"`
+		Countries  string `json:"Country"`
+		Awards     string `json:"Awards"`
+		Writers    string `json:"Writer"`
+		Type       string `json:"Type"`
 	}
 
 	// Décoder la réponse JSON
@@ -113,22 +134,27 @@ func fetchMovie(imdbID string, ch chan<- Movie) {
 	actors := strings.Split(omdbResponse.Actors, ", ")
 
 	// Créer l'objet Movie avec les champs mappés
-	updatedMovie := Movie{
-		ID:              primitive.NewObjectID(),
-		Title:           omdbResponse.Title,
-		ImdbID:          imdbID,
-		Genre:           omdbResponse.Genre,
-		Date:            primitive.NewDateTimeFromTime(time.Now()),
-		Year:            year,
-		Rating:          rating,
-		Description:     omdbResponse.Plot,
-		LongDescription: omdbResponse.Plot, // Assigner Plot à LongDescription si aucun autre champ n'est disponible
-		Actors:          actors,
-		Realisator:      omdbResponse.Director,
+	movie := Movie{
+		ID:          primitive.NewObjectID(),
+		Title:       omdbResponse.Title,
+		ImdbID:      imdbID,
+		Genre:       omdbResponse.Genre,
+		Date:        primitive.NewDateTimeFromTime(time.Now()),
+		Year:        year,
+		Rating:      rating,
+		Description: omdbResponse.Plot,
+		Actors:      actors,
+		Writers:     strings.Split(omdbResponse.Writers, ", "),
+		Realisator:  omdbResponse.Director,
+		Poster:      omdbResponse.Poster,
+		BoxOffice:   omdbResponse.BoxOffice,
+		Countries:   strings.Split(omdbResponse.Countries, ", "),
+		Awards:      omdbResponse.Awards,
+		Type:        omdbResponse.Type,
 	}
 
 	// Envoyer le film mis à jour dans le canal
-	ch <- updatedMovie
+	ch <- movie
 }
 
 // parseYear convertit une chaîne de caractères (année) en uint16
@@ -148,10 +174,10 @@ func parseFloat(floatStr string) (float64, error) {
 // POST /movies/upload
 func UploadMovie(c *gin.Context) {
 	// Récupération des métadonnées
-	movieName := c.PostForm("movieName")
+	customTitle := c.PostForm("customTitle")
 	imdbID := c.PostForm("imdbID")
-	if movieName == "" || imdbID == "" {
-		c.JSON(400, gin.H{"error": "movieName and imdbID are required"})
+	if customTitle == "" || imdbID == "" {
+		c.JSON(400, gin.H{"error": "customTitle and imdbID are required"})
 		return
 	}
 
@@ -167,7 +193,7 @@ func UploadMovie(c *gin.Context) {
 	defer file.Close()
 
 	// Définir le chemin de destination
-	dst := filepath.Join("./uploads", header.Filename)
+	dst := filepath.Join(".", "uploads", customTitle)
 
 	// Créer le fichier de destination
 	out, err := os.Create(dst)
@@ -185,30 +211,52 @@ func UploadMovie(c *gin.Context) {
 	}
 
 	movie := <-ch
-	movie.Title = movieName
+	movie.CustomTitle = customTitle
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer cancel()
 
-	res, err := GetCollection("movies").InsertOne(ctx, movie)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+	// res, err := GetCollection("movies").InsertOne(ctx, movie)
+	// if err != nil {
+	// 	c.JSON(500, gin.H{"error": err.Error()})
+	// 	return
+	// }
 
-	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
-		movie.ID = oid // Assigne l'ID généré par MongoDB
-	} else {
-		c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
-		return
-	}
+	// if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+	// 	movie.ID = oid // Assigne l'ID généré par MongoDB
+	// } else {
+	// 	c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
+	// 	return
+	// }
 
 	// Répondre avec une URL JSON (exemple d'URL fictive)
 	c.JSON(200, gin.H{
-		"url": fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"movie": movie,
 	})
 
-	
+	go func(customTitle string) {
+		// pythonScript := "script.py"
+		// args := []string{"arg1", "arg2", "arg3"}
+		// cmd := exec.Command("python3", append([]string{pythonScript}, args...)...)
+
+		// Simuler une tâche longue
+		time.Sleep(5 * time.Second)
+
+		// Exécuter la commande
+		// output, err := cmd.CombinedOutput()
+
+		// Mettre à jour l'état de la tâche
+		mu.Lock()
+		// if err != nil {
+		// 	tasks[].Status = "Erreur"
+		// 	tasks[].Output = fmt.Sprintf("Erreur : %v", err)
+		// } else {
+		// 	tasks[].Status = "Terminé"
+		// 	tasks[].Output = string(output)
+		// }
+		mu.Unlock()
+	}(customTitle)
 }
 
 // GET /movies

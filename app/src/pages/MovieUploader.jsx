@@ -23,13 +23,7 @@ const MovieUploader = () => {
 		uppy.use(XHRUpload, {
 			endpoint: import.meta.env.VITE_API + '/movies', // URL de l'API backend
 			formData: true, // Utiliser FormData pour envoyer le fichier
-			fieldName: 'file', // Nom du champ correspondant au fichier
-			getResponseData: responseText => {
-				// Analyser la réponse manuellement si elle n'est pas en JSON
-				return {
-					url: responseText
-				}
-			}
+			fieldName: 'file'
 		})
 		uppy.on('complete', result => {
 			console.log('Upload terminé:', result.successful)
@@ -38,23 +32,23 @@ const MovieUploader = () => {
 		return () => uppy.destroy()
 	}, [uppy])
 
-	const [movieName, setMovieName] = useState('')
+	const [customTitle, setCustomTitle] = useState('')
 	const [imdbID, setImdbID] = useState(null)
 
 	useEffect(() => {
 		uppy.on('file-added', file => {
-			uppy.setFileMeta(file.id, { movieName, imdbID })
+			uppy.setFileMeta(file.id, { customTitle, imdbID })
 		})
-	}, [movieName, uppy, imdbID])
+	}, [customTitle, uppy, imdbID])
 
 	const [newMovie, setNewMovie] = useState(null)
 
 	useEffect(() => {
 		if (newMovie) {
-			setMovieName(newMovie.Title)
+			setCustomTitle(newMovie.Title)
 			setImdbID(newMovie.imdbID)
 		} else {
-			setMovieName('')
+			setCustomTitle('')
 			setImdbID(null)
 		}
 	}, [newMovie])
@@ -72,14 +66,14 @@ const MovieUploader = () => {
 							<label className='text-white'>Renommer le film</label>
 							<input
 								type='text'
-								value={movieName}
-								onChange={e => setMovieName(e.target.value)}
+								value={customTitle}
+								onChange={e => setCustomTitle(e.target.value)}
 								className='w-full px-4 py-2 border border-gray-300 rounded-md'
 							/>
 						</div>
 					)}
 				</main>
-				{movieName.length > 0 && (
+				{customTitle.length > 0 && (
 					<div className='uppy-Root w-full'>
 						<Dashboard
 							uppy={uppy}

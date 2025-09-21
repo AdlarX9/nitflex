@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"log"
 	"os"
 )
 
@@ -12,6 +14,11 @@ func main() {
 	if err != nil {
 		fmt.Printf("Failed to create uploads directory: %s\n", err.Error())
 		return
+	}
+
+	errEnv := godotenv.Load()
+	if errEnv != nil {
+		log.Fatalf("Erreur lors du chargement du fichier .env : %v", errEnv)
 	}
 
 	// r.Use(cors.New(cors.Config{
