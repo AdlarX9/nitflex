@@ -21,7 +21,6 @@ import (
 )
 
 type Task struct {
-	ID     string
 	Status string
 	Output string
 }
@@ -235,28 +234,41 @@ func UploadMovie(c *gin.Context) {
 		"movie": movie,
 	})
 
-	go func(customTitle string) {
-		// pythonScript := "script.py"
-		// args := []string{"arg1", "arg2", "arg3"}
-		// cmd := exec.Command("python3", append([]string{pythonScript}, args...)...)
+	go func(movie Movie) {
+		jsonMovie, err := json.Marshal(movie)
+		if err != nil {
+			fmt.Printf("Erreur lors du marshalling JSON : %v\n", err)
+			return
+		}
+		pythonScript := "script.py"
+		args := []string{string(jsonMovie)}
+		cmd := exec.Command("python3", append([]string{pythonScript}, args...)...)
 
 		// Simuler une tâche longue
 		time.Sleep(5 * time.Second)
 
 		// Exécuter la commande
-		// output, err := cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
 
 		// Mettre à jour l'état de la tâche
 		mu.Lock()
-		// if err != nil {
-		// 	tasks[].Status = "Erreur"
-		// 	tasks[].Output = fmt.Sprintf("Erreur : %v", err)
-		// } else {
-		// 	tasks[].Status = "Terminé"
-		// 	tasks[].Output = string(output)
-		// }
+		task := Task{}
+		tasks = append(tasks, &task)
+		if err != nil {
+			task.Status = "Erreur"
+			task.Output = fmt.Sprintf("Erreur : %v", err)
+			mu.Unlock()
+			return
+		}
+
+		// Stocker la vidéo sur le Serveur
+		// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// defer cancel()
+
+		task.Status = "Terminé"
+		task.Output = string(output)
 		mu.Unlock()
-	}(customTitle)
+	}(movie)
 }
 
 // GET /movies

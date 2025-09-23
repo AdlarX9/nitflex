@@ -1,11 +1,8 @@
 import sys
 import os
 import subprocess
-import requests
 import json
 import shutil
-
-OMDB_API_KEY = "YOUR_OMDB_API_KEY"  # <-- à remplacer
 
 def get_video_resolution(video_path):
     """Utilise ffprobe pour détecter la résolution de la vidéo"""
@@ -44,30 +41,6 @@ def get_video_resolution(video_path):
     except Exception:
         pass
     return res, width, height
-
-def get_omdb_info(omdb_id):
-    """Cherche les infos du film via OMDb"""
-    url = f"https://www.omdbapi.com/?apikey={OMDB_API_KEY}&i={omdb_id}&plot=short&r=json"
-    resp = requests.get(url)
-    if resp.status_code != 200:
-        print("OMDb API error")
-        return {}
-    info = resp.json()
-    if info.get("Response") != "True":
-        print("OMDb: film non trouvé")
-        return {}
-    # Extraits les infos pertinentes
-    return {
-        "title": info.get("Title", ""),
-        "year": info.get("Year", ""),
-        "genre": info.get("Genre", ""),
-        "director": info.get("Director", ""),
-        "plot": info.get("Plot", ""),
-        "imdb_id": omdb_id,
-        "rating": info.get("Rated", ""),
-        "runtime": info.get("Runtime", ""),
-        "actors": info.get("Actors", "")
-    }
 
 def convert_to_apple_surround(input_path, output_path, preset_name):
     """Convertit le fichier en Apple Surround via HandBrakeCLI"""
@@ -118,10 +91,10 @@ def main():
         print("Usage: process_movie.py <video_path> <omdb_id>")
         sys.exit(1)
 
-    video_path = sys.argv[1]
-    omdb_id = sys.argv[2]
+    movie = json.loads(sys.argv[1])
+    video_path = os.path.join('.', 'uploads', movie['customTitle'])
 
-    print(f"Traitement vidéo : {video_path} / OMDb ID: {omdb_id}")
+    print(f"Traitement vidéo : {movie['video_path']} / OMDb ID: {movie['omdb_id']}")
 
     # 1. Détection de la résolution
     res, width, height = get_video_resolution(video_path)
@@ -138,12 +111,8 @@ def main():
         print("Échec de la conversion HandBrake.")
         sys.exit(2)
 
-    # 4. Récupération des infos OMDb
-    meta = get_omdb_info(omdb_id)
-    print("Infos OMDb:", meta)
-
-    # 5. Ajout des métadonnées
-    success = set_metadata_ffmpeg(out_path, meta)
+    # 4. Ajout des métadonnées
+    success = set_metadata_ffmpeg(out_path, movie)
     if not success:
         print("Échec de l'ajout des métadonnées.")
         sys.exit(3)
