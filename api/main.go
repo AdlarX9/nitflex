@@ -42,7 +42,9 @@ func main() {
 	// Movies
 	r.POST("/movies", UploadMovie)
 	r.GET("/movies", GetMovies)
+	r.GET("/all_movies", GetAllMovies)
 	r.GET("/movies/:id", GetMovieByID)
+	r.GET("/tasks", getTasks)
 
 	// Ongoing Movies
 	r.POST("/ongoing_movies", UpdateOnGoingMovie)

@@ -212,21 +212,21 @@ func UploadMovie(c *gin.Context) {
 	movie := <-ch
 	movie.CustomTitle = customTitle
 
-	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// res, err := GetCollection("movies").InsertOne(ctx, movie)
-	// if err != nil {
-	// 	c.JSON(500, gin.H{"error": err.Error()})
-	// 	return
-	// }
+	res, err := GetCollection("movies").InsertOne(ctx, movie)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 
-	// if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
-	// 	movie.ID = oid // Assigne l'ID généré par MongoDB
-	// } else {
-	// 	c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
-	// 	return
-	// }
+	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+		movie.ID = oid // Assigne l'ID généré par MongoDB
+	} else {
+		c.JSON(500, gin.H{"error": "Failed to cast InsertedID to ObjectID"})
+		return
+	}
 
 	// Répondre avec une URL JSON (exemple d'URL fictive)
 	c.JSON(200, gin.H{
@@ -269,6 +269,13 @@ func UploadMovie(c *gin.Context) {
 		task.Output = string(output)
 		mu.Unlock()
 	}(movie)
+}
+
+// GET /tasks
+func getTasks(c *gin.Context) {
+	mu.Lock()
+	defer mu.Unlock()
+	c.JSON(200, tasks)
 }
 
 // GET /movies
@@ -317,6 +324,26 @@ func GetMovies(c *gin.Context) {
 	opts := options.Find().SetSort(sort).SetLimit(limit)
 
 	cursor, err := GetCollection("movies").Find(ctx, filter, opts)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var movies []Movie
+	if err := cursor.All(ctx, &movies); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, movies)
+}
+
+func GetAllMovies(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := GetCollection("movies").Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

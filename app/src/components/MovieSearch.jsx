@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { IoBugOutline } from 'react-icons/io5'
 
 const OMDB_API_KEY = import.meta.env.VITE_OMDB_KEY // <-- à remplacer
 const OMDB_ENDPOINT = 'https://www.omdbapi.com/'
@@ -18,6 +19,7 @@ const MovieSearch = ({ onSelect }) => {
 	const [loading, setLoading] = useState(false) // loading state
 	const [focused, setFocused] = useState(false) // whether the input is focused
 	const fetchTimeout = useRef() // timeout for debouncing the search fetch
+	const errorRef = useRef('') // ref to store any error message
 
 	useEffect(() => {
 		/**
@@ -37,6 +39,7 @@ const MovieSearch = ({ onSelect }) => {
 		clearTimeout(fetchTimeout.current)
 		fetchTimeout.current = setTimeout(async () => {
 			try {
+				errorRef.current = ''
 				const res = await fetch(
 					`${OMDB_ENDPOINT}?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&r=json`
 				)
@@ -46,8 +49,9 @@ const MovieSearch = ({ onSelect }) => {
 				} else {
 					setResults([])
 				}
-			} catch {
+			} catch (err) {
 				setResults([])
+				errorRef.current = err.message
 			}
 			setLoading(false)
 		}, 400)
@@ -72,9 +76,9 @@ const MovieSearch = ({ onSelect }) => {
 			/>
 			{focused && results.length > 0 && (
 				<ul className='absolute left-0 right-0 z-1 bg-gray-600 rounded-b-md max-h-120 mt-1 scrollable w-[100%]'>
-					{results.map(movie => (
+					{results.map((movie, idx) => (
 						<li
-							key={movie.imdbID}
+							key={idx}
 							className='flex items-center px-4 py-2 cursor-pointer hover:bg-gray-500 transition-colors border-b last:border-b-0 border-gray-800 w-full overflow-hidden'
 							onMouseDown={() => {
 								setQuery(movie.Title)
@@ -103,6 +107,10 @@ const MovieSearch = ({ onSelect }) => {
 				</ul>
 			)}
 			{loading && <div className='text-blue-300 text-sm animate-pulse'>Chargement...</div>}
+			<div className='text-red-500 mt-1 flex gap-2 items-center'>
+				{errorRef.current.length > 0 && <IoBugOutline />}
+				<span>{errorRef.current}</span>
+			</div>
 		</div>
 	)
 }

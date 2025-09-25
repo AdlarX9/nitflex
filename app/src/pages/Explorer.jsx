@@ -1,11 +1,14 @@
-import { useMainContext } from '../app/hooks'
+import { useAPI, useMainContext } from '../app/hooks'
 import { IoPlay } from 'react-icons/io5'
 import './style.scss'
 import { useEffect } from 'react'
 import { Back } from '../components/NavBar'
+import Loader from '../components/Loader'
+import Movie from '../components/Movie'
 
 const Explorer = () => {
 	const { user } = useMainContext()
+	const { data, isPending } = useAPI('GET', '/movies')
 
 	useEffect(() => {
 		console.log(user)
@@ -21,7 +24,21 @@ const Explorer = () => {
 					Lecture
 				</button>
 			</div>
-			<h2 className='font-medium mt-5 ml-10'>En cours de visionnage</h2>
+			{user.onGoingMovies?.length > 0 && (
+				<h2 className='font-medium mt-5 ml-10'>En cours de visionnage</h2>
+			)}
+			<h2 className='font-medium mt-5 ml-10'>Les plus récents</h2>
+			{isPending ? (
+				<Loader />
+			) : data?.length > 0 ? (
+				<div className='flex gap-4 w-full px-10 pt-2'>
+					{data.map((movie, idx) => (
+						<Movie key={idx} movie={movie} />
+					))}
+				</div>
+			) : (
+				<p>pas de film</p>
+			)}
 		</div>
 	)
 }
