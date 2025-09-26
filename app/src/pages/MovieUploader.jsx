@@ -33,31 +33,33 @@ const MovieUploader = () => {
 	}, [uppy])
 
 	const [customTitle, setCustomTitle] = useState('')
-	const [imdbID, setImdbID] = useState(null)
+	const [tmdbID, setTmdbID] = useState(null)
 
 	useEffect(() => {
 		uppy.on('file-added', file => {
-			uppy.setFileMeta(file.id, { customTitle, imdbID })
+			uppy.setFileMeta(file.id, { customTitle, tmdbID })
 		})
-	}, [customTitle, uppy, imdbID])
+	}, [customTitle, uppy, tmdbID])
 
 	const [newMovie, setNewMovie] = useState(null)
 
 	useEffect(() => {
 		if (newMovie) {
-			setCustomTitle(newMovie.Title)
-			setImdbID(newMovie.imdbID)
+			console.log(newMovie)
+
+			setCustomTitle(newMovie.title)
+			setTmdbID(newMovie.id)
 		} else {
 			setCustomTitle('')
-			setImdbID(null)
+			setTmdbID(null)
 		}
 	}, [newMovie])
 
 	return (
-		<div className='w-screen h-dvh flex justify-center items-center scrollable'>
+		<div className={`w-screen h-dvh flex justify-center ${newMovie && 'items-center'} scrollable`}>
 			<Back />
-			<div className='flex justify-center items-center flex-col gap-5 w-full max-w-[750px] px-4'>
-				<h1 className='text-5xl uppercase red font-bold text-center'>Uploader un film</h1>
+			<div className='flex items-center flex-col gap-5 w-full max-w-[750px] px-4'>
+				<h1 className={`text-5xl uppercase red font-bold text-center ${!newMovie && 'mt-[25vh]'}`}>Uploader un film</h1>
 				<main className='bg-gray-700 w-full p-4 rounded-md'>
 					Identifier son film
 					<MovieSearch onSelect={movie => setNewMovie(movie)} />

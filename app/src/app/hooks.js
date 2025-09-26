@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 
@@ -55,11 +55,12 @@ export const useAPI = (method, endpoint, body = {}, params = {}) => {
 export const useAPIAfter = (method, endpoint) => {
 	const mutation = useMutation({
 		mutationKey: [method, endpoint],
-		mutationFn: ({ body, params }) => axiosAPI(method, endpoint, body, params)
+		mutationFn: ({ body, params, newEndpoint }) =>
+			axiosAPI(method, newEndpoint || endpoint, body, params)
 	})
 
-	const trigger = (body = {}, params = {}) => {
-		mutation.mutate({ body, params })
+	const trigger = (body = {}, params = {}, newEndpoint = null) => {
+		mutation.mutate({ body, params, newEndpoint })
 	}
 
 	const triggerAsync = async (body = {}, params = {}) => {
@@ -67,4 +68,68 @@ export const useAPIAfter = (method, endpoint) => {
 	}
 
 	return { ...mutation, trigger, triggerAsync }
+}
+
+const axiosGetTMDBID = async imdbID => {
+	try {
+		const res = await axios.get(
+			`https://api.themoviedb.org/3/find/${imdbID}?api_key=${import.meta.env.VITE_TMDB_KEY}&external_source=imdb_id`
+		)
+		return res.data?.movie_results?.[0]?.id || null
+	} catch {
+		return null
+	}
+}
+
+const axiosGetMovieCovers = async tmdbID => {
+	try {
+		const res = await axios.get(
+			`https://api.themoviedb.org/3/movie/${tmdbID}/images?api_key=${import.meta.env.VITE_TMDB_KEY}`
+		)
+		return res.data || {}
+	} catch {
+		return {}
+	}
+}
+
+export function useGetMovieCovers(imdbID) {
+	const [posters, setPosters] = useState([])
+	const [backdrops, setBackdrops] = useState([])
+	const [logos, setLogos] = useState([])
+
+	useEffect(() => {
+		let cancelled = false
+		async function fetchImages() {
+			setPosters([])
+			setBackdrops([])
+			setLogos([])
+			if (!imdbID) return
+			const tmdbID = await axiosGetTMDBID(imdbID)
+			if (!tmdbID) return
+			const covers = await axiosGetMovieCovers(tmdbID)
+			if (!cancelled && covers) {
+				setPosters(
+					Array.isArray(covers.posters)
+						? covers.posters.filter(p => (p.iso_639_1 === 'fr' || p.iso_639_1 === 'en'))
+						: []
+				)
+				setBackdrops(
+					Array.isArray(covers.backdrops)
+						? covers.backdrops.filter(p => (p.iso_639_1 === 'fr' || p.iso_639_1 === 'en'))
+						: []
+				)
+				setLogos(
+					Array.isArray(covers.logos)
+						? covers.logos.filter(p => (p.iso_639_1 === 'fr' || p.iso_639_1 === 'en'))
+						: []
+				)
+			}
+		}
+		fetchImages()
+		return () => {
+			cancelled = true
+		}
+	}, [imdbID])
+
+	return { posters, backdrops, logos }
 }

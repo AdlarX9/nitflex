@@ -34,8 +34,23 @@ export const MainProvider = ({ children }) => {
 		}
 	}, [bodyBlur])
 
+	const selectLastOngoingMovie = () => {
+		if (user?.onGoingMovies?.length > 0) {
+			return user.onGoingMovies[0]
+		} else {
+			return null
+		}
+	}
+
+	const pickRandom = arr => {
+		if (!arr || arr.length === 0) return null
+		return arr[Math.floor(Math.random() * arr.length)]
+	}
+
 	return (
-		<MainContext.Provider value={{ user, setUser, setBodyBlur }}>
+		<MainContext.Provider
+			value={{ user, setUser, setBodyBlur, selectLastOngoingMovie, pickRandom }}
+		>
 			{children}
 		</MainContext.Provider>
 	)

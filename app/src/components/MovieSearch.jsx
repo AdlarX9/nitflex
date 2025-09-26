@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { IoBugOutline } from 'react-icons/io5'
 
-const OMDB_API_KEY = import.meta.env.VITE_OMDB_KEY // <-- à remplacer
-const OMDB_ENDPOINT = 'https://www.omdbapi.com/'
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_KEY
+const TMDB_ENDPOINT = 'https://api.themoviedb.org/3/search/movie'
+const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w185'
 
 /**
- * Reusable component for searching movies using OMDB API
+ * Reusable component for searching movies using TMDB API
  *
  * @param {function} onSelect - callback function to handle movie selection
  * @returns {JSX.Element} - the search component
@@ -41,11 +42,16 @@ const MovieSearch = ({ onSelect }) => {
 			try {
 				errorRef.current = ''
 				const res = await fetch(
-					`${OMDB_ENDPOINT}?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&r=json`
+					`${TMDB_ENDPOINT}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false&language=fr-FR`
 				)
 				const data = await res.json()
-				if (data.Response === 'True') {
-					setResults(data.Search.slice(0, 10))
+				if (data && data.results && data.results.length > 0) {
+					// Adapt results to match OMDB format minimally
+					const mappedResults = data.results.map(movie => ({
+						...movie,
+						poster: movie.poster_path ? `${TMDB_IMAGE}${movie.poster_path}` : null, // on garde l'objet original si besoin
+					}))
+					setResults(mappedResults)
 				} else {
 					setResults([])
 				}
@@ -81,25 +87,25 @@ const MovieSearch = ({ onSelect }) => {
 							key={idx}
 							className='flex items-center px-4 py-2 cursor-pointer hover:bg-gray-500 transition-colors border-b last:border-b-0 border-gray-800 w-full overflow-hidden'
 							onMouseDown={() => {
-								setQuery(movie.Title)
+								setQuery(movie.title)
 								setFocused(false)
 								setResults([])
 								if (onSelect) onSelect(movie)
 							}}
 						>
-							{movie.Poster && movie.Poster !== 'N/A' && (
+							{movie.poster && (
 								<img
-									src={movie.Poster}
-									alt={movie.Title}
+									src={movie.poster}
+									alt={movie.title}
 									className='h-20 w-auto mr-4 rounded flex-shrink-0'
 								/>
 							)}
 							<div className='flex flex-row items-center w-full min-w-0'>
 								<span className='font-medium text-gray-100 truncate block flex-1 min-w-0'>
-									{movie.Title}
+									{movie.title}
 								</span>
 								<span className='text-sm text-gray-200 flex-shrink-0 ml-2'>
-									({movie.Year})
+									({movie.release_date ? movie.release_date.split('-')[0] : ''})
 								</span>
 							</div>
 						</li>

@@ -13,19 +13,9 @@ type Movie struct {
 	Title       string             `json:"title" bson:"title"`
 	CustomTitle string             `json:"customTitle" bson:"customTitle"`
 	ImdbID      string             `json:"imdbID" bson:"imdbID"`
-	Genre       string             `json:"genre" bson:"genre"`
+	TmdbID      int                `json:"tmdbID" bson:"tmdbID"`
 	Date        primitive.DateTime `json:"date" bson:"date"`
-	Year        uint16             `json:"year" bson:"year"`
-	Rating      float64            `json:"rating" bson:"rating"`
-	Description string             `json:"description" bson:"description"`
-	Actors      []string           `json:"actors" bson:"actors"`
-	Writers     []string           `json:"writers" bson:"writers"`
-	Realisator  string             `json:"realisator" bson:"realisator"`
 	Poster      string             `json:"poster" bson:"poster"`
-	BoxOffice   string             `json:"boxOffice" bson:"boxOffice"`
-	Countries   []string           `json:"countries" bson:"countries"`
-	Awards      string             `json:"awards" bson:"awards"`
-	Type        string             `json:"type" bson:"type"`
 }
 
 type OnGoingMovie struct {
