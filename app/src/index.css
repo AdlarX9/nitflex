@@ -107,11 +107,17 @@ body::-webkit-scrollbar-track {
 	margin: 1rem;
 }
 
+
 .scrollable::-webkit-scrollbar-thumb {
 	background: var(--red);
 	border-radius: 50rem;
 	width: 80%;
 	cursor: grab;
+}
+
+.scrollable-horizontal {
+	overflow-x: scroll;
+	overflow-y: hidden;
 }
 
 .scrollable::-webkit-scrollbar-thumb:active {

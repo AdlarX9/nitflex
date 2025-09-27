@@ -1,5 +1,7 @@
 .explorer-bg {
 	position: relative;
+	--explorer-primary: rgb(255, 196, 0);
+	--explorer-secondary: green;
 
 	&::before {
 		content: '';
@@ -10,7 +12,7 @@
 		height: 30rem;
 		border-radius: 50%;
 		filter: blur(15rem);
-		background: rgb(255, 196, 0);
+		background: var(--explorer-primary);
 		z-index: -1;
 	}
 
@@ -23,7 +25,7 @@
 		height: 30rem;
 		border-radius: 50%;
 		filter: blur(15rem);
-		background: green;
+		background: var(--explorer-secondary);
 		z-index: -1;
 	}
 }

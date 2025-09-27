@@ -37,7 +37,7 @@ const PopUp = ({ children, close, className }) => {
 					<motion.section
 						initial={{ opacity: 0, filter: 'blur(10px)' }}
 						animate={{ opacity: 1, filter: 'blur(0px)' }}
-						className={`bg-gray-800 p-4 rounded-md border-1 border-gray-300 max-w-5/6 ${className}`}
+						className={`bg-gray-800 rounded-md border-1 border-gray-300 max-w-5/6 ${className}`}
 					>
 						{children}
 					</motion.section>

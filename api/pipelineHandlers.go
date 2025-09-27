@@ -57,6 +57,8 @@ func fetchMovie(tmdbID int, ch chan<- Movie) {
 		ImdbID: details.ImdbID,
 		Date:   primitive.NewDateTimeFromTime(time.Now()),
 		Poster: details.PosterPath,
+		TmdbID: tmdbID,
+		Format: "mp4", // Valeur par défaut
 	}
 
 	// Envoyer le film mis à jour dans le canal
@@ -82,6 +84,7 @@ func UploadMovie(c *gin.Context) {
 	}
 
 	tmdbID := parseInt(tmdbIDString)
+	fmt.Printf("TMDB ID String: %s, Parsed ID: %d\n", tmdbIDString, tmdbID)
 	ch := make(chan Movie, 1)
 	go fetchMovie(tmdbID, ch)
 

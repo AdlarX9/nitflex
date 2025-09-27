@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { MainContext } from './hooks'
+import { useEffect, useRef, useState } from 'react'
+import { MainContext, useAPI } from './hooks'
 import { useNavigate } from 'react-router-dom'
+import { pickRandom } from './utils'
 
 const interactStorage = (key, value = null) => {
 	if (value === null) {
@@ -42,14 +43,38 @@ export const MainProvider = ({ children }) => {
 		}
 	}
 
-	const pickRandom = arr => {
-		if (!arr || arr.length === 0) return null
-		return arr[Math.floor(Math.random() * arr.length)]
+	const { data: newMovies, isPending: newMoviesPending, refetch } = useAPI('GET', '/movies')
+
+	// Utilise useRef pour garder le film principal sélectionné à l'initialisation et ne pas le changer lors de re-render
+	const randomMovieRef = useRef(null)
+	if (randomMovieRef.current === null && newMovies && newMovies.length > 0) {
+		randomMovieRef.current = pickRandom(newMovies)
+	}
+	const mainMovie = selectLastOngoingMovie() || randomMovieRef.current
+
+	// Ne jamais changer mainBackdrop pendant la session (sauf reload fenêtre)
+	const mainBackdropRef = useRef(null)
+	const processMainBackdrop = backdrops => {
+		if (mainBackdropRef.current === null && backdrops && backdrops.length > 0) {
+			mainBackdropRef.current = pickRandom(backdrops)
+		}
 	}
 
 	return (
 		<MainContext.Provider
-			value={{ user, setUser, setBodyBlur, selectLastOngoingMovie, pickRandom }}
+			value={{
+				user,
+				setUser,
+				setBodyBlur,
+				selectLastOngoingMovie,
+				pickRandom,
+				newMovies,
+				newMoviesPending,
+				mainMovie,
+				mainBackdropRef,
+				processMainBackdrop,
+				refetchNewMovies: refetch
+			}}
 		>
 			{children}
 		</MainContext.Provider>

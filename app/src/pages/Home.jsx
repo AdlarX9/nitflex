@@ -60,22 +60,24 @@ const Accounts = () => {
 			)}
 			{clicked && (
 				<PopUp close={() => setClicked(false)}>
-					<center className='text-4xl red font-bold mb-4'>Créer un compte</center>
-					<form className='flex flex-col items-start'>
-						<label>Pseudo</label>
-						<input
-							type='text'
-							ref={usernameRef}
-							placeholder='Entrez votre pseudo'
-							className='bg-gray-700 p-1 rounded-md text-2xl w-max'
-						/>
-						<button
-							className='bg-blue-500 p-2 px-8 text-xl rounded-md text-white self-center mt-4 cursor-pointer lighten'
-							onClick={handleSubmit}
-						>
-							Créer
-						</button>
-					</form>
+					<div className='p-5'>
+						<center className='text-4xl red font-bold mb-4'>Créer un compte</center>
+						<form className='flex flex-col items-start'>
+							<label>Pseudo</label>
+							<input
+								type='text'
+								ref={usernameRef}
+								placeholder='Entrez votre pseudo'
+								className='bg-gray-700 p-1 rounded-md text-2xl w-max'
+							/>
+							<button
+								className='bg-blue-500 p-2 px-8 text-xl rounded-md text-white self-center mt-4 cursor-pointer lighten'
+								onClick={handleSubmit}
+							>
+								Créer
+							</button>
+						</form>
+					</div>
 				</PopUp>
 			)}
 		</div>

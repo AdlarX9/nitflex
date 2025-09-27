@@ -12,10 +12,12 @@ type Movie struct {
 	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Title       string             `json:"title" bson:"title"`
 	CustomTitle string             `json:"customTitle" bson:"customTitle"`
+	Format      string             `json:"format" bson:"format"`
 	ImdbID      string             `json:"imdbID" bson:"imdbID"`
 	TmdbID      int                `json:"tmdbID" bson:"tmdbID"`
 	Date        primitive.DateTime `json:"date" bson:"date"`
 	Poster      string             `json:"poster" bson:"poster"`
+	Rating      float64            `json:"rating,omitempty" bson:"rating,omitempty"`
 }
 
 type OnGoingMovie struct {

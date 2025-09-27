@@ -7,8 +7,11 @@ import '../../node_modules/@uppy/core/dist/style.css'
 import '../../node_modules/@uppy/dashboard/dist/style.css'
 import MovieSearch from '../components/MovieSearch'
 import { Back } from '../components/NavBar'
+import { useMainContext } from '../app/hooks'
 
 const MovieUploader = () => {
+	const { refetchNewMovies } = useMainContext()
+
 	const uppy = useMemo(() => {
 		return new Uppy({
 			restrictions: {
@@ -27,10 +30,11 @@ const MovieUploader = () => {
 		})
 		uppy.on('complete', result => {
 			console.log('Upload terminé:', result.successful)
+			refetchNewMovies()
 		})
 
 		return () => uppy.destroy()
-	}, [uppy])
+	}, [uppy, refetchNewMovies])
 
 	const [customTitle, setCustomTitle] = useState('')
 	const [tmdbID, setTmdbID] = useState(null)
@@ -45,7 +49,7 @@ const MovieUploader = () => {
 
 	useEffect(() => {
 		if (newMovie) {
-			console.log(newMovie)
+			console.log('newMovie', newMovie)
 
 			setCustomTitle(newMovie.title)
 			setTmdbID(newMovie.id)
@@ -56,10 +60,16 @@ const MovieUploader = () => {
 	}, [newMovie])
 
 	return (
-		<div className={`w-screen h-dvh flex justify-center ${newMovie && 'items-center'} scrollable`}>
+		<div
+			className={`w-screen h-dvh flex justify-center ${newMovie && 'items-center'} scrollable`}
+		>
 			<Back />
 			<div className='flex items-center flex-col gap-5 w-full max-w-[750px] px-4'>
-				<h1 className={`text-5xl uppercase red font-bold text-center ${!newMovie && 'mt-[25vh]'}`}>Uploader un film</h1>
+				<h1
+					className={`text-5xl uppercase red font-bold text-center ${!newMovie && 'mt-[25vh]'}`}
+				>
+					Uploader un film
+				</h1>
 				<main className='bg-gray-700 w-full p-4 rounded-md'>
 					Identifier son film
 					<MovieSearch onSelect={movie => setNewMovie(movie)} />
