@@ -17,7 +17,7 @@ const Explorer = () => {
 	}, [user])
 
 	return (
-		<div className='flex items-start flex-col explorer-bg'>
+		<div className='flex items-start flex-col explorer-bg pb-20 h-dvh relative w-screen top-0 left-0 scrollable'>
 			<Back />
 			<Movie backdropVersion movie={mainMovie} />
 			{user.onGoingMovies?.length > 0 && (
@@ -33,7 +33,7 @@ const Explorer = () => {
 					))}
 				</div>
 			) : (
-				<p>pas de film</p>
+				<p className='text-gray-300 ml-10'>Vous n'avez pas de films.</p>
 			)}
 		</div>
 	)

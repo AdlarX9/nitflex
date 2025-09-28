@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import Loader from '../components/Loader'
 import { useGetPerson } from '../app/hooks'
+import { Back } from '../components/NavBar'
 
 const PersonDetails = () => {
 	const { personID } = useParams()
@@ -59,6 +60,7 @@ const PersonDetails = () => {
 
 	return (
 		<div className='relative w-full min-h-screen bg-gradient-to-b from-black via-slate-900 to-slate-950 text-gray-100'>
+			<Back to={-1} />
 			<div className='relative z-10 flex flex-col md:flex-row gap-8 px-8 pt-14 max-w-6xl mx-auto'>
 				{/* Profile image */}
 				<div className='flex-shrink-0'>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useGetFullMovie, useMainContext } from '../app/hooks'
 import Loader from '../components/Loader'
 import { Link, useParams } from 'react-router-dom'
+import { IoPlayCircleOutline } from 'react-icons/io5'
+import { Back } from '../components/NavBar'
 
 const MovieDetails = () => {
 	const { tmdbID } = useParams()
@@ -21,6 +23,21 @@ const MovieDetails = () => {
 			setRandomBackdrop(randomBackdropRef.current?.file_path)
 		}
 	}, [fullMovie, pickRandom])
+
+	// Parallax au scroll
+	const imgRef = useRef(null)
+	useEffect(() => {
+		const handleScroll = () => {
+			const scrollY = window.scrollY
+			const divider = 3
+			// Bouger l'image de moitié du scroll
+			if (imgRef.current) {
+				imgRef.current.style.transform = `translateY(${scrollY / divider}px)`
+			}
+		}
+		window.addEventListener('scroll', handleScroll)
+		return () => window.removeEventListener('scroll', handleScroll)
+	}, [])
 
 	if (isLoading) return <Loader />
 	if (error)
@@ -58,7 +75,9 @@ const MovieDetails = () => {
 		posterFR || (poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : null)
 
 	// Backdrop
-	const backdropUrl = randomBackdrop ? `https://image.tmdb.org/t/p/original${randomBackdrop}` : null
+	const backdropUrl = randomBackdrop
+		? `https://image.tmdb.org/t/p/original${randomBackdrop}`
+		: null
 
 	// Bande-annonce FR en priorité
 	const trailer =
@@ -85,13 +104,14 @@ const MovieDetails = () => {
 
 	return (
 		<div className='relative w-full min-h-screen bg-gradient-to-b from-black via-slate-900 to-slate-950 text-gray-100'>
+			<Back to={-1} />
 			{/* Backdrop */}
 			{backdropUrl && (
 				<img
+					ref={imgRef}
 					src={backdropUrl}
 					alt='Arrière-plan'
-					className='absolute inset-0 w-full h-auto object-cover opacity-70 pointer-events-none select-none'
-					style={{ zIndex: 0 }}
+					className='absolute inset-0 w-full h-auto object-cover opacity-70 pointer-events-none select-none z-0'
 				/>
 			)}
 			{/* Overlay for readability */}
@@ -102,14 +122,31 @@ const MovieDetails = () => {
 
 			{/* Main content */}
 			<div className='relative z-10 flex flex-col md:flex-row gap-8 px-8 pt-14 max-w-6xl mx-auto'>
-				{/* Poster */}
-				<div className='flex-shrink-0'>
+				{/* Poster cliquable */}
+				<div className='flex-shrink-0 relative'>
 					{posterUrl && (
-						<img
-							src={posterUrl}
-							alt={title}
-							className='w-72 rounded-lg shadow-lg border border-gray-800'
-						/>
+						<div className='relative group cursor-pointer'>
+							<img
+								src={posterUrl}
+								alt={title}
+								className='w-72 rounded-lg shadow-lg border border-gray-800 group-hover:brightness-75 transition'
+							/>
+							{/* Overlay play icon + texte */}
+							<Link
+								to={`/viewer/${tmdbID}`}
+								className='absolute inset-0 flex flex-col items-center justify-center text-white'
+								style={{ textDecoration: 'none' }}
+							>
+								<div className='flex flex-col items-center'>
+									<div className='bg-black/60 rounded-full mb-2 group-hover:bg-black/80 transition'>
+										<IoPlayCircleOutline className='w-25 h-auto red' />
+									</div>
+									<span className='text-lg font-extrabold drop-shadow-lg group-hover:underline'>
+										Regarder
+									</span>
+								</div>
+							</Link>
+						</div>
 					)}
 				</div>
 				{/* Details */}

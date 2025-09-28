@@ -136,10 +136,8 @@ export function useGetMovieCovers(imdbID) {
 	return { posters, backdrops, logos }
 }
 
-const fetchFullMovie = async tmdbID => {
+export const fetchFullMovie = async tmdbID => {
 	const url = `https://api.themoviedb.org/3/movie/${tmdbID}?api_key=${TMDB_API_KEY}&append_to_response=credits,images,videos,release_dates,external_ids,keywords,reviews,similar,recommendations`
-	console.log('url', url)
-
 	return axios
 		.get(url, {})
 		.then(res => res.data)
@@ -147,19 +145,15 @@ const fetchFullMovie = async tmdbID => {
 }
 
 export const useGetFullMovie = tmdbID => {
-	console.log('tmdbID', tmdbID)
-
 	return useQuery({
 		queryKey: ['fullMovie', tmdbID],
 		queryFn: () => fetchFullMovie(tmdbID),
-		enabled: !!tmdbID // ne lance que si tmdbID est défini
+		enabled: !!tmdbID, // ne lance que si tmdbID est défini
 	})
 }
 
 const fetchFullPerson = async personID => {
 	const url = `https://api.themoviedb.org/3/person/${personID}?api_key=${TMDB_API_KEY}&append_to_response=movie_credits,tv_credits,images,videos,external_ids`
-	console.log('url', url)
-
 	return axios
 		.get(url, {})
 		.then(res => res.data)
@@ -167,8 +161,6 @@ const fetchFullPerson = async personID => {
 }
 
 export const useGetPerson = personID => {
-	console.log('personID', personID)
-
 	return useQuery({
 		queryKey: ['fullPerson', personID],
 		queryFn: () => fetchFullPerson(personID),

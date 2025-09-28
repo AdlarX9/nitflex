@@ -45,6 +45,7 @@ func main() {
 	r.GET("/all_movies", GetAllMovies)
 	r.GET("/movies/:id", GetMovieByID)
 	r.GET("/tasks", getTasks)
+	r.GET("/video/:id", VideoStreamHandler)
 
 	// Ongoing Movies
 	r.POST("/ongoing_movies", UpdateOnGoingMovie)

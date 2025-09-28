@@ -30,7 +30,7 @@ const App = () => {
 						<Route path='/account' element={<Account />} />
 						<Route path='/movie/:tmdbID' element={<MovieDetails />} />
 						<Route path='/person/:personID' element={<PersonDetails />} />
-						<Route path='/viewer' element={<Viewer />} />
+						<Route path='/viewer/:tmdbID' element={<Viewer />} />
 					</Routes>
 				</MainProvider>
 			</BrowserRouter>

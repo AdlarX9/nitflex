@@ -41,46 +41,51 @@ const Movie = ({ movie, backdropVersion = false }) => {
 	}
 
 	return (
-		<Link className={mainStyle} to={`/movie/${movie?.tmdbID}`}>
-			{posterExists ? (
-				<>
-					{!imgLoaded && (
-						<>
-							<h3>{movie?.title ? movie.title : 'Film'}</h3>
-						</>
-					)}
-					<motion.img
-						initial={{ opacity: 0 }}
-						animate={{ opacity: imgLoaded ? 1 : 0 }}
-						className={`${backdropVersion && 'main-backdrop'}`}
-						src={
-							backdropVersion
-								? `https://image.tmdb.org/t/p/original${mainBackdrop?.file_path || movie?.poster}`
-								: `https://image.tmdb.org/t/p/w500${movie?.poster}`
-						}
-						alt={movie?.title}
-						style={{
-							display: imgLoaded ? 'block' : 'none',
-							position: 'absolute',
-							top: 0,
-							left: 0,
-							width: '100%',
-							height: '100%',
-							objectFit: 'cover'
-						}}
-						onLoad={() => setImgLoaded(true)}
-					/>
-					{backdropVersion && (
-						<button className='absolute bottom-5 left-5 text-black bg-white p-3 px-7 rounded-2xl font-medium flex items-center gap-2 cursor-pointer'>
-							<IoPlay />
-							Lecture
-						</button>
-					)}
-				</>
-			) : (
-				<h3>{movie?.title ? movie.title : 'Film'}</h3>
+		<div className={backdropVersion && 'relative w-full'}>
+			<Link className={mainStyle} to={`/movie/${movie?.tmdbID}`}>
+				{posterExists ? (
+					<>
+						{!imgLoaded && (
+							<>
+								<h3>{movie?.title ? movie.title : 'Film'}</h3>
+							</>
+						)}
+						<motion.img
+							initial={{ opacity: 0 }}
+							animate={{ opacity: imgLoaded ? 1 : 0 }}
+							className={`${backdropVersion && 'main-backdrop'}`}
+							src={
+								backdropVersion
+									? `https://image.tmdb.org/t/p/original${mainBackdrop?.file_path || movie?.poster}`
+									: `https://image.tmdb.org/t/p/w500${movie?.poster}`
+							}
+							alt={movie?.title}
+							style={{
+								display: imgLoaded ? 'block' : 'none',
+								position: 'absolute',
+								top: 0,
+								left: 0,
+								width: '100%',
+								height: '100%',
+								objectFit: 'cover'
+							}}
+							onLoad={() => setImgLoaded(true)}
+						/>
+					</>
+				) : (
+					<h3>{movie?.title ? movie.title : 'Film'}</h3>
+				)}
+			</Link>
+			{backdropVersion && (
+				<Link
+					to={'/viewer/' + movie?.tmdbID}
+					className='absolute bottom-5 left-[3.5%] text-black bg-white p-3 px-7 rounded-2xl font-medium flex items-center gap-2 cursor-pointer hover:shadow-lg hover:shadow-black/40 lighten transition'
+				>
+					<IoPlay />
+					Lecture
+				</Link>
 			)}
-		</Link>
+		</div>
 	)
 }
 

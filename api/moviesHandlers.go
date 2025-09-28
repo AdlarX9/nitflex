@@ -149,29 +149,23 @@ func GetAllMovies(c *gin.Context) {
 	c.JSON(200, movies)
 }
 
-// GET /movies/:id
+// GET /movie/:id
 func GetMovieByID(c *gin.Context) {
-	id := c.Param("id")
-
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
-		return
-	}
+	tmdbID := c.Param("id")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	// Récupérer le film dans la base de données
 	var movie Movie
-	err = GetCollection("movies").FindOne(ctx, bson.M{"_id": objID}).Decode(&movie)
+	err := GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": parseInt(tmdbID)}).Decode(&movie)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			c.JSON(404, gin.H{"error": "Movie not found"})
-			return
+			c.JSON(http.StatusNotFound, gin.H{"error": "Film non trouvé", "id": tmdbID})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur serveur"})
 		}
-		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, movie)
+	c.JSON(http.StatusOK, movie)
 }
