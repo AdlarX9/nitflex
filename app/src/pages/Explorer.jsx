@@ -1,9 +1,20 @@
-import { useMainContext } from '../app/hooks'
+import { useAPI, useMainContext } from '../app/hooks'
 import './style.scss'
 import { useEffect } from 'react'
 import { Back } from '../components/NavBar'
 import Loader from '../components/Loader'
 import Movie from '../components/Movie'
+
+const OnGoingMovie = ({ id }) => {
+	const { data: onGoingMovie } = useAPI('GET', '/ongoing_movies/' + id)
+	const { data: movie } = useAPI('GET', '/movie/' + onGoingMovie?.tmdbID)
+	console.log(movie)
+	return (
+		<div>
+			<Movie movie={movie} />
+		</div>
+	)
+}
 
 const Explorer = () => {
 	const { user, mainMovie, newMoviesPending, newMovies } = useMainContext()
@@ -21,8 +32,13 @@ const Explorer = () => {
 			<Back />
 			<Movie backdropVersion movie={mainMovie} />
 			{user.onGoingMovies?.length > 0 && (
-				<h2 className='font-medium mt-5 ml-10'>En cours de visionnage</h2>
+				<h2 className='font-medium mt-10 ml-10'>En cours de visionnage</h2>
 			)}
+			<div className='flex gap-4 w-[100vw] px-10 pt-2'>
+				{user.onGoingMovies.map((id, idx) => (
+					<OnGoingMovie key={idx} id={id} />
+				))}
+			</div>
 			<h2 className='font-medium mt-5 ml-10'>Les plus récents</h2>
 			{newMoviesPending ? (
 				<Loader />

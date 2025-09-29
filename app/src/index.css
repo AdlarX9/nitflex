@@ -107,7 +107,6 @@ body::-webkit-scrollbar-track {
 	margin: 1rem;
 }
 
-
 .scrollable::-webkit-scrollbar-thumb {
 	background: var(--red);
 	border-radius: 50rem;

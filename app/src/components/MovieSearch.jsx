@@ -49,7 +49,7 @@ const MovieSearch = ({ onSelect }) => {
 					// Adapt results to match OMDB format minimally
 					const mappedResults = data.results.map(movie => ({
 						...movie,
-						poster: movie.poster_path ? `${TMDB_IMAGE}${movie.poster_path}` : null, // on garde l'objet original si besoin
+						poster: movie.poster_path ? `${TMDB_IMAGE}${movie.poster_path}` : null // on garde l'objet original si besoin
 					}))
 					setResults(mappedResults)
 				} else {

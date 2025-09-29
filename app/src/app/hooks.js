@@ -148,7 +148,7 @@ export const useGetFullMovie = tmdbID => {
 	return useQuery({
 		queryKey: ['fullMovie', tmdbID],
 		queryFn: () => fetchFullMovie(tmdbID),
-		enabled: !!tmdbID, // ne lance que si tmdbID est défini
+		enabled: !!tmdbID // ne lance que si tmdbID est défini
 	})
 }
 

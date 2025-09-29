@@ -43,13 +43,15 @@ func main() {
 	r.POST("/movies", UploadMovie)
 	r.GET("/movies", GetMovies)
 	r.GET("/all_movies", GetAllMovies)
-	r.GET("/movies/:id", GetMovieByID)
+	r.GET("/movie/:id", GetMovieByID)
 	r.GET("/tasks", getTasks)
 	r.GET("/video/:id", VideoStreamHandler)
 
 	// Ongoing Movies
 	r.POST("/ongoing_movies", UpdateOnGoingMovie)
+	r.GET("/ongoing_movies/:id", GetOnGoingMovieByID)
 	r.DELETE("/ongoing_movies/:id", DeleteOnGoingMovie)
+	r.DELETE("/all_ongoing_movies", DeleteAllOnGoingMovies)
 
 	r.Run(":8080") // par défaut sur localhost:8080
 }

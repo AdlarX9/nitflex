@@ -23,7 +23,10 @@ type Movie struct {
 type OnGoingMovie struct {
 	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	MovieID  primitive.ObjectID `json:"movie" bson:"movie"`
-	Duration int                `json:"duration" bson:"duration"`
+	TmdbID   int                `json:"tmdbID" bson:"tmdbID"`
+	Duration int                `json:"duration" bson:"duration"` // en secondes
+	Position int                `json:"position" bson:"position"` // en secondes
+	UserID   primitive.ObjectID `json:"user" bson:"user"`
 }
 
 type MovieQuery struct {

@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"context"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -93,7 +93,7 @@ func serveVideoStream(filePath string, c *gin.Context) {
 	var sent int64 = 0
 	for sent < length {
 		toRead := int64(len(buf))
-		if (length-sent) < toRead {
+		if (length - sent) < toRead {
 			toRead = length - sent
 		}
 		n, err := f.Read(buf[:toRead])

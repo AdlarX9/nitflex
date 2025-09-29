@@ -28,23 +28,56 @@ var (
 func UpdateOnGoingMovie(c *gin.Context) {
 	var onGoingMovie OnGoingMovie
 	if err := c.ShouldBindJSON(&onGoingMovie); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Données JSON invalides ou absentes : " + err.Error()})
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Ajout de l'option upsert
+	// Recherche d'un OnGoingMovie existant pour ce user et ce film (par MovieID et UserID)
+	filter := bson.M{
+		"user":  onGoingMovie.UserID,
+		"movie": onGoingMovie.MovieID,
+	}
+
+	var existing OnGoingMovie
+	errFind := GetCollection("ongoing_movies").FindOne(ctx, filter).Decode(&existing)
+	if errFind == nil {
+		// Il existe déjà → on met à jour l'existant
+		onGoingMovie.ID = existing.ID
+	} else if errFind != mongo.ErrNoDocuments {
+		// Erreur inattendue
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB : " + errFind.Error()})
+		return
+	} else {
+		// Pas trouvé → création
+		onGoingMovie.ID = primitive.NewObjectID()
+	}
+
+	// Upsert sur le même filtre (garantit unicité user+movie)
 	updateOptions := options.Update().SetUpsert(true)
+	idFilter := bson.M{"_id": onGoingMovie.ID}
+	update := bson.M{"$set": onGoingMovie}
 
 	_, err := GetCollection("ongoing_movies").UpdateOne(
 		ctx,
-		bson.M{"_id": onGoingMovie.ID},
-		bson.M{"$set": onGoingMovie},
+		idFilter,
+		update,
 		updateOptions,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB : " + err.Error()})
+		return
+	}
+
+	// Ajoute l'ID à user.onGoingMovies (toujours unique grâce à $addToSet)
+	_, errUser := GetCollection("users").UpdateOne(
+		ctx,
+		bson.M{"_id": onGoingMovie.UserID},
+		bson.M{"$addToSet": bson.M{"onGoingMovies": onGoingMovie.ID}},
+	)
+	if errUser != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB user : " + errUser.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, onGoingMovie)
@@ -66,6 +99,48 @@ func DeleteOnGoingMovie(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": res.DeletedCount})
+}
+
+// DELETE /all_ongoing_movies
+func DeleteAllOnGoingMovies(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	res, err := GetCollection("ongoing_movies").DeleteMany(ctx, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur lors de la suppression : " + err.Error()})
+		return
+	}
+	_, errUser := GetCollection("users").UpdateMany(ctx, bson.M{}, bson.M{"$set": bson.M{"onGoingMovies": []primitive.ObjectID{}}})
+	if errUser != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur lors de la mise à jour des utilisateurs : " + errUser.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": res.DeletedCount})
+}
+
+// GET /ongoing_movies/:id
+func GetOnGoingMovieByID(c *gin.Context) {
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invalide"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var onGoingMovie OnGoingMovie
+	err = GetCollection("ongoing_movies").FindOne(ctx, bson.M{"_id": objID}).Decode(&onGoingMovie)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Film en cours non trouvé", "id": id})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur serveur"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, onGoingMovie)
 }
 
 // GET /movies

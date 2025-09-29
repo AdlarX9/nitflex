@@ -41,7 +41,7 @@ const Movie = ({ movie, backdropVersion = false }) => {
 	}
 
 	return (
-		<div className={backdropVersion && 'relative w-full'}>
+		<div className={backdropVersion ? 'relative w-full' : ''}>
 			<Link className={mainStyle} to={`/movie/${movie?.tmdbID}`}>
 				{posterExists ? (
 					<>

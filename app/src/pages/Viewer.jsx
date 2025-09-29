@@ -4,7 +4,7 @@ import Loader from '../components/Loader'
 import { IoPlay, IoPause, IoClose, IoPlayBack, IoPlayForward } from 'react-icons/io5'
 /* eslint-disable-next-line */
 import { motion, AnimatePresence } from 'framer-motion'
-import { useGetFullMovie } from '../app/hooks'
+import { useAPI, useAPIAfter, useGetFullMovie, useMainContext } from '../app/hooks'
 
 const Viewer = () => {
 	const { tmdbID } = useParams()
@@ -17,6 +17,9 @@ const Viewer = () => {
 	const videoRef = useRef(null)
 	const navigate = useNavigate()
 	const wrapperRef = useRef(null)
+	const { triggerAsync: updateOnGoingMovie } = useAPIAfter('POST', '/ongoing_movies')
+	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`)
+	const { user, refetchUser } = useMainContext()
 
 	// Met la vidéo en fullscreen à l'arrivée sur la page
 	useEffect(() => {
@@ -124,7 +127,23 @@ const Viewer = () => {
 	const { title, overview: description, poster } = movie
 	const src = `${import.meta.env.VITE_API}/video/${tmdbID}`
 
+	const saveProgress = () => {
+		if (!movie) return
+		if (!user?.id) return
+		if (!storedMovie?.id) return
+		updateOnGoingMovie({
+			tmdbID: parseInt(tmdbID),
+			duration: Math.floor(duration),
+			position: Math.floor(currentTime),
+			user: user.id,
+			movie: storedMovie?.id
+		}).then(() => {
+			refetchUser()
+		})
+	}
+
 	const handlePlayPause = () => {
+		saveProgress()
 		const video = videoRef.current
 		if (!video) return
 		if (video.paused) {
@@ -222,7 +241,10 @@ const Viewer = () => {
 					>
 						{/* Bouton retour en haut à gauche */}
 						<button
-							onClick={() => navigate(-1)}
+							onClick={() => {
+								saveProgress()
+								navigate(-1)
+							}}
 							className='absolute cursor-pointer top-8 left-8 bg-black/70 rounded-full p-3 hover:bg-white/20 transition text-white z-30'
 							title='Retour'
 							tabIndex={0}

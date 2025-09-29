@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useGetFullMovie, useMainContext } from '../app/hooks'
+import { useAPI, useGetFullMovie, useMainContext } from '../app/hooks'
 import Loader from '../components/Loader'
 import { Link, useParams } from 'react-router-dom'
 import { IoPlayCircleOutline } from 'react-icons/io5'
@@ -11,6 +11,16 @@ const MovieDetails = () => {
 	const { pickRandom } = useMainContext()
 	const randomBackdropRef = useRef(null)
 	const [randomBackdrop, setRandomBackdrop] = useState(null)
+	const [available, setAvailable] = useState(false)
+	const { data, isPending } = useAPI('GET', '/movie/' + tmdbID)
+
+	useEffect(() => {
+		if (data && !isPending && !data.error) {
+			setAvailable(true)
+		} else {
+			setAvailable(false)
+		}
+	}, [data, isPending])
 
 	// Sélection du backdrop
 	useEffect(() => {
@@ -125,27 +135,29 @@ const MovieDetails = () => {
 				{/* Poster cliquable */}
 				<div className='flex-shrink-0 relative'>
 					{posterUrl && (
-						<div className='relative group cursor-pointer'>
+						<div className={`relative ${available && 'group cursor-pointer'}`}>
 							<img
 								src={posterUrl}
 								alt={title}
 								className='w-72 rounded-lg shadow-lg border border-gray-800 group-hover:brightness-75 transition'
 							/>
 							{/* Overlay play icon + texte */}
-							<Link
-								to={`/viewer/${tmdbID}`}
-								className='absolute inset-0 flex flex-col items-center justify-center text-white'
-								style={{ textDecoration: 'none' }}
-							>
-								<div className='flex flex-col items-center'>
-									<div className='bg-black/60 rounded-full mb-2 group-hover:bg-black/80 transition'>
-										<IoPlayCircleOutline className='w-25 h-auto red' />
+							{available && (
+								<Link
+									to={`/viewer/${tmdbID}`}
+									className='absolute inset-0 flex flex-col items-center justify-center text-white'
+									style={{ textDecoration: 'none' }}
+								>
+									<div className='flex flex-col items-center'>
+										<div className='bg-black/60 rounded-full mb-2 group-hover:bg-black/80 transition'>
+											<IoPlayCircleOutline className='w-25 h-auto red' />
+										</div>
+										<span className='text-lg font-extrabold drop-shadow-lg group-hover:underline'>
+											Regarder
+										</span>
 									</div>
-									<span className='text-lg font-extrabold drop-shadow-lg group-hover:underline'>
-										Regarder
-									</span>
-								</div>
-							</Link>
+								</Link>
+							)}
 						</div>
 					)}
 				</div>

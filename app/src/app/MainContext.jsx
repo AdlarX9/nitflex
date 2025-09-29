@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MainContext, useAPI } from './hooks'
+import { MainContext, useAPI, useAPIAfter } from './hooks'
 import { useNavigate } from 'react-router-dom'
 import { pickRandom } from './utils'
 
@@ -14,6 +14,7 @@ export const MainProvider = ({ children }) => {
 	const [user, setUser] = useState(interactStorage('user') || {})
 	const [bodyBlur, setBodyBlur] = useState(false)
 	const navigate = useNavigate()
+	const { triggerAsync: fetchUser } = useAPIAfter('GET', '/users/' + user?.id)
 
 	useEffect(() => {
 		if ((!user || JSON.stringify(user) === '{}') && window.location.pathname !== '/') {
@@ -35,14 +36,6 @@ export const MainProvider = ({ children }) => {
 		}
 	}, [bodyBlur])
 
-	const selectLastOngoingMovie = () => {
-		if (user?.onGoingMovies?.length > 0) {
-			return user.onGoingMovies[0]
-		} else {
-			return null
-		}
-	}
-
 	const { data: newMovies, isPending: newMoviesPending, refetch } = useAPI('GET', '/movies')
 
 	// Utilise useRef pour garder le film principal sélectionné à l'initialisation et ne pas le changer lors de re-render
@@ -50,7 +43,7 @@ export const MainProvider = ({ children }) => {
 	if (randomMovieRef.current === null && newMovies && newMovies.length > 0) {
 		randomMovieRef.current = pickRandom(newMovies)
 	}
-	const mainMovie = selectLastOngoingMovie() || randomMovieRef.current
+	const mainMovie = randomMovieRef.current
 
 	// Ne jamais changer mainBackdrop pendant la session (sauf reload fenêtre)
 	const mainBackdropRef = useRef(null)
@@ -60,20 +53,27 @@ export const MainProvider = ({ children }) => {
 		}
 	}
 
+	const refetchUser = () => {
+		fetchUser().then(user => {
+			if (user) setUser(user)
+			console.log('user', user)
+		})
+	}
+
 	return (
 		<MainContext.Provider
 			value={{
 				user,
 				setUser,
 				setBodyBlur,
-				selectLastOngoingMovie,
 				pickRandom,
 				newMovies,
 				newMoviesPending,
 				mainMovie,
 				mainBackdropRef,
 				processMainBackdrop,
-				refetchNewMovies: refetch
+				refetchNewMovies: refetch,
+				refetchUser
 			}}
 		>
 			{children}
