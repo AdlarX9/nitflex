@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Loader from '../components/Loader'
 import { IoPlay, IoPause, IoClose, IoPlayBack, IoPlayForward } from 'react-icons/io5'
@@ -14,12 +14,42 @@ const Viewer = () => {
 	const [duration, setDuration] = useState(0)
 	const [paused, setPaused] = useState(true)
 	const [isSeeking, setIsSeeking] = useState(false)
+	const [videoError, setVideoError] = useState(null)
 	const videoRef = useRef(null)
 	const navigate = useNavigate()
 	const wrapperRef = useRef(null)
 	const { triggerAsync: updateOnGoingMovie } = useAPIAfter('POST', '/ongoing_movies')
 	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`)
 	const { user, refetchUser } = useMainContext()
+	const saveTimeoutRef = useRef(null)
+	const isSavingRef = useRef(false)
+
+	// Debounced save to prevent duplicate requests
+	const saveProgress = useCallback(() => {
+		if (!movie || !user?.id || !storedMovie?.id || isSavingRef.current) return
+		
+		// Clear any pending save
+		if (saveTimeoutRef.current) {
+			clearTimeout(saveTimeoutRef.current)
+		}
+		
+		// Debounce save by 1 second
+		saveTimeoutRef.current = setTimeout(() => {
+			isSavingRef.current = true
+			updateOnGoingMovie({
+				tmdbID: parseInt(tmdbID),
+				duration: Math.floor(duration),
+				position: Math.floor(currentTime),
+				user: user.id,
+				movie: storedMovie?.id
+			}).then(() => {
+				refetchUser()
+				isSavingRef.current = false
+			}).catch(() => {
+				isSavingRef.current = false
+			})
+		}, 1000)
+	}, [movie, user?.id, storedMovie?.id, tmdbID, duration, currentTime, updateOnGoingMovie, refetchUser])
 
 	// Met la vidéo en fullscreen à l'arrivée sur la page
 	useEffect(() => {
@@ -89,11 +119,22 @@ const Viewer = () => {
 
 		const handlePlay = () => setPaused(false)
 		const handlePause = () => setPaused(true)
+		const handleVideoError = (e) => {
+			const errorCode = e.target.error?.code
+			const errorMessages = {
+				1: 'Chargement de la vidéo abandonné',
+				2: 'Erreur réseau lors du chargement de la vidéo',
+				3: 'Erreur de décodage de la vidéo',
+				4: 'Format vidéo non supporté'
+			}
+			setVideoError(errorMessages[errorCode] || 'Erreur inconnue lors du chargement de la vidéo')
+		}
 
 		video.addEventListener('timeupdate', handleTimeUpdate)
 		video.addEventListener('loadedmetadata', handleLoadedMetadata)
 		video.addEventListener('play', handlePlay)
 		video.addEventListener('pause', handlePause)
+		video.addEventListener('error', handleVideoError)
 
 		// Synchronise l'état initial (pour un reload)
 		setPaused(video.paused)
@@ -105,51 +146,94 @@ const Viewer = () => {
 			video.removeEventListener('loadedmetadata', handleLoadedMetadata)
 			video.removeEventListener('play', handlePlay)
 			video.removeEventListener('pause', handlePause)
+			video.removeEventListener('error', handleVideoError)
 		}
 		// Ajoute movie à la dépendance pour être sûr de ré-attacher sur nouveau film
 	}, [movie, isSeeking])
 
-	if (isPending) return <Loader />
+	if (isPending) {
+		return (
+			<div className='flex flex-col items-center justify-center h-screen bg-black'>
+				<Loader />
+				<p className='text-white mt-4'>Chargement du film...</p>
+			</div>
+		)
+	}
+	
 	if (isError || !movie) {
 		return (
-			<div className='flex flex-col items-center justify-center h-screen bg-black text-red-500'>
-				Impossible de charger la vidéo : {error?.message}
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				className='flex flex-col items-center justify-center h-screen bg-black text-red-500 p-8'
+			>
+				<motion.div
+					initial={{ scale: 0 }}
+					animate={{ scale: 1 }}
+					transition={{ type: 'spring', delay: 0.2 }}
+				>
+					<IoClose size={80} className='mb-4' />
+				</motion.div>
+				<h2 className='text-2xl font-bold mb-2'>Film introuvable</h2>
+				<p className='text-gray-400 text-center max-w-md mb-6'>
+					{error?.message || 'Impossible de charger les informations du film'}
+				</p>
 				<button
 					onClick={() => navigate(-1)}
-					className='mt-4 px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-700'
+					className='px-6 py-3 rounded-lg bg-nitflex-red text-white hover:bg-red-700 transition-colors font-medium'
 				>
 					Retour
 				</button>
-			</div>
+			</motion.div>
+		)
+	}
+	
+	// Video loading error
+	if (videoError) {
+		return (
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				className='flex flex-col items-center justify-center h-screen bg-black text-red-500 p-8'
+			>
+				<motion.div
+					initial={{ scale: 0 }}
+					animate={{ scale: 1 }}
+					transition={{ type: 'spring', delay: 0.2 }}
+				>
+					<IoClose size={80} className='mb-4' />
+				</motion.div>
+				<h2 className='text-2xl font-bold mb-2'>Erreur de lecture</h2>
+				<p className='text-gray-400 text-center max-w-md mb-6'>{videoError}</p>
+				<div className='flex gap-4'>
+					<button
+						onClick={() => window.location.reload()}
+						className='px-6 py-3 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors font-medium'
+					>
+						Réessayer
+					</button>
+					<button
+						onClick={() => navigate(-1)}
+						className='px-6 py-3 rounded-lg bg-nitflex-red text-white hover:bg-red-700 transition-colors font-medium'
+					>
+						Retour
+					</button>
+				</div>
+			</motion.div>
 		)
 	}
 
 	const { title, overview: description, poster } = movie
 	const src = `${import.meta.env.VITE_API}/video/${tmdbID}`
 
-	const saveProgress = () => {
-		if (!movie) return
-		if (!user?.id) return
-		if (!storedMovie?.id) return
-		updateOnGoingMovie({
-			tmdbID: parseInt(tmdbID),
-			duration: Math.floor(duration),
-			position: Math.floor(currentTime),
-			user: user.id,
-			movie: storedMovie?.id
-		}).then(() => {
-			refetchUser()
-		})
-	}
-
 	const handlePlayPause = () => {
-		saveProgress()
 		const video = videoRef.current
 		if (!video) return
 		if (video.paused) {
 			video.play().catch(() => {})
 		} else {
 			video.pause()
+			saveProgress()
 		}
 	}
 
@@ -242,8 +326,25 @@ const Viewer = () => {
 						{/* Bouton retour en haut à gauche */}
 						<button
 							onClick={() => {
-								saveProgress()
-								navigate(-1)
+								// Force immediate save before exit
+								if (saveTimeoutRef.current) {
+									clearTimeout(saveTimeoutRef.current)
+								}
+								if (!isSavingRef.current && storedMovie?.id) {
+									isSavingRef.current = true
+									updateOnGoingMovie({
+										tmdbID: parseInt(tmdbID),
+										duration: Math.floor(duration),
+										position: Math.floor(currentTime),
+										user: user.id,
+										movie: storedMovie?.id
+									}).finally(() => {
+										isSavingRef.current = false
+										navigate(-1)
+									})
+								} else {
+									navigate(-1)
+								}
 							}}
 							className='absolute cursor-pointer top-8 left-8 bg-black/70 rounded-full p-3 hover:bg-white/20 transition text-white z-30'
 							title='Retour'

@@ -1,31 +1,75 @@
-name: Nitflex
+name: nitflex
 
 services:
-    mongodb:
-        image: mongo:latest
-        restart: always
-        ports:
-            - "27017:27017"
-        volumes:
-            - ./mongodb_data:/data/db:rw
+  # MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: nitflex-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: nitflex
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - nitflex-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-    web:
-        build:
-            context: ./
-            target: web
-        restart: unless-stopped
-        ports:
-            - "5173:5173"
-        volumes:
-            - ./app:/app:rw
-            - node_modules:/app/node_modules
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:5173"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
+  # Go API Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: nitflex-api
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/nitflex
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api/uploads:/root/uploads
+      - ./movies:/root/movies:ro  # Mount your NAS movies directory (read-only)
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - nitflex-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # React Frontend with Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: nitflex-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - nitflex-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
-    mongodb_data:
-        driver: local
-    node_modules:
+  mongodb_data:
+    driver: local
+
+networks:
+  nitflex-network:
+    driver: bridge

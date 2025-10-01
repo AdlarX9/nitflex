@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAPIAfter } from '../app/hooks'
 import Movie from '../components/Movie.jsx'
-import { IoSettingsOutline, IoCloseCircleOutline } from 'react-icons/io5'
+import { IoSettingsOutline, IoCloseCircleOutline, IoSearchOutline } from 'react-icons/io5'
+import { motion, AnimatePresence } from 'framer-motion'
+import Loader from '../components/Loader.jsx'
 
 const Search = () => {
 	const ORDERING = {
@@ -22,12 +24,14 @@ const Search = () => {
 		thriller: 'Thriller'
 	}
 
-	const [movies, setMovies] = useState(Array(30).fill(null))
+	const [movies, setMovies] = useState([])
+	const [isLoading, setIsLoading] = useState(false)
+	const [hasSearched, setHasSearched] = useState(false)
 	const { triggerAsync: searchMovies } = useAPIAfter('GET', '/movies')
 	const [title, setTitle] = useState('')
 	const [genre, setGenre] = useState('')
-	const [order, setOrder] = useState('title:asc')
-	const [isMenuOpen, setIsMenuOpen] = useState(window.innerWidth >= 1024) // Side bar ouverte par défaut sur grands écrans
+	const [order, setOrder] = useState('date:desc')
+	const [isMenuOpen, setIsMenuOpen] = useState(window.innerWidth >= 1024)
 
 	// Écouteur pour ajuster automatiquement l'état de la side bar selon la largeur de l'écran
 	useEffect(() => {
@@ -39,20 +43,44 @@ const Search = () => {
 		return () => window.removeEventListener('resize', handleResize)
 	}, [])
 
-	useEffect(() => {
-		if (title) {
-			searchMovies({ title }).then(res => {
-				if (res.error) {
-					console.log('error', res.error)
-				} else {
-					setMovies(res.movies)
-				}
-			})
-		} else {
-			setMovies(Array(30).fill(null))
+	// Debounced search function
+	const performSearch = useCallback(() => {
+		if (!title && !genre) {
+			setMovies([])
+			setHasSearched(false)
+			return
 		}
-		/* eslint-disable-next-line */
-	}, [title, genre, order])
+
+		setIsLoading(true)
+		setHasSearched(true)
+		
+		const params = {
+			...(title && { title }),
+			...(genre && { genre }),
+			orderBy: order,
+			limit: 50
+		}
+
+		searchMovies({}, params).then(res => {
+			setIsLoading(false)
+			if (res && Array.isArray(res)) {
+				setMovies(res)
+			} else {
+				setMovies([])
+			}
+		}).catch(() => {
+			setIsLoading(false)
+			setMovies([])
+		})
+	}, [title, genre, order, searchMovies])
+
+	useEffect(() => {
+		const timeoutId = setTimeout(() => {
+			performSearch()
+		}, 500) // Debounce by 500ms
+
+		return () => clearTimeout(timeoutId)
+	}, [performSearch])
 
 	return (
 		<main className='flex h-dvh w-screen bg-gray-800'>
@@ -125,21 +153,74 @@ const Search = () => {
 								<IoSettingsOutline className='w-auto h-full' />
 							</button>
 						)}
-						<input
-							type='text'
-							placeholder='Rechercher...'
-							className='flex-1 p-2 rounded-2xl bg-gray-900 text-white border border-gray-600'
-							value={title}
-							onChange={e => setTitle(e.target.value)}
-						/>
+						<div className='relative flex-1'>
+							<IoSearchOutline className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' size={20} />
+							<input
+								type='text'
+								placeholder='Rechercher un film...'
+								className='w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-900 text-white border border-gray-600 focus:border-nitflex-red focus:outline-none transition-colors'
+								value={title}
+								onChange={e => setTitle(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
 				<div className='scrollable w-full max-h-[calc(100%-100px)] flex flex-wrap gap-5 p-5 justify-center bg-gray-900 pb-20'>
-					{movies.length === 0 ? (
-						<p className='text-white'>Aucun résultat trouvé</p>
-					) : (
-						movies.map((movie, idx) => <Movie key={idx} movie={movie} />)
-					)}
+					<AnimatePresence mode='wait'>
+						{isLoading ? (
+							<motion.div
+								key='loader'
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className='w-full flex justify-center items-center py-20'
+							>
+								<Loader />
+							</motion.div>
+						) : !hasSearched ? (
+							<motion.div
+								key='prompt'
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0 }}
+								className='w-full flex flex-col items-center justify-center py-20 text-gray-400'
+							>
+								<IoSearchOutline size={64} className='mb-4 opacity-50' />
+								<p className='text-xl'>Recherchez un film par titre</p>
+								<p className='text-sm mt-2'>Utilisez les filtres pour affiner votre recherche</p>
+							</motion.div>
+						) : movies.length === 0 ? (
+							<motion.div
+								key='no-results'
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0 }}
+								className='w-full flex flex-col items-center justify-center py-20 text-gray-400'
+							>
+								<p className='text-xl'>Aucun film trouvé</p>
+								<p className='text-sm mt-2'>Essayez avec d'autres critères de recherche</p>
+							</motion.div>
+						) : (
+							<motion.div
+								key='results'
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className='w-full flex flex-wrap gap-5 justify-center'
+							>
+								{movies.map((movie, idx) => (
+									<motion.div
+										key={movie?.id || idx}
+										initial={{ opacity: 0, scale: 0.9 }}
+										animate={{ opacity: 1, scale: 1 }}
+										transition={{ duration: 0.2, delay: idx * 0.03 }}
+									>
+										<Movie movie={movie} />
+									</motion.div>
+								))}
+							</motion.div>
+						)}
+					</AnimatePresence>
 				</div>
 			</section>
 		</main>

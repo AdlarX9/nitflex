@@ -16,9 +16,10 @@ func main() {
 		return
 	}
 
+	// Load .env file if it exists (optional for Docker)
 	errEnv := godotenv.Load()
 	if errEnv != nil {
-		log.Fatalf("Erreur lors du chargement du fichier .env : %v", errEnv)
+		log.Printf("Note: .env file not found, using environment variables from system")
 	}
 
 	// r.Use(cors.New(cors.Config{
@@ -31,6 +32,11 @@ func main() {
 
 	r := gin.Default()
 	r.Use(cors.Default())
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	// Users
 	r.POST("/users", CreateUser)
