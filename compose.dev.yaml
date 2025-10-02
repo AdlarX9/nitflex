@@ -1,0 +1,75 @@
+# Docker Compose override for development mode
+# Usage: docker compose -f compose.yaml -f compose.dev.yaml up
+
+services:
+    # MongoDB only in dev mode
+    mongodb:
+        image: mongo:latest
+        container_name: nitflex-mongodb-dev
+        restart: unless-stopped
+        environment:
+            MONGO_INITDB_DATABASE: nitflex
+        ports:
+            - "27017:27017"
+        volumes:
+            - mongodb_dev_data:/data/db
+        networks:
+            - nitflex-network
+        healthcheck:
+            test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+
+    # Go API in dev mode with hot reload
+    api:
+        build:
+            context: ./api
+            dockerfile: Dockerfile.dev
+        container_name: nitflex-api-dev
+        restart: unless-stopped
+        environment:
+            - MONGODB_URI=mongodb://mongodb:27017/nitflex
+            - PORT=8080
+            - GIN_MODE=debug
+        ports:
+            - "8080:8080"
+        volumes:
+            - ./api:/app
+            - ./movies:/app/movies:ro
+        networks:
+            - nitflex-network
+        command: ["air", "-c", ".air.toml"]
+        healthcheck:
+            test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+
+    # React Frontend in dev mode with Vite
+    frontend:
+        build:
+            context: ./app
+            dockerfile: Dockerfile.dev
+        container_name: nitflex-frontend-dev
+        restart: unless-stopped
+        environment:
+            - VITE_API=http://localhost:8080
+        ports:
+            - "5173:5173"
+        volumes:
+            - ./app:/app
+            - /app/node_modules
+        networks:
+            - nitflex-network
+        command: ["pnpm", "run", "dev", "--host"]
+
+volumes:
+    mongodb_dev_data:
+        driver: local
+
+networks:
+    nitflex-network:
+        driver: bridge

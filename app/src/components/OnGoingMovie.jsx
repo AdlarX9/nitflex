@@ -10,7 +10,7 @@ const OnGoingMovie = ({ id, onDelete }) => {
 		'GET',
 		`/movie/${onGoingMovie?.tmdbID}`,
 		{},
-		{},
+		{}
 	)
 	const [imgLoaded, setImgLoaded] = useState(false)
 	const [isHovered, setIsHovered] = useState(false)
@@ -83,14 +83,15 @@ const OnGoingMovie = ({ id, onDelete }) => {
 			<div className='absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent'>
 				<h4 className='text-white text-xs font-medium truncate'>{movie?.title}</h4>
 				<p className='text-gray-300 text-xs'>
-					{Math.floor(onGoingMovie.position / 60)} min / {Math.floor(onGoingMovie.duration / 60)} min
+					{Math.floor(onGoingMovie.position / 60)} min /{' '}
+					{Math.floor(onGoingMovie.duration / 60)} min
 				</p>
 			</div>
 
 			{/* Delete button */}
 			{onDelete && (
 				<button
-					onClick={(e) => {
+					onClick={e => {
 						e.preventDefault()
 						onDelete(id)
 					}}

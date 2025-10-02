@@ -1,229 +1,485 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useAPIAfter } from '../app/hooks'
 import Movie from '../components/Movie.jsx'
-import { IoSettingsOutline, IoCloseCircleOutline, IoSearchOutline } from 'react-icons/io5'
+import {
+	IoSettingsOutline,
+	IoClose,
+	IoSearchOutline,
+	IoRefresh,
+	IoFilterCircle,
+	IoFlash
+} from 'react-icons/io5'
+// eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import Loader from '../components/Loader.jsx'
+
+/* CONFIG */
+const ORDERING = {
+	'date:desc': 'Récents',
+	'date:asc': 'Anciens',
+	'title:asc': 'Titre A-Z',
+	'title:desc': 'Titre Z-A'
+}
+const GENRES = {
+	'': 'Tout',
+	action: 'Action',
+	animation: 'Animation',
+	adventure: 'Aventure',
+	comedy: 'Comédie',
+	drama: 'Drame',
+	science_fiction: 'Science-fiction',
+	thriller: 'Thriller'
+}
+
+/* VARIANTS */
+const sidebarVariants = {
+	hidden: { x: '-100%', opacity: 0 },
+	show: { x: 0, opacity: 1, transition: { duration: 0.28, ease: [0.25, 0.8, 0.4, 1] } },
+	exit: { x: '-100%', opacity: 0, transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } }
+}
+const chipVariants = {
+	initial: { opacity: 0, y: 10, scale: 0.95 },
+	animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.22, ease: 'easeOut' } }
+}
+const cardVariants = {
+	initial: { opacity: 0, y: 14, scale: 0.95 },
+	animate: {
+		opacity: 1,
+		y: 0,
+		scale: 1,
+		transition: { duration: 0.25, ease: [0.25, 0.8, 0.4, 1] }
+	}
+}
+const Skeleton = ({ w = 200, h = 300 }) => (
+	<div
+		className='relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-700/40 to-gray-800/40 border border-white/10 animate-pulse'
+		style={{ width: w, height: h }}
+	>
+		<div className='absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.18)_50%,rgba(255,255,255,0)_100%)] bg-[length:190%_100%] animate-[shimmer_1.4s_infinite]' />
+	</div>
+)
 
 const Search = () => {
-	const ORDERING = {
-		'title:asc': 'Titre A-Z',
-		'title:desc': 'Titre Z-A',
-		'date:desc': "Récents d'abord",
-		'date:asc': "Vieux d'abord"
-	}
-
-	const GENRES = {
-		'': 'Tout',
-		action: 'Action',
-		animation: 'Animation',
-		adventure: 'Aventure',
-		comedy: 'Comédie',
-		drama: 'Drame',
-		science_fiction: 'Science-fiction',
-		thriller: 'Thriller'
-	}
+	const { triggerAsync: searchMovies } = useAPIAfter('GET', '/movies')
 
 	const [movies, setMovies] = useState([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [hasSearched, setHasSearched] = useState(false)
-	const { triggerAsync: searchMovies } = useAPIAfter('GET', '/movies')
+
 	const [title, setTitle] = useState('')
 	const [genre, setGenre] = useState('')
 	const [order, setOrder] = useState('date:desc')
-	const [isMenuOpen, setIsMenuOpen] = useState(window.innerWidth >= 1024)
 
-	// Écouteur pour ajuster automatiquement l'état de la side bar selon la largeur de l'écran
+	const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024)
+	const [pending, setPending] = useState(false)
+	const abortRef = useRef(null)
+
+	/* Responsive */
 	useEffect(() => {
-		const handleResize = () => {
-			setIsMenuOpen(window.innerWidth >= 1024)
-		}
-
+		const handleResize = () => setIsSidebarOpen(window.innerWidth >= 1024)
 		window.addEventListener('resize', handleResize)
 		return () => window.removeEventListener('resize', handleResize)
 	}, [])
 
-	// Debounced search function
-	const performSearch = useCallback(() => {
+	/* Params */
+	const params = useMemo(
+		() => ({
+			...(title && { title }),
+			...(genre && { genre }),
+			orderBy: order,
+			limit: 50
+		}),
+		[title, genre, order]
+	)
+
+	/* Search */
+	const performSearch = () => {
+		if (abortRef.current) abortRef.current.abort()
+		const controller = new AbortController()
+		abortRef.current = controller
+
 		if (!title && !genre) {
 			setMovies([])
 			setHasSearched(false)
+			setIsLoading(false)
+			setPending(false)
 			return
 		}
 
 		setIsLoading(true)
 		setHasSearched(true)
-		
-		const params = {
-			...(title && { title }),
-			...(genre && { genre }),
-			orderBy: order,
-			limit: 50
-		}
+		setPending(false)
 
-		searchMovies({}, params).then(res => {
-			setIsLoading(false)
-			if (res && Array.isArray(res)) {
-				setMovies(res)
-			} else {
+		searchMovies({ signal: controller.signal }, params)
+			.then(res => {
+				if (controller.signal.aborted) return
+				setMovies(Array.isArray(res) ? res : [])
+				setIsLoading(false)
+			})
+			.catch(() => {
+				if (controller.signal.aborted) return
 				setMovies([])
-			}
-		}).catch(() => {
-			setIsLoading(false)
-			setMovies([])
-		})
-	}, [title, genre, order, searchMovies])
+				setIsLoading(false)
+			})
+	}
 
+	/* Debounce */
 	useEffect(() => {
-		const timeoutId = setTimeout(() => {
-			performSearch()
-		}, 500) // Debounce by 500ms
+		setPending(Boolean(title || genre))
+		performSearch()
+		// eslint-disable-next-line
+	}, [title, genre, order])
 
-		return () => clearTimeout(timeoutId)
-	}, [performSearch])
+	const clearAll = () => {
+		setTitle('')
+		setGenre('')
+		setOrder('date:desc')
+		setMovies([])
+		setHasSearched(false)
+		setPending(false)
+		setIsLoading(false)
+	}
+
+	const activeFilters = useMemo(() => {
+		const list = []
+		if (genre) list.push(GENRES[genre])
+		if (order !== 'date:desc') list.push(ORDERING[order])
+		return list
+	}, [genre, order])
 
 	return (
-		<main className='flex h-dvh w-screen bg-gray-800'>
-			{/* Side bar */}
-			<div
-				className={`flex flex-col fixed inset-y-0 left-0 z-40 bg-gray-700 p-5 transform transition-transform duration-300 ease-in-out lg:static lg:w-1/4 lg:min-w-[250px] ${
-					isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-				}`}
-			>
-				<div className='flex flex-shrink-0 justify-between items-center mb-5'>
-					<h2 className='font-bold text-4xl text-white'>Paramètres</h2>
-					{/* Bouton pour fermer la side bar (visible sur petits écrans uniquement) */}
-					<button
-						className='bg-nitflex-red text-white p-2 rounded-md lg:hidden cursor-pointer'
-						onClick={() => setIsMenuOpen(false)}
-					>
-						<IoCloseCircleOutline />
-					</button>
-				</div>
-				<div className='scrollable flex-1'>
-					<legend className='ml-2 font-medium text-white'>Genre</legend>
-					{Object.entries(GENRES).map(([key, value]) => (
-						<label
-							className='pl-5 box-border flex items-center gap-2 text-white'
-							key={key}
-						>
-							<input
-								type='radio'
-								value={key}
-								name='genre'
-								checked={key === genre}
-								onChange={() => setGenre(key)}
-								className='flex-shrink-0'
+		<div className='relative min-h-dvh w-full bg-black text-gray-100 overflow-hidden font-sans'>
+			{/* Background */}
+			<div className='pointer-events-none absolute inset-0 -z-10'>
+				<div className='absolute inset-0 bg-[radial-gradient(circle_at_32%_20%,rgba(255,255,255,0.11),rgba(0,0,0,0)_60%)] mix-blend-screen opacity-60' />
+				<div
+					className='absolute inset-0 opacity-[0.16] mix-blend-overlay'
+					style={{
+						backgroundImage:
+							'repeating-linear-gradient(0deg,rgba(255,255,255,0.05)_0,rgba(255,255,255,0.05)_1px,transparent_1px,transparent_3px)'
+					}}
+				/>
+				<div className='absolute inset-0 bg-gradient-to-b from-black via-[#0c1219] to-black' />
+			</div>
+
+			<div className='flex min-h-dvh w-full'>
+				{/* SIDEBAR */}
+				<AnimatePresence initial={false}>
+					{isSidebarOpen && (
+						<>
+							<motion.div
+								key='overlay'
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 0.55 }}
+								exit={{ opacity: 0 }}
+								transition={{ duration: 0.2 }}
+								className='fixed inset-0 bg-black/70 backdrop-blur-sm lg:hidden z-40'
+								onClick={() => setIsSidebarOpen(false)}
 							/>
-							<span className='flex-1 dotted-txt'>{value}</span>
-						</label>
-					))}
-					<br />
-					<legend className='ml-2 font-medium text-white'>Ordre</legend>
-					{Object.entries(ORDERING).map(([key, value]) => (
-						<label
-							className='pl-5 box-border flex items-center gap-2 text-white'
-							key={key}
-						>
-							<input
-								type='radio'
-								value={key}
-								name='order'
-								checked={key === order}
-								onChange={() => setOrder(key)}
-								className='flex-shrink-0'
-							/>
-							<span className='flex-1 dotted-txt'>{value}</span>
-						</label>
-					))}
-					<br />
+							<motion.aside
+								key='aside'
+								variants={sidebarVariants}
+								initial='hidden'
+								animate='show'
+								exit='exit'
+								className='z-50 flex flex-col h-dvh w-[85%] max-w-[320px] lg:max-w-none lg:w-[360px] fixed lg:static top-0 left-0 bg-gradient-to-b from-[#111924]/95 to-[#0d141c]/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl lg:shadow-none pb-12'
+							>
+								{/* Header inside sidebar */}
+								<div className='flex items-center justify-between px-7 pt-7 pb-5'>
+									<h2 className='text-[1.6rem] leading-none font-bold tracking-wide uppercase bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent'>
+										Filtres
+									</h2>
+									<button
+										onClick={() => setIsSidebarOpen(false)}
+										className='lg:hidden w-12 h-12 inline-flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10'
+										title='Fermer'
+									>
+										<IoClose className='text-3xl' />
+									</button>
+								</div>
+
+								<div className='flex-1 overflow-y-auto px-7 pb-10 space-y-12 custom-scroll'>
+									{/* GENRES */}
+									<section>
+										<p className='text-[1rem] font-semibold uppercase tracking-widest text-gray-400 mb-5 flex items-center gap-2'>
+											<span className='w-3 h-3 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(255,0,0,0.55)]' />
+											Genre
+										</p>
+										<div className='flex flex-wrap gap-3'>
+											{Object.entries(GENRES).map(([key, label], idx) => {
+												const active = key === genre
+												return (
+													<motion.button
+														key={key}
+														variants={chipVariants}
+														initial='initial'
+														animate='animate'
+														custom={idx}
+														onClick={() => setGenre(key)}
+														className={`px-5 py-2.5 rounded-full text-[0.95rem] font-medium border transition ${
+															active
+																? 'bg-red-500/25 border-red-400/60 text-red-200 shadow-[0_0_0_1px_rgba(255,0,0,0.35)]'
+																: 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
+														}`}
+													>
+														{label}
+													</motion.button>
+												)
+											})}
+										</div>
+									</section>
+
+									{/* ORDER */}
+									<section>
+										<p className='text-[1rem] font-semibold uppercase tracking-widest text-gray-400 mb-5 flex items-center gap-2'>
+											<span className='w-3 h-3 rounded-full bg-blue-500/80 shadow-[0_0_8px_rgba(56,132,255,0.55)]' />
+											Ordre
+										</p>
+										<div className='flex flex-wrap gap-3'>
+											{Object.entries(ORDERING).map(([key, label], idx) => {
+												const active = key === order
+												return (
+													<motion.button
+														key={key}
+														variants={chipVariants}
+														initial='initial'
+														animate='animate'
+														custom={idx}
+														onClick={() => setOrder(key)}
+														className={`px-5 py-2.5 rounded-full text-[0.95rem] font-medium border transition ${
+															active
+																? 'bg-blue-500/25 border-blue-400/60 text-blue-200 shadow-[0_0_0_1px_rgba(56,132,255,0.35)]'
+																: 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
+														}`}
+													>
+														{label}
+													</motion.button>
+												)
+											})}
+										</div>
+									</section>
+								</div>
+
+								{/* Footer */}
+								<div className='px-7 pt-6 pb-8 border-t border-white/10'>
+									<button
+										onClick={clearAll}
+										className='w-full inline-flex items-center justify-center gap-4 px-6 py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[1rem] font-semibold uppercase tracking-wide transition disabled:opacity-40 disabled:cursor-not-allowed'
+										disabled={!title && !genre && order === 'date:desc'}
+									>
+										<IoRefresh className='text-2xl opacity-80' />
+										Réinitialiser
+									</button>
+									<p className='mt-4 text-[0.8rem] text-center text-gray-500 leading-snug'>
+										Mise à jour automatique des résultats.
+									</p>
+								</div>
+							</motion.aside>
+						</>
+					)}
+				</AnimatePresence>
+
+				{/* MAIN */}
+				<div className='flex flex-col flex-1 min-w-0 h-dvh'>
+					{/* HEADER */}
+					<header className='flex flex-col gap-5 px-7 2xl:px-12 pt-7 pb-5 border-b border-white/10 bg-gray-900/40 backdrop-blur-2xl sticky top-0 z-30'>
+						<div className='flex items-center gap-6'>
+							<button
+								onClick={() => setIsSidebarOpen(o => !o)}
+								className='lg:hidden inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition'
+								title='Filtres'
+							>
+								{isSidebarOpen ? (
+									<IoClose className='text-4xl' />
+								) : (
+									<IoSettingsOutline className='text-4xl' />
+								)}
+							</button>
+							<div className='relative flex-1'>
+								<IoSearchOutline className='absolute left-5 top-1/2 -translate-y-1/2 text-[1.9rem]' />
+								<input
+									type='text'
+									placeholder='Rechercher un film...'
+									className='w-full pl-20 pr-6 py-5 rounded-2xl bg-gray-950/75 backdrop-blur border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-[1.35rem] leading-none placeholder:text-gray-500 font-semibold tracking-wide transition'
+									value={title}
+									onChange={e => setTitle(e.target.value)}
+									autoFocus
+								/>
+								<AnimatePresence>
+									{pending && !isLoading && (
+										<motion.div
+											initial={{ opacity: 0, x: 12 }}
+											animate={{ opacity: 1, x: 0 }}
+											exit={{ opacity: 0, x: 12 }}
+											className='absolute right-5 top-1/2 -translate-y-1/2 text-[0.85rem] font-semibold uppercase tracking-wider text-amber-300/90 flex items-center gap-2'
+										>
+											<IoFlash className='text-2xl animate-pulse' />
+											<span className='hidden md:inline'>Recherche…</span>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+							<button
+								onClick={clearAll}
+								className='hidden md:inline-flex items-center gap-4 px-7 h-14 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[0.95rem] font-semibold uppercase tracking-wide transition disabled:opacity-40 disabled:cursor-not-allowed'
+								disabled={!title && !genre && order === 'date:desc'}
+							>
+								<IoRefresh className='text-2xl opacity-80' />
+								Réinitialiser
+							</button>
+						</div>
+
+						{/* Active filters */}
+						<AnimatePresence>
+							{(activeFilters.length > 0 || order !== 'date:desc') && (
+								<motion.div
+									initial={{ opacity: 0, y: -10 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: -10 }}
+									className='flex flex-wrap items-center gap-4'
+								>
+									<span className='text-[0.95rem] uppercase tracking-wider font-bold text-gray-400 flex items-center gap-2'>
+										<IoFilterCircle className='text-2xl' />
+										Actifs :
+									</span>
+									{activeFilters.map((f, i) => (
+										<motion.span
+											key={f}
+											variants={chipVariants}
+											initial='initial'
+											animate='animate'
+											custom={i}
+											className='px-5 py-2 rounded-full text-[0.85rem] font-medium bg-white/10 border border-white/10 backdrop-blur-sm text-gray-100'
+										>
+											{f}
+										</motion.span>
+									))}
+									{genre && (
+										<button
+											onClick={() => setGenre('')}
+											className='text-[0.8rem] px-5 py-2 rounded-full bg-red-500/30 hover:bg-red-500/40 text-red-100 border border-red-500/50 transition font-semibold'
+										>
+											Supprimer genre
+										</button>
+									)}
+									{order !== 'date:desc' && (
+										<button
+											onClick={() => setOrder('date:desc')}
+											className='text-[0.8rem] px-5 py-2 rounded-full bg-blue-500/30 hover:bg-blue-500/40 text-blue-100 border border-blue-500/50 transition font-semibold'
+										>
+											Ordre par défaut
+										</button>
+									)}
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</header>
+
+					{/* RESULTS SCROLL AREA */}
+					<div className='flex-1 overflow-y-auto px-7 2xl:px-12 pt-8 pb-24'>
+						{/* Stats Row */}
+						<div className='flex flex-wrap items-end justify-between gap-8 mb-10'>
+							<div className='flex flex-col'>
+								<h3 className='text-[1.9rem] font-extrabold tracking-tight text-gray-100 flex items-center gap-4'>
+									Résultats
+									<AnimatePresence mode='popLayout'>
+										{hasSearched && !isLoading && (
+											<motion.span
+												key={movies.length}
+												initial={{ opacity: 0, y: -8 }}
+												animate={{ opacity: 1, y: 0 }}
+												exit={{ opacity: 0, y: 8 }}
+												className='text-[0.95rem] font-bold px-4 py-1.5 rounded-full bg-white/10 border border-white/10'
+											>
+												{movies.length}
+											</motion.span>
+										)}
+									</AnimatePresence>
+								</h3>
+								<span className='text-[0.9rem] uppercase tracking-wider text-gray-500 font-medium'>
+									{!hasSearched
+										? 'Tapez un titre ou choisissez un genre'
+										: isLoading
+											? 'Chargement...'
+											: movies.length === 0
+												? 'Aucun résultat'
+												: 'Films trouvés'}
+								</span>
+							</div>
+						</div>
+
+						{/* Content States */}
+						<AnimatePresence mode='wait'>
+							{isLoading ? (
+								<motion.div
+									key='loading'
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									exit={{ opacity: 0 }}
+									className='grid gap-8 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6'
+								>
+									{Array.from({ length: 12 }).map((_, i) => (
+										<Skeleton key={i} />
+									))}
+								</motion.div>
+							) : !hasSearched ? (
+								<motion.div
+									key='prompt'
+									initial={{ opacity: 0, y: 25 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0 }}
+									className='w-full flex flex-col items-center justify-center py-32 text-gray-400'
+								>
+									<IoSearchOutline size={140} className='mb-10 opacity-25' />
+									<p className='text-[2rem] font-extrabold tracking-tight'>
+										Recherchez un film
+									</p>
+									<p className='text-[1rem] mt-5 text-gray-500 font-medium'>
+										Saisissez un titre ou appliquez un genre
+									</p>
+								</motion.div>
+							) : movies.length === 0 ? (
+								<motion.div
+									key='no-results'
+									initial={{ opacity: 0, y: 25 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0 }}
+									className='w-full flex flex-col items-center justify-center py-32 text-gray-400'
+								>
+									<p className='text-[2rem] font-extrabold tracking-tight'>
+										Aucun film trouvé
+									</p>
+									<p className='text-[1rem] mt-5 text-gray-500 font-medium'>
+										Modifiez vos critères ou réinitialisez les filtres
+									</p>
+								</motion.div>
+							) : (
+								<motion.div
+									key='results-grid'
+									className='grid gap-8 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6'
+									initial='initial'
+									animate='animate'
+								>
+									{movies.map((movie, idx) => (
+										<motion.div
+											key={movie?.id || idx}
+											variants={cardVariants}
+											custom={idx}
+											initial='initial'
+											animate='animate'
+										>
+											<Movie movie={movie} />
+										</motion.div>
+									))}
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</div>
 				</div>
 			</div>
 
-			{/* Section principale */}
-			<section className='flex flex-col flex-1 overflow-hidden'>
-				<div className='flex flex-col p-5'>
-					<div className='flex gap-4 items-center'>
-						{/* Bouton pour ouvrir la side bar (petits écrans uniquement) */}
-						{!isMenuOpen && (
-							<button
-								className='h-full flex-shrink-0 top-5 left-5 z-50 bg-nitflex-red text-white p-2 rounded-md lg:hidden cursor-pointer'
-								onClick={() => setIsMenuOpen(true)}
-							>
-								<IoSettingsOutline className='w-auto h-full' />
-							</button>
-						)}
-						<div className='relative flex-1'>
-							<IoSearchOutline className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' size={20} />
-							<input
-								type='text'
-								placeholder='Rechercher un film...'
-								className='w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-900 text-white border border-gray-600 focus:border-nitflex-red focus:outline-none transition-colors'
-								value={title}
-								onChange={e => setTitle(e.target.value)}
-							/>
-						</div>
-					</div>
-				</div>
-				<div className='scrollable w-full max-h-[calc(100%-100px)] flex flex-wrap gap-5 p-5 justify-center bg-gray-900 pb-20'>
-					<AnimatePresence mode='wait'>
-						{isLoading ? (
-							<motion.div
-								key='loader'
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								className='w-full flex justify-center items-center py-20'
-							>
-								<Loader />
-							</motion.div>
-						) : !hasSearched ? (
-							<motion.div
-								key='prompt'
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0 }}
-								className='w-full flex flex-col items-center justify-center py-20 text-gray-400'
-							>
-								<IoSearchOutline size={64} className='mb-4 opacity-50' />
-								<p className='text-xl'>Recherchez un film par titre</p>
-								<p className='text-sm mt-2'>Utilisez les filtres pour affiner votre recherche</p>
-							</motion.div>
-						) : movies.length === 0 ? (
-							<motion.div
-								key='no-results'
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0 }}
-								className='w-full flex flex-col items-center justify-center py-20 text-gray-400'
-							>
-								<p className='text-xl'>Aucun film trouvé</p>
-								<p className='text-sm mt-2'>Essayez avec d'autres critères de recherche</p>
-							</motion.div>
-						) : (
-							<motion.div
-								key='results'
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								className='w-full flex flex-wrap gap-5 justify-center'
-							>
-								{movies.map((movie, idx) => (
-									<motion.div
-										key={movie?.id || idx}
-										initial={{ opacity: 0, scale: 0.9 }}
-										animate={{ opacity: 1, scale: 1 }}
-										transition={{ duration: 0.2, delay: idx * 0.03 }}
-									>
-										<Movie movie={movie} />
-									</motion.div>
-								))}
-							</motion.div>
-						)}
-					</AnimatePresence>
-				</div>
-			</section>
-		</main>
+			{/* Bottom gradient */}
+			<div className='pointer-events-none fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent' />
+		</div>
 	)
 }
 

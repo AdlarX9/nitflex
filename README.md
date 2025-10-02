@@ -1,21 +1,22 @@
 # 🎬 Nitflex
 
 **Nitflex** est une plateforme de streaming privée pour gérer et visionner vos films stockés sur un serveur NAS. Ce projet est une application complète avec un frontend React moderne, une API backend en Go, et MongoDB pour la persistance des données.
-
 > ⚠️ **Disclaimer**: This software is not inspired by the well-known application known as Netflix. Any resemblance or similarity to the latter is purely and entirely coincidental.
 
-## ✨ Fonctionnalités
+## ✨ Fonctionnalités principales
 
-- 🎥 **Streaming vidéo** avec support des contrôles tactiles
-- 👥 **Multi-utilisateurs** avec gestion des profils
-- 📊 **Films en cours** - Reprenez là où vous vous êtes arrêté
-- 🔍 **Recherche avancée** avec filtres par genre et tri
-- 📱 **Design responsive** optimisé pour mobile et desktop
-- 🎨 **Interface moderne** avec animations fluides (Framer Motion)
-- 🐳 **Déploiement Docker** avec reverse proxy Nginx
-- 🎞️ **Intégration TMDB** pour les métadonnées des films
-
-## 🚀 Installation rapide
+- 🎬 **Streaming vidéo** optimisé avec support du range request
+- 🔍 **Recherche avancée** de films avec filtres et tri
+- 📱 **100% Responsive** - Interface adaptée mobile, tablette et desktop
+- 🎨 **UI moderne** avec animations Framer Motion
+- 👤 **Multi-utilisateurs** avec gestion de profils
+- ⏯️ **Films en cours** - Reprenez là où vous vous êtes arrêté
+- 🎭 **Intégration TMDB** pour les métadonnées et posters
+- 📤 **Upload de films** avec métadonnées automatiques
+- 🎞️ **Traitement vidéo** - Local (Electron) ou serveur (API)
+- 🖥️ **Application Electron** - Version desktop avec traitement local
+- 🐳 **Docker** - Déploiement simplifié avec Docker Compose
+- 🔄 **Nginx reverse proxy** pour une architecture production-ready
 
 ### Prérequis
 

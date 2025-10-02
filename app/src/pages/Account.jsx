@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useAPIAfter, useMainContext } from '../app/hooks.js'
 import { IoTrashBin, IoSend, IoPersonCircle } from 'react-icons/io5'
 import { confirm } from '../components/Confirmation.jsx'
+/* eslint-disable-next-line */
 import { motion } from 'framer-motion'
 
 const Account = () => {
@@ -16,17 +17,17 @@ const Account = () => {
 		e.preventDefault()
 		setError('')
 		setSuccess(false)
-		
+
 		if (!nameRef.current.value || nameRef.current.value.trim() === '') {
 			setError('Le nom ne peut pas être vide')
 			return
 		}
-		
+
 		if (nameRef.current.value === user.name) {
 			setError('Le nouveau nom doit être différent')
 			return
 		}
-		
+
 		changeName({ name: nameRef.current.value.trim() }).then(res => {
 			if (res?.error) {
 				setError(res.error)
@@ -105,7 +106,7 @@ const Account = () => {
 								<IoSend size={20} />
 							</button>
 						</div>
-						
+
 						{/* Error Message */}
 						{error && (
 							<motion.div
@@ -116,7 +117,7 @@ const Account = () => {
 								{error}
 							</motion.div>
 						)}
-						
+
 						{/* Success Message */}
 						{success && (
 							<motion.div

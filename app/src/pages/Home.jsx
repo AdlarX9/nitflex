@@ -1,13 +1,13 @@
 import Nitflex from '/images/nitflex.png'
 import { useAPI, useAPIAfter, useMainContext } from '../app/hooks'
 import { Link, useNavigate } from 'react-router-dom'
-import Person from '/images/person-circle-fill.svg'
 import Plus from '/images/plus-circle-fill.svg'
 import Loader from '../components/Loader'
 import PopUp from '../components/PopUp'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IoCloudUploadOutline, IoPersonCircle } from 'react-icons/io5'
+// eslint-disable-next-line
 import { motion } from 'framer-motion'
 
 const Account = ({ user, index }) => {
@@ -37,7 +37,7 @@ const Account = ({ user, index }) => {
 					animate={{ rotateY: isHovered ? 360 : 0 }}
 					transition={{ duration: 0.6 }}
 				>
-					<img src={Person} alt='User Avatar' className='w-20 h-20' />
+					<IoPersonCircle className='w-20 h-20' />
 				</motion.div>
 			</motion.button>
 			<p className='mt-2 text-xl font-medium text-white'>{user.name || '-'}</p>
@@ -56,22 +56,24 @@ const Accounts = () => {
 	const handleSubmit = e => {
 		e.preventDefault()
 		setError('')
-		
+
 		if (!usernameRef.current.value || usernameRef.current.value.trim() === '') {
 			setError('Le nom ne peut pas être vide')
 			return
 		}
-		
+
 		setIsCreating(true)
-		triggerAsync({ name: usernameRef.current.value.trim() }).then(() => {
-			refetch()
-			usernameRef.current.value = ''
-			setClicked(false)
-			setIsCreating(false)
-		}).catch(() => {
-			setError('Erreur lors de la création du compte')
-			setIsCreating(false)
-		})
+		triggerAsync({ name: usernameRef.current.value.trim() })
+			.then(() => {
+				refetch()
+				usernameRef.current.value = ''
+				setClicked(false)
+				setIsCreating(false)
+			})
+			.catch(() => {
+				setError('Erreur lors de la création du compte')
+				setIsCreating(false)
+			})
 	}
 
 	return (
@@ -104,7 +106,9 @@ const Accounts = () => {
 						animate={{ scale: 1, opacity: 1 }}
 						className='p-8 max-w-md w-full'
 					>
-						<h2 className='text-3xl font-bold text-center text-nitflex-red mb-6'>Créer un compte</h2>
+						<h2 className='text-3xl font-bold text-center text-nitflex-red mb-6'>
+							Créer un compte
+						</h2>
 						<form onSubmit={handleSubmit} className='flex flex-col gap-4'>
 							<div>
 								<label className='block text-white mb-2 font-medium'>Pseudo</label>
@@ -150,13 +154,13 @@ const Home = () => {
 		>
 			{createPortal(
 				<motion.div
-					initial={{ y: -20, opacity: 0 }}
-					animate={{ y: 0, opacity: 1 }}
-					transition={{ duration: 0.5, delay: 0.8 }}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					transition={{ duration: 0.5, delay: 0.5 }}
 				>
 					<Link
 						to='/upload'
-						className='fixed top-5 right-5 p-3 px-5 rounded-full cursor-pointer bg-nitflex-red hover:bg-red-700 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all z-50'
+						className='fixed top-5 right-5 p-3 px-5 rounded-full cursor-pointer bg-nitflex-red flex items-center gap-2 shadow-lg hover:shadow-xl transition-all z-50'
 					>
 						<IoCloudUploadOutline size={24} />
 						<span className='text-lg font-medium hidden md:inline'>Uploader film</span>
@@ -164,7 +168,7 @@ const Home = () => {
 				</motion.div>,
 				document.body
 			)}
-			
+
 			<motion.img
 				initial={{ scale: 0 }}
 				animate={{ scale: 1 }}
@@ -173,16 +177,16 @@ const Home = () => {
 				alt='Nitflex Logo'
 				className='w-32 md:w-50 h-auto'
 			/>
-			
+
 			<motion.h1
 				initial={{ y: 20, opacity: 0 }}
 				animate={{ y: 0, opacity: 1 }}
 				transition={{ duration: 0.5, delay: 0.2 }}
-				className='uppercase font-bold text-5xl md:text-8xl text-nitflex-red drop-shadow-2xl'
+				className='uppercase font-bold text-5xl md:text-8xl red drop-shadow-2xl'
 			>
 				Nitflex
 			</motion.h1>
-			
+
 			<motion.p
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
@@ -191,7 +195,7 @@ const Home = () => {
 			>
 				Qui regarde ?
 			</motion.p>
-			
+
 			<Accounts />
 		</motion.div>
 	)

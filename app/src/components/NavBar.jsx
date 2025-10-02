@@ -7,11 +7,10 @@ import {
 	IoSearchOutline,
 	IoPersonCircle,
 	IoPersonCircleOutline,
-	IoChevronBackOutline
+	IoArrowBack
 } from 'react-icons/io5'
 import { Link, useNavigate } from 'react-router-dom'
 import './style.scss'
-import Button from './Button'
 import { mainColor } from '../app/hooks'
 
 export const Back = ({ to = '/' }) => {
@@ -21,11 +20,10 @@ export const Back = ({ to = '/' }) => {
 				<header className='fixed top-0 left-0 flex p-3'>
 					<Link
 						to={to}
-						className='rounded-full shadow-md shadow-black pointer-events-auto'
+						className='fixed top-5 left-5 z-50 flex items-center gap-2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition'
 					>
-						<Button>
-							<IoChevronBackOutline />
-						</Button>
+						<IoArrowBack className='text-3xl' />
+						<span className='sr-only'>Retour</span>
 					</Link>
 				</header>,
 				document.body

@@ -31,37 +31,14 @@ fi
 echo "✅ Docker and Docker Compose are installed"
 echo ""
 
-# Create .env file if it doesn't exist
-if [ ! -f "app/.env.local" ]; then
-    echo "📝 Creating environment configuration..."
-    cat > app/.env.local << 'EOF'
-# TMDB API Key (get yours at https://www.themoviedb.org/settings/api)
-VITE_TMDB_KEY=your_tmdb_api_key_here
-
-# API URL (in production with nginx proxy)
-VITE_API=http://localhost/api
-EOF
-    echo "⚠️  Please edit app/.env.local and add your TMDB API key"
-    echo ""
-fi
-
-# Create API .env if it doesn't exist
-if [ ! -f "api/.env" ]; then
-    echo "📝 Creating API environment configuration..."
-    cat > api/.env << 'EOF'
-MONGODB_URI=mongodb://mongodb:27017/nitflex
-PORT=8080
-EOF
-    echo "✅ API environment file created"
-    echo ""
-fi
-
-# Create movies directory for NAS mounting
-if [ ! -d "movies" ]; then
-    echo "📁 Creating movies directory..."
-    mkdir -p movies
-    echo "⚠️  Mount your NAS movies directory to ./movies or update docker-compose.yaml"
-    echo ""
+# Vérifie si le fichier ./.env n'existe pas
+if [ ! -f "./.env" ]; then
+    # Duplication de ./.env.local en ./.env
+    cp ./.env.local ./.env
+else
+    # Sinon, copie ./.env dans ./app/.env et ./api/.env
+    cp ./.env ./app/.env
+    cp ./.env ./api/.env
 fi
 
 echo "🔨 Building Docker containers..."

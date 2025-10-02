@@ -3,6 +3,7 @@
 *.env
 *.pem
 api/uploads
+api/tmp
 mongodb_data
 utils/Nitflex.iconset
 app/node_modules

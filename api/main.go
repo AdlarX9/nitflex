@@ -37,6 +37,9 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+	r.HEAD("/health", func(c *gin.Context) {
+		c.Status(200)
+	})
 
 	// Users
 	r.POST("/users", CreateUser)

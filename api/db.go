@@ -20,13 +20,13 @@ func GetMongoClient() *mongo.Client {
 	Once.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		
+
 		// Get MongoDB URI from environment or use default
 		mongoURI := os.Getenv("MONGODB_URI")
 		if mongoURI == "" {
 			mongoURI = "mongodb://localhost:27017"
 		}
-		
+
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 		if err != nil {
 			log.Fatal(err)

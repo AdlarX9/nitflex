@@ -4,13 +4,14 @@ import { Back } from '../components/NavBar'
 import Loader from '../components/Loader'
 import Movie from '../components/Movie'
 import OnGoingMovie from '../components/OnGoingMovie'
+// eslint-disable-next-line
 import { motion } from 'framer-motion'
 
 const Explorer = () => {
 	const { user, mainMovie, newMoviesPending, newMovies, refetchUser } = useMainContext()
 	const { triggerAsync: deleteOnGoingMovie } = useAPIAfter('DELETE', '/ongoing_movies/')
 
-	const handleDeleteOnGoingMovie = (id) => {
+	const handleDeleteOnGoingMovie = id => {
 		deleteOnGoingMovie({}, {}, `/ongoing_movies/${id}`).then(() => {
 			refetchUser()
 		})
@@ -25,7 +26,7 @@ const Explorer = () => {
 		>
 			<Back />
 			<Movie backdropVersion movie={mainMovie} />
-			
+
 			{/* Ongoing Movies Section */}
 			{user.onGoingMovies?.length > 0 && (
 				<motion.div
@@ -42,7 +43,7 @@ const Explorer = () => {
 					</div>
 				</motion.div>
 			)}
-			
+
 			{/* Recent Movies Section */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}

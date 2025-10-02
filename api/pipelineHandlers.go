@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -76,7 +75,11 @@ func UploadMovie(c *gin.Context) {
 	// Récupération des métadonnées
 	customTitle := c.PostForm("customTitle")
 	tmdbIDString := c.PostForm("tmdbID")
-	compressOnServer := strings.ToLower(c.PostForm("compressOnServer")) == "true"
+	processingLocation := c.PostForm("processingLocation") // "local" or "server"
+	if processingLocation == "" {
+		processingLocation = "server" // Default to server processing
+	}
+
 	if customTitle == "" || tmdbIDString == "" {
 		fmt.Printf("métadonnées manquantes : %s et %s\n", customTitle, tmdbIDString)
 		c.JSON(400, gin.H{"error": "customTitle and tmdbID are required"})
@@ -133,22 +136,25 @@ func UploadMovie(c *gin.Context) {
 		return
 	}
 
-	// Répondre avec une URL JSON (exemple d'URL fictive)
+	// Répondre avec une URL JSON
 	c.JSON(200, gin.H{
-		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-		"movie": movie,
+		"url":                fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"movie":              movie,
+		"processingLocation": processingLocation,
 	})
 
-	if compressOnServer {
+	// Only process on server if requested
+	if processingLocation == "server" {
 		go func(movie Movie) {
 			jsonMovie, err := json.Marshal(movie)
 			if err != nil {
 				fmt.Printf("Erreur lors du marshalling JSON : %v\n", err)
 				return
 			}
-			pythonScript := "script.py"
-			args := []string{string(jsonMovie)}
-			cmd := exec.Command("python3", append([]string{pythonScript}, args...)...)
+			pythonScript := "./scripts/transform_movie.py"
+			args := []string{pythonScript, string(jsonMovie)}
+			cmd := exec.Command("python3", args...)
+			cmd.Dir = "."
 
 			// Simuler une tâche longue
 			time.Sleep(5 * time.Second)
@@ -160,20 +166,37 @@ func UploadMovie(c *gin.Context) {
 			mu.Lock()
 			task := Task{}
 			tasks = append(tasks, &task)
+			mu.Unlock()
+
 			if err != nil {
+				mu.Lock()
 				task.Status = "Erreur"
-				task.Output = fmt.Sprintf("Erreur : %v", err)
+				task.Output = fmt.Sprintf("Erreur : %v\n%s", err, string(output))
 				mu.Unlock()
+				fmt.Printf("Erreur traitement vidéo : %v\n", err)
 				return
 			}
 
-			// Stocker la vidéo sur le Serveur
-			// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			// defer cancel()
-
-			task.Status = "Terminé"
-			task.Output = string(output)
-			mu.Unlock()
+			// Parse JSON output from Python script
+			var result map[string]interface{}
+			if err := json.Unmarshal(output, &result); err == nil {
+				if success, ok := result["success"].(bool); ok && success {
+					mu.Lock()
+					task.Status = "Terminé"
+					task.Output = fmt.Sprintf("Fichier traité : %s", result["output_path"])
+					mu.Unlock()
+				} else {
+					mu.Lock()
+					task.Status = "Erreur"
+					task.Output = fmt.Sprintf("Erreur : %s", result["error"])
+					mu.Unlock()
+				}
+			} else {
+				mu.Lock()
+				task.Status = "Terminé"
+				task.Output = string(output)
+				mu.Unlock()
+			}
 		}(movie)
 	}
 }
