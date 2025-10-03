@@ -181,7 +181,7 @@ const Search = () => {
 								initial='hidden'
 								animate='show'
 								exit='exit'
-								className='z-50 flex flex-col h-dvh w-[85%] max-w-[320px] lg:max-w-none lg:w-[360px] fixed lg:static top-0 left-0 bg-gradient-to-b from-[#111924]/95 to-[#0d141c]/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl lg:shadow-none pb-12'
+								className='z-50 flex flex-col h-dvh w-[85%] max-w-[320px] lg:max-w-none lg:w-[360px] fixed lg:static top-0 left-0 bg-gradient-to-b from-[#111924]/95 to-[#0d141c]/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl lg:shadow-none pb-18'
 							>
 								{/* Header inside sidebar */}
 								<div className='flex items-center justify-between px-7 pt-7 pb-5'>

@@ -34,7 +34,6 @@ func UpdateOnGoingMovie(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Recherche d'un OnGoingMovie existant pour ce user et ce film (par MovieID et UserID)
 	filter := bson.M{
 		"user":  onGoingMovie.UserID,
 		"movie": onGoingMovie.MovieID,
@@ -43,43 +42,53 @@ func UpdateOnGoingMovie(c *gin.Context) {
 	var existing OnGoingMovie
 	errFind := GetCollection("ongoing_movies").FindOne(ctx, filter).Decode(&existing)
 	if errFind == nil {
-		// Il existe déjà → on met à jour l'existant
 		onGoingMovie.ID = existing.ID
 	} else if errFind != mongo.ErrNoDocuments {
-		// Erreur inattendue
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB : " + errFind.Error()})
 		return
 	} else {
-		// Pas trouvé → création
 		onGoingMovie.ID = primitive.NewObjectID()
 	}
 
-	// Upsert sur le même filtre (garantit unicité user+movie)
 	updateOptions := options.Update().SetUpsert(true)
 	idFilter := bson.M{"_id": onGoingMovie.ID}
 	update := bson.M{"$set": onGoingMovie}
 
-	_, err := GetCollection("ongoing_movies").UpdateOne(
-		ctx,
-		idFilter,
-		update,
-		updateOptions,
-	)
+	_, err := GetCollection("ongoing_movies").UpdateOne(ctx, idFilter, update, updateOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB : " + err.Error()})
 		return
 	}
 
-	// Ajoute l'ID à user.onGoingMovies (toujours unique grâce à $addToSet)
-	_, errUser := GetCollection("users").UpdateOne(
+	usersCol := GetCollection("users")
+
+	// 1) Retire l'ID s'il existait déjà
+	if _, err := usersCol.UpdateOne(
 		ctx,
 		bson.M{"_id": onGoingMovie.UserID},
-		bson.M{"$addToSet": bson.M{"onGoingMovies": onGoingMovie.ID}},
-	)
-	if errUser != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB user : " + errUser.Error()})
+		bson.M{"$pull": bson.M{"onGoingMovies": onGoingMovie.ID}},
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB user (pull) : " + err.Error()})
 		return
 	}
+
+	// 2) Push en position 0
+	if _, err := usersCol.UpdateOne(
+		ctx,
+		bson.M{"_id": onGoingMovie.UserID},
+		bson.M{
+			"$push": bson.M{
+				"onGoingMovies": bson.M{
+					"$each":     bson.A{onGoingMovie.ID},
+					"$position": 0,
+				},
+			},
+		},
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur MongoDB user (push) : " + err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, onGoingMovie)
 }
 
@@ -91,14 +100,43 @@ func DeleteOnGoingMovie(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invalide"})
 		return
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	res, err := GetCollection("ongoing_movies").DeleteOne(ctx, bson.M{"_id": objID})
-	if err != nil || res.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Suppression impossible"})
+
+	// 1. Suppression du film en cours
+	delRes, err := GetCollection("ongoing_movies").DeleteOne(ctx, bson.M{"_id": objID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur lors de la suppression : " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"deleted": res.DeletedCount})
+	if delRes.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Film en cours non trouvé", "id": id})
+		return
+	}
+
+	// 2. Retirer l'ObjectID des utilisateurs
+	userUpdateRes, err := GetCollection("users").UpdateMany(
+		ctx,
+		bson.M{"onGoingMovies": objID},
+		bson.M{"$pull": bson.M{"onGoingMovies": objID}},
+	)
+	if err != nil {
+		// Ici le film est déjà supprimé. On signale l’erreur.
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":         "Film supprimé mais erreur lors de la mise à jour des utilisateurs : " + err.Error(),
+			"deleted":       delRes.DeletedCount,
+			"usersModified": 0,
+			"orphanMovieID": id,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"deleted":       delRes.DeletedCount,
+		"usersMatched":  userUpdateRes.MatchedCount,
+		"usersModified": userUpdateRes.ModifiedCount,
+	})
 }
 
 // DELETE /all_ongoing_movies

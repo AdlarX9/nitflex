@@ -2,16 +2,9 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Loader from '../components/Loader'
 import { IoPlay, IoPause, IoClose, IoPlayBack, IoPlayForward, IoTimeOutline } from 'react-icons/io5'
+// eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAPI, useAPIAfter, useGetFullMovie, useMainContext } from '../app/hooks'
-
-/**
- * Ajustements demandés :
- * - Texte encore agrandi
- * - Suppression des boutons "Réduire" (plein écran) et "Sauver"
- * - Correction du double bouton pause (le gros bouton central n'apparaît plus en même temps que le petit dans la barre)
- *   => Le gros bouton central n'est visible que quand la vidéo est en pause ET que les contrôles sont cachés
- */
 
 const SEEK_INTERVAL = 10
 const AUTO_HIDE_DELAY = 3000
@@ -25,7 +18,6 @@ const Viewer = () => {
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
 
-	/* Refs & state */
 	const videoRef = useRef(null)
 	const wrapperRef = useRef(null)
 
@@ -50,7 +42,6 @@ const Viewer = () => {
 
 	const src = useMemo(() => `${import.meta.env.VITE_API}/video/${tmdbID}`, [tmdbID])
 
-	/* Format temps */
 	const formatTime = useCallback(t => {
 		if (isNaN(t)) return '0:00'
 		const h = Math.floor(t / 3600)
@@ -63,7 +54,7 @@ const Viewer = () => {
 
 	const remaining = duration - currentTime
 
-	/* Entrée plein écran initial */
+	// Plein écran (sécurisé)
 	useEffect(() => {
 		const el = wrapperRef.current
 		if (!el) return
@@ -73,14 +64,18 @@ const Viewer = () => {
 			document.mozFullScreenElement ||
 			document.msFullscreenElement
 		if (!fsEl) {
-			if (el.requestFullscreen) el.requestFullscreen()
-			else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
-			else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
-			else if (el.msRequestFullscreen) el.msRequestFullscreen()
+			try {
+				if (el.requestFullscreen) el.requestFullscreen().catch(() => {})
+				else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+				else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
+				else if (el.msRequestFullscreen) el.msRequestFullscreen()
+				// eslint-disable-next-line
+			} catch (_) {
+				/* Ignorer */
+			}
 		}
 	}, [])
 
-	/* Surface click */
 	const surfaceClick = e => {
 		if (
 			['BUTTON', 'INPUT', 'SPAN', 'SVG', 'PATH'].includes(e.target.tagName) ||
@@ -88,9 +83,9 @@ const Viewer = () => {
 		)
 			return
 		setControlsVisible(v => !v)
+		if (!paused) scheduleHide()
 	}
 
-	/* Auto hide controls (seulement si lecture) */
 	const scheduleHide = useCallback(() => {
 		if (paused) return
 		if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
@@ -114,7 +109,6 @@ const Viewer = () => {
 		}
 	}, [showControls])
 
-	/* Video events */
 	useEffect(() => {
 		const video = videoRef.current
 		if (!video) return
@@ -125,7 +119,9 @@ const Viewer = () => {
 					const end = video.buffered.end(video.buffered.length - 1)
 					setBufferedEnd(end)
 				}
-			} catch {}
+			} catch (e) {
+				console.error(e)
+			}
 		}
 
 		const onTime = () => {
@@ -183,9 +179,9 @@ const Viewer = () => {
 			video.removeEventListener('playing', onPlaying)
 			video.removeEventListener('error', onError)
 		}
+		// eslint-disable-next-line
 	}, [isSeeking, showControls])
 
-	/* Sauvegarde progression */
 	const maybeScheduleSave = t => {
 		if (!movie || !user?.id || !storedMovie?.id) return
 		if (Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
@@ -230,12 +226,12 @@ const Viewer = () => {
 		return () => {
 			window.removeEventListener('beforeunload', beforeUnload)
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+			// eslint-disable-next-line
 			if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line
 	}, [movie, user?.id, storedMovie?.id])
 
-	/* Shortcuts */
 	useEffect(() => {
 		const handler = e => {
 			if (!videoRef.current) return
@@ -246,7 +242,6 @@ const Viewer = () => {
 					togglePlay()
 					break
 				case 'arrowright':
-					e.preventDefault()
 					seek(SEEK_INTERVAL)
 					break
 				case 'arrowleft':
@@ -263,9 +258,8 @@ const Viewer = () => {
 		}
 		window.addEventListener('keydown', handler)
 		return () => window.removeEventListener('keydown', handler)
-	}, [])
+	})
 
-	/* Lecture / Pause */
 	const togglePlay = useCallback(() => {
 		const video = videoRef.current
 		if (!video) return
@@ -275,7 +269,6 @@ const Viewer = () => {
 
 	const handlePlayPause = () => togglePlay()
 
-	/* Seek */
 	const seek = delta => {
 		const video = videoRef.current
 		if (!video) return
@@ -294,7 +287,6 @@ const Viewer = () => {
 		seekToastTimerRef.current = setTimeout(() => setSeekToast(null), 850)
 	}
 
-	/* Double tap zones */
 	const handleZoneTap = dir => {
 		const now = Date.now()
 		if (now - lastTapRef.current < 350) {
@@ -303,7 +295,6 @@ const Viewer = () => {
 		lastTapRef.current = now
 	}
 
-	/* Progress interactions */
 	const handleProgressChange = e => {
 		const t = parseFloat(e.target.value)
 		if (videoRef.current) videoRef.current.currentTime = t
@@ -332,7 +323,6 @@ const Viewer = () => {
 		if (videoRef.current) maybeScheduleSave(videoRef.current.currentTime)
 	}
 
-	/* Barre background */
 	const progressBackground = useMemo(() => {
 		if (!duration) return '#e50914'
 		const played = (currentTime / duration) * 100
@@ -346,72 +336,15 @@ const Viewer = () => {
 			#444 100%)`
 	}, [currentTime, duration, bufferedEnd])
 
-	/* Quitter */
 	const exitViewer = () => {
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 		if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
 		navigate(-1)
 	}
 
-	/* States de chargement / erreur */
-	if (isPending) {
-		return (
-			<div className='flex flex-col items-center justify-center h-screen bg-black gap-6'>
-				<Loader />
-				<p className='text-white text-2xl tracking-wide'>Chargement du film…</p>
-			</div>
-		)
-	}
-	if (isError || !movie) {
-		return (
-			<motion.div
-				className='flex flex-col items-center justify-center h-screen bg-black text-red-500 p-10'
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-			>
-				<IoClose size={100} className='mb-8' />
-				<h2 className='text-4xl font-bold mb-4'>Film introuvable</h2>
-				<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>
-					{error?.message || 'Impossible de charger les informations.'}
-				</p>
-				<button
-					onClick={() => navigate(-1)}
-					className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
-				>
-					Retour
-				</button>
-			</motion.div>
-		)
-	}
-	if (videoError) {
-		return (
-			<motion.div
-				className='flex flex-col items-center justify-center h-screen bg-black text-red-500 p-10'
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-			>
-				<IoClose size={100} className='mb-8' />
-				<h2 className='text-4xl font-bold mb-4'>Erreur de lecture</h2>
-				<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>{videoError}</p>
-				<div className='flex gap-6'>
-					<button
-						onClick={() => window.location.reload()}
-						className='px-10 py-5 rounded-2xl bg-gray-700 text-white hover:bg-gray-600 transition font-semibold text-lg'
-					>
-						Réessayer
-					</button>
-					<button
-						onClick={exitViewer}
-						className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
-					>
-						Retour
-					</button>
-				</div>
-			</motion.div>
-		)
-	}
-
-	const { title, overview: description, poster } = movie
+	const title = movie?.title || ''
+	const description = movie?.overview || ''
+	const poster = movie?.poster || ''
 
 	return (
 		<div
@@ -423,7 +356,7 @@ const Viewer = () => {
 			<video
 				ref={videoRef}
 				src={src}
-				poster={`https://image.tmdb.org/t/p/w780${poster}`}
+				poster={poster ? `https://image.tmdb.org/t/p/w780${poster}` : undefined}
 				autoPlay
 				playsInline
 				controls={false}
@@ -481,13 +414,15 @@ const Viewer = () => {
 								<IoClose size={40} />
 							</button>
 							<div className='flex flex-col max-w-[55%] items-end text-right gap-2'>
-								<motion.h1
-									className='text-white font-bold text-3xl md:text-4xl leading-tight'
-									initial={{ y: -10, opacity: 0 }}
-									animate={{ y: 0, opacity: 1 }}
-								>
-									{title}
-								</motion.h1>
+								{title && (
+									<motion.h1
+										className='text-white font-bold text-3xl md:text-4xl leading-tight'
+										initial={{ y: -10, opacity: 0 }}
+										animate={{ y: 0, opacity: 1 }}
+									>
+										{title}
+									</motion.h1>
+								)}
 								{description && (
 									<motion.p
 										className='text-gray-300 text-lg md:text-xl line-clamp-2'
@@ -535,16 +470,13 @@ const Viewer = () => {
 								<div
 									className='absolute -top-8 left-0 translate-x-[-50%] px-4 py-2 rounded-xl bg-black/80 text-white text-sm font-semibold border border-white/10'
 									style={{
-										transform: `translateX(calc(${
-											(timeHover / duration) * 100
-										}% - 50%))`
+										transform: `translateX(calc(${(timeHover / duration) * 100}% - 50%))`
 									}}
 								>
 									{formatTime(timeHover)}
 								</div>
 							)}
 
-							{/* Progress */}
 							<div className='flex items-center gap-5 mb-5'>
 								<span className='text-gray-200 font-mono text-base md:text-xl min-w-[62px] text-right'>
 									{formatTime(currentTime)}
@@ -574,7 +506,6 @@ const Viewer = () => {
 								</span>
 							</div>
 
-							{/* Infos */}
 							<div className='flex items-center justify-between text-gray-300 text-base md:text-lg'>
 								<div className='flex items-center gap-6'>
 									<div className='flex items-center gap-3'>
@@ -610,6 +541,79 @@ const Viewer = () => {
 					>
 						<div className='px-5 py-2.5 rounded-full bg-black/75 backdrop-blur-md text-white text-lg font-bold border border-white/10 shadow-xl shadow-black'>
 							{seekToast}
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			{/* Overlay chargement métadonnées */}
+			<AnimatePresence>
+				{isPending && (
+					<motion.div
+						className='absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-50'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+					>
+						<Loader />
+						<p className='text-white text-2xl tracking-wide mt-6'>
+							Chargement du film…
+						</p>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			{/* Erreur chargement métadonnées */}
+			<AnimatePresence>
+				{!isPending && isError && !movie && (
+					<motion.div
+						className='absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-[60] text-red-500 p-10'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+					>
+						<IoClose size={100} className='mb-8' />
+						<h2 className='text-4xl font-bold mb-4'>Film introuvable</h2>
+						<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>
+							{error?.message || 'Impossible de charger les informations.'}
+						</p>
+						<button
+							onClick={() => navigate(-1)}
+							className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
+						>
+							Retour
+						</button>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			{/* Erreur vidéo */}
+			<AnimatePresence>
+				{videoError && (
+					<motion.div
+						className='absolute inset-0 flex flex-col items-center justify-center bg-black/95 z-[70] text-red-500 p-10'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+					>
+						<IoClose size={100} className='mb-8' />
+						<h2 className='text-4xl font-bold mb-4'>Erreur de lecture</h2>
+						<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>
+							{videoError}
+						</p>
+						<div className='flex gap-6'>
+							<button
+								onClick={() => window.location.reload()}
+								className='px-10 py-5 rounded-2xl bg-gray-700 text-white hover:bg-gray-600 transition font-semibold text-lg'
+							>
+								Réessayer
+							</button>
+							<button
+								onClick={exitViewer}
+								className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
+							>
+								Retour
+							</button>
 						</div>
 					</motion.div>
 				)}
