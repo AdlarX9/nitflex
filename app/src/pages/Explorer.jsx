@@ -44,41 +44,12 @@ const Explorer = () => {
 							key={mainBackdrop.file_path}
 							src={'https://image.tmdb.org/t/p/original' + mainBackdrop.file_path}
 							alt='Décor'
-							className='absolute inset-0 w-full h-full object-cover opacity-60 blur-[140px]'
+							className='absolute inset-0 w-full h-auto max-h-2/3 object-cover opacity-60 blur-[140rem]'
 							initial={{ opacity: 0 }}
-							animate={{ opacity: 0.6 }}
+							animate={{ opacity: 0.7 }}
 							transition={{ duration: 1.2, ease: 'easeOut' }}
 						/>
 					)}
-					{/* Radial ambient light */}
-					<motion.div
-						className='absolute inset-0'
-						style={{
-							background:
-								'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.12), rgba(0,0,0,0) 60%)'
-						}}
-						animate={{ opacity: [0.55, 0.75, 0.55] }}
-						transition={{ repeat: Infinity, duration: 18, ease: 'easeInOut' }}
-					/>
-					{/* Animated gradient wash */}
-					<motion.div
-						className='absolute inset-0'
-						style={{
-							background:
-								'linear-gradient(140deg, rgba(10,12,16,0.95) 0%, rgba(14,16,22,0.6) 55%, rgba(24,24,28,0.85) 100%)',
-							backgroundSize: '200% 200%'
-						}}
-						animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
-						transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-					/>
-					{/* Fine noise / scanlines */}
-					<div
-						className='absolute inset-0 opacity-[0.18] mix-blend-overlay'
-						style={{
-							backgroundImage:
-								'repeating-linear-gradient(0deg,rgba(255,255,255,0.05)_0,rgba(255,255,255,0.05)_1px,transparent_1px,transparent_3px)'
-						}}
-					/>
 					{/* Top gradient fade */}
 					<div className='absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-black via-transparent to-transparent' />
 					{/* Bottom gradient fade */}

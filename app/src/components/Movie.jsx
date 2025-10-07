@@ -40,7 +40,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 	if (!movie) return null
 
 	const linkBaseClasses = backdropVersion
-		? 'relative w-[96%] ml-[2%] mt-[2%] h-150 max-h-[66dvh] shadow-2xl shadow-black border border-gray-600/60 rounded-2xl bg-gray-700/50 flex items-center justify-center overflow-hidden group focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/50 transition-transform'
+		? 'relative w-[96%] ml-[2%] mt-[2%] h-150 max-h-[66dvh] min-h-[50dvh] shadow-2xl shadow-black border border-gray-600/60 rounded-2xl bg-gray-700/50 flex items-center justify-center overflow-hidden group focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/50 transition-transform'
 		: 'relative p-0 rounded-lg w-40 h-60 overflow-hidden bg-gray-800 flex items-center justify-center group cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/50 transition-transform'
 
 	const overlayReadable = backdropVersion ? (
