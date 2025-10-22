@@ -12,11 +12,34 @@ const SAVE_DEBOUNCE = 1200
 const MIN_SAVE_DELTA = 5 // secondes
 
 const Viewer = () => {
-	const { tmdbID } = useParams()
-	const { data: movie, isPending, isError, error } = useGetFullMovie(tmdbID)
-	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`)
+	const { tmdbID, episodeID } = useParams()
+	const isEpisode = !!episodeID
+
+	// Movie or Episode data
+	const {
+		data: movie,
+		isPending: moviePending,
+		isError: movieError,
+		error: movieFetchError
+	} = useGetFullMovie(tmdbID, { enabled: !isEpisode })
+	const {
+		data: episodeData,
+		isPending: episodePending,
+		isError: episodeError
+	} = useAPI('GET', `/episode/${episodeID}`, {}, {}, { enabled: isEpisode })
+
+	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`, {}, {}, { enabled: !isEpisode })
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
+
+	// Extract data based on type
+	const mediaData = isEpisode ? episodeData?.episode : movie
+	const seriesData = episodeData?.series
+	const prevEpisode = episodeData?.prevEpisode
+	const nextEpisode = episodeData?.nextEpisode
+	const isPending = isEpisode ? episodePending : moviePending
+	const isError = isEpisode ? episodeError : movieError
+	const error = movieFetchError
 
 	const videoRef = useRef(null)
 	const wrapperRef = useRef(null)
@@ -33,6 +56,7 @@ const Viewer = () => {
 	const [seekToast, setSeekToast] = useState(null)
 
 	const { triggerAsync: updateOnGoingMovie } = useAPIAfter('POST', '/ongoing_movies')
+	const { triggerAsync: updateOnGoingEpisode } = useAPIAfter('POST', '/ongoing_episodes')
 	const saveTimeoutRef = useRef(null)
 	const lastSavedTimeRef = useRef(0)
 	const savingRef = useRef(false)
@@ -40,7 +64,12 @@ const Viewer = () => {
 	const seekToastTimerRef = useRef(null)
 	const lastTapRef = useRef(0)
 
-	const src = useMemo(() => `${import.meta.env.VITE_API}/video/${tmdbID}`, [tmdbID])
+	const src = useMemo(() => {
+		if (isEpisode) {
+			return `${import.meta.env.VITE_API}/video/episode/${episodeID}`
+		}
+		return `${import.meta.env.VITE_API}/video/${tmdbID}`
+	}, [isEpisode, episodeID, tmdbID])
 
 	const formatTime = useCallback(t => {
 		if (isNaN(t)) return '0:00'
@@ -199,23 +228,45 @@ const Viewer = () => {
 	}
 
 	const saveProgress = (t, force = false) => {
-		if (!movie || !user?.id || !storedMovie?.id) return
+		if (!user?.id) return
 		if (!force && Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
-		savingRef.current = true
-		updateOnGoingMovie({
-			tmdbID: parseInt(tmdbID),
-			duration: Math.floor(duration),
-			position: Math.floor(t),
-			user: user.id,
-			movie: storedMovie.id
-		})
-			.then(() => {
-				lastSavedTimeRef.current = t
-				refetchUser()
+
+		if (isEpisode && episodeData?.episode?.id) {
+			// Save episode progress
+			savingRef.current = true
+			updateOnGoingEpisode({
+				tmdbID: episodeData.episode.tmdbID,
+				duration: Math.floor(duration),
+				position: Math.floor(t),
+				user: user.id,
+				episode: episodeData.episode.id,
+				series: episodeData.episode.seriesID
 			})
-			.finally(() => {
-				savingRef.current = false
+				.then(() => {
+					lastSavedTimeRef.current = t
+					refetchUser()
+				})
+				.finally(() => {
+					savingRef.current = false
+				})
+		} else if (!isEpisode && movie && storedMovie?.id) {
+			// Save movie progress
+			savingRef.current = true
+			updateOnGoingMovie({
+				tmdbID: parseInt(tmdbID),
+				duration: Math.floor(duration),
+				position: Math.floor(t),
+				user: user.id,
+				movie: storedMovie.id
 			})
+				.then(() => {
+					lastSavedTimeRef.current = t
+					refetchUser()
+				})
+				.finally(() => {
+					savingRef.current = false
+				})
+		}
 	}
 
 	useEffect(() => {
@@ -342,9 +393,35 @@ const Viewer = () => {
 		navigate(-1)
 	}
 
-	const title = movie?.title || ''
-	const description = movie?.overview || ''
-	const poster = movie?.poster || ''
+	// Display info
+	let title = ''
+	let description = ''
+	let poster = ''
+
+	if (isEpisode && episodeData) {
+		const ep = episodeData.episode
+		const series = episodeData.series
+		title = `${series?.title || ''} - S${String(ep?.seasonNumber).padStart(2, '0')}E${String(ep?.episodeNumber).padStart(2, '0')}${ep?.title ? ` - ${ep.title}` : ''}`
+		description = ep?.overview || ''
+		poster = ep?.stillPath || series?.poster || ''
+	} else if (movie) {
+		title = movie.title || ''
+		description = movie.overview || ''
+		poster = movie.poster || ''
+	}
+
+	// Navigation to prev/next episode
+	const goToPrevEpisode = useCallback(() => {
+		if (prevEpisode?.id) {
+			navigate(`/viewer/episode/${prevEpisode.id}`)
+		}
+	}, [prevEpisode, navigate])
+
+	const goToNextEpisode = useCallback(() => {
+		if (nextEpisode?.id) {
+			navigate(`/viewer/episode/${nextEpisode.id}`)
+		}
+	}, [nextEpisode, navigate])
 
 	return (
 		<div
@@ -518,6 +595,26 @@ const Viewer = () => {
 										<span className='text-amber-300 animate-pulse font-semibold'>
 											Buffering…
 										</span>
+									)}
+									{isEpisode && (prevEpisode || nextEpisode) && (
+										<div className='flex items-center gap-3'>
+											{prevEpisode && (
+												<button
+													onClick={goToPrevEpisode}
+													className='px-4 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 text-white text-sm font-medium transition'
+												>
+													← Épisode précédent
+												</button>
+											)}
+											{nextEpisode && (
+												<button
+													onClick={goToNextEpisode}
+													className='px-4 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-sm font-medium transition'
+												>
+													Épisode suivant →
+												</button>
+											)}
+										</div>
 									)}
 								</div>
 								<p className='text-sm md:text-lg text-gray-500 select-none'>

@@ -260,7 +260,7 @@ const MovieDetails = () => {
 											className='absolute inset-0 flex items-center justify-center'
 										>
 											<Link
-												to={`/viewer/${tmdbID}`}
+												to={`/viewer/movie/${tmdbID}`}
 												className='flex flex-col items-center text-white drop-shadow-md'
 											>
 												<motion.div

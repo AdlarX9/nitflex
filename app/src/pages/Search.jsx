@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useAPIAfter } from '../app/hooks'
+import { useAPI, useAPIAfter } from '../app/hooks'
 import Movie from '../components/Movie.jsx'
+import Serie from '../components/Serie.jsx'
 import {
 	IoSettingsOutline,
 	IoClose,
@@ -60,8 +61,11 @@ const Skeleton = ({ w = 200, h = 300 }) => (
 
 const Search = () => {
 	const { triggerAsync: searchMovies } = useAPIAfter('GET', '/movies')
+	const { data: seriesList } = useAPI('GET', '/series')
 
+	const [mode, setMode] = useState('movies')
 	const [movies, setMovies] = useState([])
+	const [seriesResults, setSeriesResults] = useState([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [hasSearched, setHasSearched] = useState(false)
 
@@ -84,11 +88,11 @@ const Search = () => {
 	const params = useMemo(
 		() => ({
 			...(title && { title }),
-			...(genre && { genre }),
+			...(mode === 'movies' && genre && { genre }),
 			orderBy: order,
 			limit: 50
 		}),
-		[title, genre, order]
+		[title, genre, order, mode]
 	)
 
 	/* Search */
@@ -97,8 +101,15 @@ const Search = () => {
 		const controller = new AbortController()
 		abortRef.current = controller
 
-		if (!title && !genre) {
+		if (mode === 'movies' && !title && !genre) {
 			setMovies([])
+			setHasSearched(false)
+			setIsLoading(false)
+			setPending(false)
+			return
+		}
+		if (mode === 'series' && !title) {
+			setSeriesResults([])
 			setHasSearched(false)
 			setIsLoading(false)
 			setPending(false)
@@ -109,25 +120,48 @@ const Search = () => {
 		setHasSearched(true)
 		setPending(false)
 
-		searchMovies({ signal: controller.signal }, params)
-			.then(res => {
-				if (controller.signal.aborted) return
-				setMovies(Array.isArray(res) ? res : [])
-				setIsLoading(false)
+		if (mode === 'movies') {
+			searchMovies({ signal: controller.signal }, params)
+				.then(res => {
+					if (controller.signal.aborted) return
+					setMovies(Array.isArray(res) ? res : [])
+					setIsLoading(false)
+				})
+				.catch(() => {
+					if (controller.signal.aborted) return
+					setMovies([])
+					setIsLoading(false)
+				})
+		} else {
+			const list = Array.isArray(seriesList) ? seriesList : []
+			const filtered = title
+				? list.filter(s => (s.title || '').toLowerCase().includes(title.toLowerCase()))
+				: list
+			const sorted = [...filtered]
+			const [field, dir] = order.split(':')
+			const asc = dir === 'asc' ? 1 : -1
+			sorted.sort((a, b) => {
+				if (field === 'date') {
+					const aDate = a.date ? new Date(a.date) : 0
+					const bDate = b.date ? new Date(b.date) : 0
+					return aDate > bDate ? asc : aDate < bDate ? -asc : 0
+				}
+				if (field === 'title') {
+					return (a.title || '').localeCompare(b.title || '') * asc
+				}
+				return 0
 			})
-			.catch(() => {
-				if (controller.signal.aborted) return
-				setMovies([])
-				setIsLoading(false)
-			})
+			setSeriesResults(sorted)
+			setIsLoading(false)
+		}
 	}
 
 	/* Debounce */
 	useEffect(() => {
-		setPending(Boolean(title || genre))
+		setPending(mode === 'movies' ? Boolean(title || genre) : Boolean(title))
 		performSearch()
 		// eslint-disable-next-line
-	}, [title, genre, order])
+	}, [title, genre, order, mode, seriesList])
 
 	const clearAll = () => {
 		setTitle('')
@@ -197,36 +231,38 @@ const Search = () => {
 									</button>
 								</div>
 
-								<div className='flex-1 overflow-y-auto px-7 pb-10 space-y-12 custom-scroll'>
+								<div className='flex-1 overflow-y-auto px-7 pb-10 space-y-12'>
 									{/* GENRES */}
-									<section>
-										<p className='text-[1rem] font-semibold uppercase tracking-widest text-gray-400 mb-5 flex items-center gap-2'>
-											<span className='w-3 h-3 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(255,0,0,0.55)]' />
-											Genre
-										</p>
-										<div className='flex flex-wrap gap-3'>
-											{Object.entries(GENRES).map(([key, label], idx) => {
-												const active = key === genre
-												return (
-													<motion.button
-														key={key}
-														variants={chipVariants}
-														initial='initial'
-														animate='animate'
-														custom={idx}
-														onClick={() => setGenre(key)}
-														className={`px-5 py-2.5 rounded-full text-[0.95rem] font-medium border transition ${
-															active
-																? 'bg-red-500/25 border-red-400/60 text-red-200 shadow-[0_0_0_1px_rgba(255,0,0,0.35)]'
-																: 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
-														}`}
-													>
-														{label}
-													</motion.button>
-												)
-											})}
-										</div>
-									</section>
+									{mode === 'movies' && (
+										<section>
+											<p className='text-[1rem] font-semibold uppercase tracking-widest text-gray-400 mb-5 flex items-center gap-2'>
+												<span className='w-3 h-3 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(255,0,0,0.55)]' />
+												Genre
+											</p>
+											<div className='flex flex-wrap gap-3'>
+												{Object.entries(GENRES).map(([key, label], idx) => {
+													const active = key === genre
+													return (
+														<motion.button
+															key={key}
+															variants={chipVariants}
+															initial='initial'
+															animate='animate'
+															custom={idx}
+															onClick={() => setGenre(key)}
+															className={`px-5 py-2.5 rounded-full text-[0.95rem] font-medium border transition ${
+																active
+																	? 'bg-red-500/25 border-red-400/60 text-red-200 shadow-[0_0_0_1px_rgba(255,0,0,0.35)]'
+																	: 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
+															}`}
+														>
+															{label}
+														</motion.button>
+													)
+												})}
+											</div>
+										</section>
+									)}
 
 									{/* ORDER */}
 									<section>
@@ -298,7 +334,11 @@ const Search = () => {
 								<IoSearchOutline className='absolute left-5 top-1/2 -translate-y-1/2 text-[1.9rem]' />
 								<input
 									type='text'
-									placeholder='Rechercher un film...'
+									placeholder={
+										mode === 'movies'
+											? 'Rechercher un film...'
+											: 'Rechercher une série...'
+									}
 									className='w-full pl-20 pr-6 py-5 rounded-2xl bg-gray-950/75 backdrop-blur border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-[1.35rem] leading-none placeholder:text-gray-500 font-semibold tracking-wide transition'
 									value={title}
 									onChange={e => setTitle(e.target.value)}
@@ -317,6 +357,20 @@ const Search = () => {
 										</motion.div>
 									)}
 								</AnimatePresence>
+							</div>
+							<div className='hidden md:flex items-center gap-2'>
+								<button
+									onClick={() => setMode('movies')}
+									className={`px-4 h-14 text-xl rounded-2xl font-semibold uppercase tracking-wide transition border ${mode === 'movies' ? 'bg-red-600 text-white border-red-500' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+								>
+									Films
+								</button>
+								<button
+									onClick={() => setMode('series')}
+									className={`px-4 h-14 text-xl rounded-2xl font-semibold uppercase tracking-wide transition border ${mode === 'series' ? 'bg-red-600 text-white border-red-500' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+								>
+									Séries
+								</button>
 							</div>
 							<button
 								onClick={clearAll}
@@ -353,7 +407,7 @@ const Search = () => {
 											{f}
 										</motion.span>
 									))}
-									{genre && (
+									{mode === 'movies' && genre && (
 										<button
 											onClick={() => setGenre('')}
 											className='text-[0.8rem] px-5 py-2 rounded-full bg-red-500/30 hover:bg-red-500/40 text-red-100 border border-red-500/50 transition font-semibold'
@@ -384,25 +438,37 @@ const Search = () => {
 									<AnimatePresence mode='popLayout'>
 										{hasSearched && !isLoading && (
 											<motion.span
-												key={movies.length}
+												key={
+													mode === 'movies'
+														? movies.length
+														: seriesResults.length
+												}
 												initial={{ opacity: 0, y: -8 }}
 												animate={{ opacity: 1, y: 0 }}
 												exit={{ opacity: 0, y: 8 }}
 												className='text-[0.95rem] font-bold px-4 py-1.5 rounded-full bg-white/10 border border-white/10'
 											>
-												{movies.length}
+												{mode === 'movies'
+													? movies.length
+													: seriesResults.length}
 											</motion.span>
 										)}
 									</AnimatePresence>
 								</h3>
 								<span className='text-[0.9rem] uppercase tracking-wider text-gray-500 font-medium'>
 									{!hasSearched
-										? 'Tapez un titre ou choisissez un genre'
+										? mode === 'movies'
+											? 'Tapez un titre ou choisissez un genre'
+											: 'Tapez un titre'
 										: isLoading
 											? 'Chargement...'
-											: movies.length === 0
-												? 'Aucun résultat'
-												: 'Films trouvés'}
+											: mode === 'movies'
+												? movies.length === 0
+													? 'Aucun résultat'
+													: 'Films trouvés'
+												: seriesResults.length === 0
+													? 'Aucun résultat'
+													: 'Séries trouvées'}
 								</span>
 							</div>
 						</div>
@@ -431,13 +497,21 @@ const Search = () => {
 								>
 									<IoSearchOutline size={140} className='mb-10 opacity-25' />
 									<p className='text-[2rem] font-extrabold tracking-tight'>
-										Recherchez un film
+										{mode === 'movies'
+											? 'Recherchez un film'
+											: 'Recherchez une série'}
 									</p>
 									<p className='text-[1rem] mt-5 text-gray-500 font-medium'>
-										Saisissez un titre ou appliquez un genre
+										{mode === 'movies'
+											? 'Saisissez un titre ou appliquez un genre'
+											: 'Saisissez un titre'}
 									</p>
 								</motion.div>
-							) : movies.length === 0 ? (
+							) : (
+									mode === 'movies'
+										? movies.length === 0
+										: seriesResults.length === 0
+							  ) ? (
 								<motion.div
 									key='no-results'
 									initial={{ opacity: 0, y: 25 }}
@@ -446,10 +520,12 @@ const Search = () => {
 									className='w-full flex flex-col items-center justify-center py-32 text-gray-400'
 								>
 									<p className='text-[2rem] font-extrabold tracking-tight'>
-										Aucun film trouvé
+										Aucun {mode === 'movies' ? 'film' : 'résultat'} trouvé
 									</p>
 									<p className='text-[1rem] mt-5 text-gray-500 font-medium'>
-										Modifiez vos critères ou réinitialisez les filtres
+										{mode === 'movies'
+											? 'Modifiez vos critères ou réinitialisez les filtres'
+											: 'Modifiez votre recherche'}
 									</p>
 								</motion.div>
 							) : (
@@ -459,17 +535,29 @@ const Search = () => {
 									initial='initial'
 									animate='animate'
 								>
-									{movies.map((movie, idx) => (
-										<motion.div
-											key={movie?.id || idx}
-											variants={cardVariants}
-											custom={idx}
-											initial='initial'
-											animate='animate'
-										>
-											<Movie movie={movie} />
-										</motion.div>
-									))}
+									{mode === 'movies'
+										? movies.map((movie, idx) => (
+												<motion.div
+													key={movie?.id || idx}
+													variants={cardVariants}
+													custom={idx}
+													initial='initial'
+													animate='animate'
+												>
+													<Movie movie={movie} />
+												</motion.div>
+											))
+										: seriesResults.map((s, idx) => (
+												<motion.div
+													key={s?.id || idx}
+													variants={cardVariants}
+													custom={idx}
+													initial='initial'
+													animate='animate'
+												>
+													<Serie series={s} />
+												</motion.div>
+											))}
 								</motion.div>
 							)}
 						</AnimatePresence>

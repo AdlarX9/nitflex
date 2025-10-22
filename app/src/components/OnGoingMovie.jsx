@@ -42,7 +42,7 @@ const OnGoingMovie = ({ id }) => {
 			onMouseLeave={() => setIsHovered(false)}
 		>
 			{/* Poster Image */}
-			<Link to={`/viewer/${movie?.tmdbID}`} className='absolute inset-0'>
+			<Link to={`/viewer/movie/${movie?.tmdbID}`} className='absolute inset-0'>
 				{posterExists ? (
 					<>
 						{!imgLoaded && (

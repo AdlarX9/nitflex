@@ -1,34 +1,71 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"gin/storage"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"log"
-	"os"
 )
 
-func main() {
-	err := os.MkdirAll("./uploads", os.ModePerm)
-	if err != nil {
-		fmt.Printf("Failed to create uploads directory: %s\n", err.Error())
-		return
-	}
+var storageBackend *storage.LocalStorage
 
+func main() {
 	// Load .env file if it exists (optional for Docker)
 	errEnv := godotenv.Load()
 	if errEnv != nil {
 		log.Printf("Note: .env file not found, using environment variables from system")
 	}
 
-	// r.Use(cors.New(cors.Config{
-	//     AllowOrigins:     []string{"http://192.168.0.210:5174"},
-	//     AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-	//     AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-	//     ExposeHeaders:    []string{"Content-Length"},
-	//     AllowCredentials: true,
-	// }))
+	// Get storage configuration from environment
+	tempDir := os.Getenv("TEMP_DIR")
+	moviesDir := os.Getenv("MOVIES_DIR")
+	seriesDir := os.Getenv("SERIES_DIR")
+
+	// Fallback to legacy paths if not configured
+	if tempDir == "" {
+		tempDir = "./uploads"
+		log.Printf("TEMP_DIR not configured, using fallback: %s", tempDir)
+	}
+	if moviesDir == "" {
+		moviesDir = "./movies"
+		log.Printf("MOVIES_DIR not configured, using fallback: %s", moviesDir)
+	}
+	if seriesDir == "" {
+		seriesDir = "./series"
+		log.Printf("SERIES_DIR not configured, using fallback: %s", seriesDir)
+	}
+
+	// Validate storage configuration
+	log.Println("Validating storage configuration...")
+	if err := storage.ValidateStorageConfig(tempDir, moviesDir, seriesDir); err != nil {
+		log.Fatalf("Storage validation failed: %v", err)
+	}
+	log.Println("Storage configuration validated successfully")
+
+	// Initialize storage backend
+	storageBackend = storage.NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
+
+	// Initialize job queue (2 workers by default)
+	workers := 2
+	log.Printf("Initializing job queue with %d workers", workers)
+	InitJobQueue(workers)
+	defer StopJobQueue()
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		log.Println("Received shutdown signal, cleaning up...")
+		StopJobQueue()
+		os.Exit(0)
+	}()
 
 	r := gin.Default()
 	r.Use(cors.Default())
@@ -62,5 +99,27 @@ func main() {
 	r.DELETE("/ongoing_movies/:id", DeleteOnGoingMovie)
 	r.DELETE("/all_ongoing_movies", DeleteAllOnGoingMovies)
 
-	r.Run(":8080") // par défaut sur localhost:8080
+	// Jobs
+	r.POST("/jobs", CreateJob)
+	r.GET("/jobs", GetJobs)
+	r.GET("/jobs/:id", GetJobByID)
+	r.POST("/jobs/:id/cancel", CancelJob)
+	r.DELETE("/jobs/:id", DeleteJob)
+	r.GET("/jobs/stream", StreamJobs)
+
+	// Series
+	r.POST("/series", CreateSeries)
+	r.GET("/series", GetAllSeries)
+	r.GET("/series/:id", GetSeriesByID)
+	r.POST("/series/:id/episodes", AddEpisodeToSeries)
+	r.GET("/episode/:id", GetEpisodeByID)
+	r.GET("/video/episode/:id", EpisodeStreamHandler)
+
+	// Ongoing Episodes
+	r.POST("/ongoing_episodes", UpdateOnGoingEpisode)
+	r.GET("/ongoing_episodes/:id", GetOnGoingEpisodeByID)
+	r.DELETE("/ongoing_episodes/:id", DeleteOnGoingEpisode)
+
+	log.Println("Server starting on :8080")
+	r.Run(":8080")
 }

@@ -7,6 +7,7 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 const fs = require('fs')
+const { transcodeVideo, checkFFmpeg } = require('./transcode')
 
 let mainWindow
 
@@ -37,10 +38,9 @@ function createWindow() {
 }
 
 /**
- * Process a movie using the Python script
+ * Process a movie using local transcoding
  */
 ipcMain.handle('process-movie', async (event, movie) => {
-	const scriptPath = path.join(__dirname, '../scripts/transform_movie.py')
 	const uploadsDir = path.join(__dirname, '../api/uploads')
 	const videoPath = path.join(uploadsDir, movie.customTitle)
 
@@ -52,84 +52,58 @@ ipcMain.handle('process-movie', async (event, movie) => {
 		}
 	}
 
-	const movieJson = JSON.stringify({
-		...movie,
-		video_path: videoPath,
-		customTitle: movie.customTitle
-	})
+	// Check if ffmpeg is available
+	const hasFFmpeg = await checkFFmpeg()
+	if (!hasFFmpeg) {
+		return {
+			success: false,
+			error: 'ffmpeg not found. Please install ffmpeg to use local transcoding.'
+		}
+	}
 
-	return new Promise((resolve, reject) => {
-		const args = [scriptPath, movieJson, '--output-dir', uploadsDir]
-		const pythonProcess = spawn('python3', args)
+	const taskId = movie.id || Date.now().toString()
+	const outputFilename = `${path.parse(movie.customTitle).name}_transcoded.mp4`
+	const outputPath = path.join(uploadsDir, outputFilename)
 
-		let stdout = ''
-		let stderr = ''
-		const taskId = movie.id || Date.now().toString()
+	return new Promise((resolve) => {
+		const transcodeControl = transcodeVideo({
+			inputPath: videoPath,
+			outputPath: outputPath,
+			onProgress: (progress) => {
+				// Update task status
+				processingTasks.set(taskId, {
+					status: 'processing',
+					progress: progress,
+					movie: movie
+				})
 
-		// Store task
-		processingTasks.set(taskId, {
-			status: 'processing',
-			progress: 0,
-			movie: movie
-		})
+				// Send progress to renderer
+				mainWindow?.webContents.send('processing-progress', {
+					taskId,
+					status: 'processing',
+					progress: progress
+				})
+			},
+			onComplete: (result) => {
+				processingTasks.set(taskId, {
+					status: 'completed',
+					progress: 100,
+					result
+				})
 
-		pythonProcess.stdout.on('data', data => {
-			const output = data.toString()
-			stdout += output
-			console.log('[Python]', output)
+				mainWindow?.webContents.send('processing-progress', {
+					taskId,
+					status: 'completed',
+					result
+				})
 
-			// Send progress update to renderer
-			mainWindow?.webContents.send('processing-progress', {
-				taskId,
-				status: 'processing',
-				output: output
-			})
-		})
-
-		pythonProcess.stderr.on('data', data => {
-			const output = data.toString()
-			stderr += output
-			console.error('[Python Error]', output)
-		})
-
-		pythonProcess.on('close', code => {
-			if (code === 0) {
-				try {
-					const result = JSON.parse(stdout.trim())
-					processingTasks.set(taskId, {
-						status: 'completed',
-						progress: 100,
-						result
-					})
-
-					mainWindow?.webContents.send('processing-progress', {
-						taskId,
-						status: 'completed',
-						result
-					})
-
-					resolve(result)
-				} catch (e) {
-					const result = {
-						success: true,
-						output: stdout,
-						message: 'Processing completed'
-					}
-					processingTasks.set(taskId, {
-						status: 'completed',
-						progress: 100,
-						result
-					})
-					resolve(result)
-				}
-			} else {
-				const error = {
-					success: false,
-					error: `Process exited with code ${code}`,
-					stderr: stderr,
-					stdout: stdout
-				}
-
+				resolve({
+					success: true,
+					outputPath: result.outputPath,
+					message: 'Transcoding completed successfully'
+				})
+			},
+			onError: (error) => {
 				processingTasks.set(taskId, {
 					status: 'error',
 					error
@@ -145,18 +119,12 @@ ipcMain.handle('process-movie', async (event, movie) => {
 			}
 		})
 
-		pythonProcess.on('error', err => {
-			const error = {
-				success: false,
-				error: err.message
-			}
-
-			processingTasks.set(taskId, {
-				status: 'error',
-				error
-			})
-
-			resolve(error)
+		// Store task with cancel control
+		processingTasks.set(taskId, {
+			status: 'processing',
+			progress: 0,
+			movie: movie,
+			control: transcodeControl
 		})
 	})
 })

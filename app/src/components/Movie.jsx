@@ -121,7 +121,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 			{/* Backdrop version watch button */}
 			{backdropVersion && (
 				<Link
-					to={`/viewer/${movie?.tmdbID}`}
+					to={`/viewer/movie/${movie?.tmdbID}`}
 					className='absolute bottom-5 left-[3.5%] text-black bg-white/90 hover:bg-white rounded-2xl font-semibold flex items-center gap-2 cursor-pointer transition px-7 py-3 shadow-lg shadow-black/40 hover:shadow-xl hover:shadow-black/60 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40'
 					aria-label={`Lecture du film ${movie?.title}`}
 				>

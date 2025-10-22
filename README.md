@@ -5,18 +5,44 @@
 
 ## ✨ Fonctionnalités principales
 
-- 🎬 **Streaming vidéo** optimisé avec support du range request
-- 🔍 **Recherche avancée** de films avec filtres et tri
-- 📱 **100% Responsive** - Interface adaptée mobile, tablette et desktop
-- 🎨 **UI moderne** avec animations Framer Motion
-- 👤 **Multi-utilisateurs** avec gestion de profils
-- ⏯️ **Films en cours** - Reprenez là où vous vous êtes arrêté
-- 🎭 **Intégration TMDB** pour les métadonnées et posters
-- 📤 **Upload de films** avec métadonnées automatiques
-- 🎞️ **Traitement vidéo** - Local (Electron) ou serveur (API)
-- 🖥️ **Application Electron** - Version desktop avec traitement local
-- 🐳 **Docker** - Déploiement simplifié avec Docker Compose
-- 🔄 **Nginx reverse proxy** pour une architecture production-ready
+### 🎬 Streaming & Lecture
+- **Streaming vidéo** optimisé avec support du range request
+- **Films & Séries** - Gestion complète de votre bibliothèque
+- **Navigation épisodes** - Suivant/Précédent automatique
+- **Films en cours** - Reprenez là où vous vous êtes arrêté
+- **Suivi de progression** - Pour films et épisodes
+
+### 🎨 Interface Utilisateur
+- **100% Responsive** - Interface adaptée mobile, tablette et desktop
+- **UI moderne** avec animations Framer Motion
+- **Multi-utilisateurs** avec gestion de profils
+- **Recherche avancée** de films avec filtres et tri
+- **Affichage en temps réel** des tâches de transcodage
+
+### 🔧 Transcoding & Processing
+- **Système de jobs** avec file d'attente et workers
+- **Transcodage serveur** - Processing sur le backend Go
+- **Transcodage local** - Via Electron avec accélération matérielle
+- **Support multi-plateforme**:
+  - macOS: VideoToolbox
+  - Windows: NVENC
+  - Linux: VAAPI
+- **Progression en temps réel** via Server-Sent Events
+- **Annulation de jobs** et retry automatique
+
+### 📚 Gestion de contenu
+- **Intégration TMDB** pour films et séries TV
+- **Upload intelligent** avec détection automatique
+- **Métadonnées enrichies** - Posters, descriptions, dates
+- **Tagging automatique** des fichiers vidéo
+- **Structure de stockage** organisée et scalable
+
+### 🏗️ Infrastructure
+- **Application Electron** - Version desktop avec traitement local
+- **Docker** - Déploiement simplifié avec Docker Compose
+- **Nginx reverse proxy** pour une architecture production-ready
+- **MongoDB** - Persistance robuste des données
+- **Migration automatique** des fichiers existants
 
 ### Prérequis
 
@@ -51,7 +77,13 @@ VITE_API=http://localhost/api
 Créez `api/.env`:
 ```env
 MONGODB_URI=mongodb://mongodb:27017/nitflex
+TMDB_API_KEY=votre_cle_api_tmdb
 PORT=8080
+
+# Storage Configuration (Production)
+TEMP_DIR=./uploads
+MOVIES_DIR=./movies
+SERIES_DIR=./series
 ```
 
 3. **Monter votre bibliothèque de films**

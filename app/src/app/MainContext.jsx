@@ -37,6 +37,11 @@ export const MainProvider = ({ children }) => {
 	}, [bodyBlur])
 
 	const { data: newMovies, isPending: newMoviesPending, refetch } = useAPI('GET', '/movies')
+	const {
+		data: newSeries,
+		isPending: newSeriesPending,
+		refetch: refetchSeries
+	} = useAPI('GET', '/series')
 
 	// Utilise useRef pour garder le film principal sélectionné à l'initialisation et ne pas le changer lors de re-render
 	const randomMovieRef = useRef(null)
@@ -73,6 +78,9 @@ export const MainProvider = ({ children }) => {
 				mainBackdropRef,
 				processMainBackdrop,
 				refetchNewMovies: refetch,
+				newSeries,
+				newSeriesPending,
+				refetchNewSeries: refetchSeries,
 				refetchUser
 			}}
 		>

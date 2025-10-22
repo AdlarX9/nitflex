@@ -36,7 +36,11 @@ func GetMongoClient() *mongo.Client {
 	return MongoClient
 }
 
-func GetCollection(collection string) *mongo.Collection {
+func GetDatabase() *mongo.Database {
 	client := GetMongoClient()
-	return client.Database("nitflex_db").Collection(collection)
+	return client.Database("nitflex_db")
+}
+
+func GetCollection(collection string) *mongo.Collection {
+	return GetDatabase().Collection(collection)
 }

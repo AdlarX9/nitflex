@@ -76,20 +76,31 @@ func UploadMovie(c *gin.Context) {
 	customTitle := c.PostForm("customTitle")
 	tmdbIDString := c.PostForm("tmdbID")
 	processingLocation := c.PostForm("processingLocation") // "local" or "server"
+	mediaType := c.PostForm("type")                        // "movie" or "series"
 	if processingLocation == "" {
 		processingLocation = "server" // Default to server processing
 	}
 
-	if customTitle == "" || tmdbIDString == "" {
-		fmt.Printf("métadonnées manquantes : %s et %s\n", customTitle, tmdbIDString)
-		c.JSON(400, gin.H{"error": "customTitle and tmdbID are required"})
-		return
+	if mediaType == "series" {
+		if customTitle == "" {
+			c.JSON(400, gin.H{"error": "customTitle is required"})
+			return
+		}
+	} else {
+		if customTitle == "" || tmdbIDString == "" {
+			fmt.Printf("métadonnées manquantes : %s et %s\n", customTitle, tmdbIDString)
+			c.JSON(400, gin.H{"error": "customTitle and tmdbID are required"})
+			return
+		}
 	}
 
-	tmdbID := parseInt(tmdbIDString)
-	fmt.Printf("TMDB ID String: %s, Parsed ID: %d\n", tmdbIDString, tmdbID)
-	ch := make(chan Movie, 1)
-	go fetchMovie(tmdbID, ch)
+	var ch chan Movie
+	if mediaType != "series" {
+		tmdbID := parseInt(tmdbIDString)
+		fmt.Printf("TMDB ID String: %s, Parsed ID: %d\n", tmdbIDString, tmdbID)
+		ch = make(chan Movie, 1)
+		go fetchMovie(tmdbID, ch)
+	}
 
 	// Récupération du fichier
 	file, header, err := c.Request.FormFile("file")
@@ -117,8 +128,31 @@ func UploadMovie(c *gin.Context) {
 		return
 	}
 
-	movie := <-ch
-	movie.CustomTitle = customTitle
+	var movie Movie
+	if mediaType == "series" {
+		movie = Movie{
+			ID:          primitive.NewObjectID(),
+			CustomTitle: customTitle,
+			FilePath:    dst,
+			Date:        primitive.NewDateTimeFromTime(time.Now()),
+			Format:      filepath.Ext(dst),
+		}
+	} else {
+		movie = <-ch
+		movie.CustomTitle = customTitle
+		// Save actual uploaded file location for downstream jobs
+		movie.FilePath = dst
+	}
+
+	// If this upload is for a series episode, skip inserting into movies collection
+	if mediaType == "series" {
+		c.JSON(200, gin.H{
+			"url":                fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+			"movie":              movie,
+			"processingLocation": processingLocation,
+		})
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -143,8 +177,8 @@ func UploadMovie(c *gin.Context) {
 		"processingLocation": processingLocation,
 	})
 
-	// Only process on server if requested
-	if processingLocation == "server" {
+	// Only process on server if requested (legacy path)
+	if processingLocation == "server" && mediaType != "series" {
 		go func(movie Movie) {
 			jsonMovie, err := json.Marshal(movie)
 			if err != nil {

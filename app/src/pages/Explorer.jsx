@@ -3,6 +3,7 @@ import './style.scss'
 import { Back } from '../components/NavBar'
 import Loader from '../components/Loader'
 import Movie from '../components/Movie'
+import Serie from '../components/Serie'
 import OnGoingMovie from '../components/OnGoingMovie'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,11 +20,13 @@ const fadeIn = (delay = 0) => ({
 })
 
 const Explorer = () => {
-	const { user, mainMovie, newMoviesPending, newMovies } = useMainContext()
+	const { user, mainMovie, newMoviesPending, newMovies, newSeries, newSeriesPending } =
+		useMainContext()
 	const [mainBackdrop, setMainBackdrop] = useState(null)
 
 	const hasOngoing = (user?.onGoingMovies?.length || 0) > 0
 	const recentList = useMemo(() => newMovies || [], [newMovies])
+	const recentSeries = useMemo(() => newSeries || [], [newSeries])
 
 	return (
 		<div className='h-dvh scrollable'>
@@ -162,6 +165,41 @@ const Explorer = () => {
 					) : (
 						<p className='text-gray-300 ml-10 text-lg italic mt-4'>
 							Vous n&apos;avez pas de films.
+						</p>
+					)}
+				</motion.section>
+
+				{/* RECENT SERIES */}
+				<motion.section className='w-full relative z-10' {...fadeIn(0.2)}>
+					<h2 className='font-semibold text-[2rem] md:text-[2.4rem] ml-10 mt-8 mb-4 tracking-tight text-gray-100 drop-shadow'>
+						Séries récentes
+					</h2>
+
+					{newSeriesPending ? (
+						<div className='flex justify-center mt-10'>
+							<Loader />
+						</div>
+					) : recentSeries.length > 0 ? (
+						<div className='flex flex-wrap gap-5 w-full px-10 pt-2'>
+							{recentSeries.map((series, idx) => (
+								<motion.div
+									key={(series.tmdbID || series.id || 's') + '_' + idx}
+									initial={{ opacity: 0, scale: 0.9, y: 20 }}
+									whileInView={{ opacity: 1, scale: 1, y: 0 }}
+									viewport={{ once: true, margin: '0px 0px -60px 0px' }}
+									transition={{
+										duration: 0.45,
+										delay: Math.min(idx * 0.03, 0.4),
+										ease: [0.22, 1, 0.36, 1]
+									}}
+								>
+									<Serie series={series} />
+								</motion.div>
+							))}
+						</div>
+					) : (
+						<p className='text-gray-300 ml-10 text-lg italic mt-4'>
+							Vous n&apos;avez pas de séries.
 						</p>
 					)}
 				</motion.section>

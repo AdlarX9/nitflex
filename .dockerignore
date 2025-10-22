@@ -1,11 +1,10 @@
-node_modules
-npm-debug.log
+*/node_modules
+*/npm-debug.log
 .git
 .gitignore
 .env
-.DS_Store
+*.DS_Store
 mongodb_data
 *.md
 AIChats
-app/node_modules
 app/dist
