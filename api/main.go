@@ -96,6 +96,8 @@ func main() {
 	r.GET("/series/:id", handlers.GetSeriesByID)
 	r.GET("/episode/:id", handlers.GetEpisodeByID)
 	r.POST("/series/:id/episodes", handlers.AddEpisodeToSeries)
+	r.POST("/series/:id/episodes/batch", handlers.AddEpisodesBatch)
+	r.PATCH("/series/:id", handlers.UpdateSeries)
 
 	// Stream
 	r.GET("/video/:id", handlers.VideoStreamHandler)

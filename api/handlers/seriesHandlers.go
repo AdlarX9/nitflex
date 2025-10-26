@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 	"api/utils"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,11 +18,13 @@ import (
 // POST /series - Create series with minimal info
 func CreateSeries(c *gin.Context) {
 	var req struct {
-		Title  string `json:"title" binding:"required"`
-		TmdbID int    `json:"tmdbID" binding:"required"`
-		ImdbID string `json:"imdbID" binding:"required"`
-		Poster string `json:"poster" binding:"required"`
+		Title       string `json:"title" binding:"required"`
+		TmdbID      int    `json:"tmdbID" binding:"required"`
+		ImdbID      string `json:"imdbID" binding:"required"`
+		Poster      string `json:"poster" binding:"required"`
+		CustomTitle string `json:"customTitle"`
 	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
@@ -42,12 +45,13 @@ func CreateSeries(c *gin.Context) {
 	}
 
 	series := utils.Series{
-		ID:     primitive.NewObjectID(),
-		Title:  req.Title,
-		TmdbID: req.TmdbID,
-		ImdbID: req.ImdbID,
-		Poster: req.Poster,
-		Date:   primitive.NewDateTimeFromTime(time.Now()),
+		ID:          primitive.NewObjectID(),
+		Title:       req.Title,
+		TmdbID:      req.TmdbID,
+		ImdbID:      req.ImdbID,
+		Poster:      req.Poster,
+		CustomTitle: req.CustomTitle,
+		Date:        primitive.NewDateTimeFromTime(time.Now()),
 	}
 
 	if _, err := utils.GetCollection("series").InsertOne(ctx, series); err != nil {
@@ -56,6 +60,50 @@ func CreateSeries(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, series)
+}
+
+// PATCH /series/:id - Update series fields (currently supports customTitle)
+func UpdateSeries(c *gin.Context) {
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
+		return
+	}
+
+	var req struct {
+		CustomTitle string `json:"customTitle"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	update := bson.M{}
+	if req.CustomTitle != "" {
+		update["customTitle"] = req.CustomTitle
+	}
+
+	if len(update) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := utils.GetCollection("series").UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": update}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update series"})
+		return
+	}
+
+	var updated utils.Series
+	if err := utils.GetCollection("series").FindOne(ctx, bson.M{"_id": objID}).Decode(&updated); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated series"})
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
 }
 
 // POST /series/:id/episodes - Add episode (minimal info) then trigger pipeline
@@ -119,6 +167,73 @@ func AddEpisodeToSeries(c *gin.Context) {
 	}(episode, req.TranscodeMode)
 }
 
+// POST /series/:id/episodes/batch - Add multiple episodes at once and start pipelines
+func AddEpisodesBatch(c *gin.Context) {
+	seriesIDStr := c.Param("id")
+	seriesID, err := primitive.ObjectIDFromHex(seriesIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
+		return
+	}
+
+	var req struct {
+		Episodes []struct {
+			SeasonNumber  int    `json:"seasonNumber" binding:"required"`
+			EpisodeNumber int    `json:"episodeNumber" binding:"required"`
+			FilePath      string `json:"filePath" binding:"required"`
+			Title         string `json:"title"`
+			TmdbID        int    `json:"tmdbID"`
+			TranscodeMode string `json:"transcodeMode"`
+			CustomTitle   string `json:"customTitle"`
+		} `json:"episodes" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	created := make([]utils.Episode, 0, len(req.Episodes))
+	for _, it := range req.Episodes {
+		title := it.Title
+		if title == "" {
+			if it.CustomTitle != "" {
+				title = it.CustomTitle
+			} else {
+				title = fmt.Sprintf("S%02dE%02d", it.SeasonNumber, it.EpisodeNumber)
+			}
+		}
+
+		ep := utils.Episode{
+			ID:            primitive.NewObjectID(),
+			SeriesID:      seriesID,
+			SeasonNumber:  it.SeasonNumber,
+			EpisodeNumber: it.EpisodeNumber,
+			Title:         title,
+			FilePath:      it.FilePath,
+			CustomTitle:   it.CustomTitle,
+			TmdbID:        it.TmdbID,
+			Date:          primitive.NewDateTimeFromTime(time.Now()),
+		}
+
+		if _, err := utils.GetCollection("episodes").InsertOne(ctx, ep); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create episode: " + err.Error()})
+			return
+		}
+
+		created = append(created, ep)
+
+		// Start pipeline asynchronously per episode
+		go func(ep utils.Episode, mode string) {
+			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, mode, nil)
+		}(ep, it.TranscodeMode)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"episodes": created})
+}
+
 // GET /series - Get all series
 func GetAllSeries(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -144,17 +259,13 @@ func GetAllSeries(c *gin.Context) {
 // GET /series/:id - Get series by ID with episodes
 func GetSeriesByID(c *gin.Context) {
 	id := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
-		return
-	}
+	idInt, _ := strconv.Atoi(id)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var series utils.Series
-	err = utils.GetCollection("series").FindOne(ctx, bson.M{"_id": objID}).Decode(&series)
+	err := utils.GetCollection("series").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&series)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Series not found"})
@@ -165,7 +276,7 @@ func GetSeriesByID(c *gin.Context) {
 	}
 
 	// Get all episodes for this series
-	cursor, err := utils.GetCollection("episodes").Find(ctx, bson.M{"seriesID": objID}, options.Find().SetSort(bson.D{{Key: "seasonNumber", Value: 1}, {Key: "episodeNumber", Value: 1}}))
+	cursor, err := utils.GetCollection("episodes").Find(ctx, bson.M{"seriesID": series.ID}, options.Find().SetSort(bson.D{{Key: "seasonNumber", Value: 1}, {Key: "episodeNumber", Value: 1}}))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch episodes"})
 		return

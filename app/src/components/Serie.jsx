@@ -32,7 +32,7 @@ const Serie = ({ series }) => {
 		<div className='relative'>
 			<Link
 				className='relative p-0 rounded-lg w-40 h-60 overflow-hidden bg-gray-800 flex items-center justify-center group cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/50 transition-transform'
-				to={`/series/${series?.id}`}
+				to={`/series/${series?.tmdbID}`}
 				aria-label={`Ouvrir la fiche de la série ${series?.title || 'Série'}`}
 			>
 				{posterExists && !imgLoaded && (

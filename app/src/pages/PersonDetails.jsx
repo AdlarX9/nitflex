@@ -408,9 +408,9 @@ const PersonDetails = () => {
 										Œuvres les plus connues
 									</h2>
 									<div className='flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollable scrollable-horizontal pr-1'>
-										{allKnown.map(item => (
+										{allKnown.map((item, idx) => (
 											<motion.div
-												key={`${item.media_type}-${item.id}`}
+												key={`${item.media_type}-${item.id}-${idx}`}
 												className='snap-start flex-shrink-0 w-36 sm:w-40 group'
 												variants={fastItem}
 											>
@@ -422,7 +422,7 @@ const PersonDetails = () => {
 													}
 													className='block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
 												>
-													<div className='relative aspect-[2/3]'>
+													<div className='relative aspect-[2/3] overflow-hidden'>
 														<img
 															src={
 																item.poster_path
@@ -470,13 +470,13 @@ const PersonDetails = () => {
 											</h3>
 										</div>
 										<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5'>
-											{fullMovies.map(movie => (
-												<FilmItemMotion key={movie.id}>
+											{fullMovies.map((movie, idx) => (
+												<FilmItemMotion key={`${movie.id}-${idx}`}>
 													<Link
 														to={`/movie/${movie.id}`}
 														className='group relative block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
 													>
-														<div className='relative aspect-[2/3]'>
+														<div className='relative aspect-[2/3] overflow-hidden'>
 															<img
 																src={
 																	movie.poster_path
@@ -525,13 +525,13 @@ const PersonDetails = () => {
 											</h3>
 										</div>
 										<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5'>
-											{fullTv.map(tv => (
-												<FilmItemMotion key={tv.id}>
+											{fullTv.map((tv, idx) => (
+												<FilmItemMotion key={`${tv.id}-${idx}`}>
 													<Link
-														to={`/tv/${tv.id}`}
+														to={`/series/${tv.id}`}
 														className='group relative block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-purple-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-purple-500/60'
 													>
-														<div className='relative aspect-[2/3]'>
+														<div className='relative aspect-[2/3] overflow-hidden'>
 															<img
 																src={
 																	tv.poster_path

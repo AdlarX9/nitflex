@@ -10,7 +10,7 @@ import '../../node_modules/@uppy/dashboard/dist/style.css'
 import MovieSearch from '../components/MovieSearch'
 import SeriesSearch from '../components/SeriesSearch'
 import { Back } from '../components/NavBar'
-import { useMainContext, useAPIAfter, fetchFullSerie } from '../app/hooks'
+import { useMainContext, useAPIAfter, fetchFullSerie, fetchEpisodeDetails } from '../app/hooks'
 
 const containerVariants = {
 	hidden: { opacity: 0 },
@@ -88,6 +88,8 @@ const MediaUploader = () => {
 	const { refetchNewMovies, refetchNewSeries } = useMainContext()
 	const createSeries = useAPIAfter('POST', '/series')
 	const addEpisode = useAPIAfter('POST', '/series/:id/episodes')
+	const addEpisodesBatch = useAPIAfter('POST', '/series/:id/episodes/batch')
+	const updateSeries = useAPIAfter('PATCH', '/series/:id')
 	const [mediaType, setMediaType] = useState('movie') // 'movie' or 'series'
 	const [processingLocation, setProcessingLocation] = useState('server')
 	const [transcodeMode, setTranscodeMode] = useState('server') // 'none', 'server', 'local'
@@ -103,6 +105,11 @@ const MediaUploader = () => {
 	const [seriesID, setSeriesID] = useState(null)
 	const [seasonNumber, setSeasonNumber] = useState('')
 	const [episodeNumber, setEpisodeNumber] = useState('')
+	const [seriesFolderName, setSeriesFolderName] = useState('')
+	const [uppyFiles, setUppyFiles] = useState([])
+	const [seriesFilesMap, setSeriesFilesMap] = useState({}) // {fileId: {season:'', episode:''}}
+	const [fileOrder, setFileOrder] = useState([]) // ordering of fileIds
+	const [fileEpisodeInfo, setFileEpisodeInfo] = useState({}) // {fileId: {title, tmdbID, loading}}
 
 	useEffect(() => {
 		const checkElectron = () =>
@@ -134,44 +141,72 @@ const MediaUploader = () => {
 	useEffect(() => {
 		const onComplete = async result => {
 			if (result.successful?.length > 0) {
-				const uploadedFile = result.successful[0]
-				const response = uploadedFile.response?.body
-
 				if (mediaType === 'series' && seriesID) {
-					// Create episode entry then create job (server/none)
 					try {
-						await addEpisode.triggerAsync(
-							{
-								seasonNumber: parseInt(seasonNumber),
-								episodeNumber: parseInt(episodeNumber),
-								filePath: response?.movie?.filePath || customTitle,
-								customTitle,
-								tmdbID: selectedSeries?.id,
+						// Ensure series custom folder is up to date
+						if (seriesFolderName && seriesID) {
+							await updateSeries.triggerAsync(
+								{ customTitle: seriesFolderName },
+								{},
+								`/series/${seriesID}`
+							)
+						}
+
+						const files = result.successful
+						// Build payloads per file
+						const episodes = []
+						for (const f of files) {
+							const resp = f.response?.body
+							const map = seriesFilesMap[f.id] || {
+								season: seasonNumber,
+								episode: episodeNumber
+							}
+							const s = parseInt(map.season)
+							const e = parseInt(map.episode)
+							let info = fileEpisodeInfo[f.id]
+							if (!info || !info.title || !info.tmdbID) {
+								const data = await fetchEpisodeDetails(selectedSeries.id, s, e)
+								info = { title: data?.name || '', tmdbID: data?.id || null }
+							}
+							episodes.push({
+								seasonNumber: s,
+								episodeNumber: e,
+								filePath: resp?.movie?.filePath || '',
+								title: info.title,
+								tmdbID: info.tmdbID,
 								transcodeMode
-							},
+							})
+						}
+
+						// Use batch endpoint for episodes
+						await addEpisodesBatch.triggerAsync(
+							{ episodes },
 							{},
-							`/series/${seriesID}/episodes`
+							`/series/${seriesID}/episodes/batch`
 						)
-						// refresh series lists
+
 						if (typeof refetchNewSeries === 'function') refetchNewSeries()
 					} catch (error) {
-						console.error('Failed to create episode or job:', error)
+						console.error('Failed to create episodes (batch):', error)
 					}
 				}
 
-				if (isElectron && processingLocation === 'local' && response?.movie) {
+				if (
+					isElectron &&
+					processingLocation === 'local' &&
+					result.successful[0].response?.body?.movie
+				) {
 					if (window.electronAPI?.processMovie) {
 						window.electronAPI
-							.processMovie(response.movie)
+							.processMovie(result.successful[0].response.body.movie)
 							.then(r => console.log('Local processing result:', r))
 							.catch(err => console.error('Local processing failed:', err))
 					}
 				}
 
-				// Server enqueues job automatically for movies; nothing to do here
+				refetchNewMovies()
+				if (typeof refetchNewSeries === 'function') refetchNewSeries()
 			}
-			refetchNewMovies()
-			if (typeof refetchNewSeries === 'function') refetchNewSeries()
 		}
 
 		uppy.on('complete', onComplete)
@@ -191,11 +226,16 @@ const MediaUploader = () => {
 		episodeNumber,
 		customTitle,
 		transcodeMode,
-		addEpisode
+		addEpisode,
+		addEpisodesBatch,
+		updateSeries,
+		seriesFolderName,
+		seriesFilesMap,
+		fileEpisodeInfo
 	])
 
 	useEffect(() => {
-		uppy.on('file-added', file => {
+		const handleAdded = file => {
 			if (mediaType === 'movie') {
 				uppy.setFileMeta(file.id, {
 					customTitle,
@@ -205,14 +245,44 @@ const MediaUploader = () => {
 				})
 			} else {
 				uppy.setFileMeta(file.id, {
-					customTitle,
+					customTitle: seriesFolderName || selectedSeries?.name || '',
 					processingLocation,
 					transcodeMode,
 					type: 'series'
 				})
+				setSeriesFilesMap(prev => ({
+					...prev,
+					[file.id]: prev[file.id] || { season: '', episode: '' }
+				}))
+				setFileOrder(prev => (prev.includes(file.id) ? prev : [...prev, file.id]))
 			}
-		})
-	}, [customTitle, uppy, tmdbID, processingLocation, transcodeMode, mediaType])
+			setUppyFiles(uppy.getFiles())
+		}
+		const handleRemoved = file => {
+			setSeriesFilesMap(prev => {
+				const p = { ...prev }
+				delete p[file.id]
+				return p
+			})
+			setFileOrder(prev => prev.filter(id => id !== file.id))
+			setUppyFiles(uppy.getFiles())
+		}
+		uppy.on('file-added', handleAdded)
+		uppy.on('file-removed', handleRemoved)
+		return () => {
+			uppy.off('file-added', handleAdded)
+			uppy.off('file-removed', handleRemoved)
+		}
+	}, [
+		customTitle,
+		tmdbID,
+		processingLocation,
+		transcodeMode,
+		mediaType,
+		uppy,
+		seriesFolderName,
+		selectedSeries?.name
+	])
 
 	useEffect(() => {
 		if (newMovie) {
@@ -239,7 +309,8 @@ const MediaUploader = () => {
 					title: data?.name || selectedSeries?.name || '',
 					tmdbID: sid,
 					imdbID: data?.external_ids?.imdb_id || '',
-					poster: data?.poster_path || selectedSeries?.poster_path || ''
+					poster: data?.poster_path || selectedSeries?.poster_path || '',
+					customTitle: seriesFolderName || selectedSeries?.name || ''
 				}
 				const res = await createSeries.triggerAsync(payload)
 				if (res?.id) setSeriesID(res.id)
@@ -252,13 +323,52 @@ const MediaUploader = () => {
 		selectedSeries?.name,
 		selectedSeries?.poster_path,
 		seriesID,
-		createSeries
+		createSeries,
+		seriesFolderName
 	])
 
+	// Default series folder name to TMDB name on selection
+	useEffect(() => {
+		if (selectedSeries && !seriesFolderName) {
+			setSeriesFolderName(selectedSeries.name || '')
+		}
+	}, [selectedSeries, seriesFolderName])
+
+	// Auto-fetch episode titles when mapping numbers are set
+	useEffect(() => {
+		if (!selectedSeries?.id) return
+		const fetchInfos = async () => {
+			for (const fid of fileOrder) {
+				const m = seriesFilesMap[fid]
+				if (!m) continue
+				const s = parseInt(m.season)
+				const e = parseInt(m.episode)
+				if (!s || !e) continue
+				const cur = fileEpisodeInfo[fid]
+				if (cur && cur.title) continue
+				setFileEpisodeInfo(prev => ({
+					...prev,
+					[fid]: { ...(prev[fid] || {}), loading: true }
+				}))
+				const data = await fetchEpisodeDetails(selectedSeries.id, s, e)
+				setFileEpisodeInfo(prev => ({
+					...prev,
+					[fid]: { title: data?.name || '', tmdbID: data?.id || null, loading: false }
+				}))
+			}
+		}
+		fetchInfos()
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [fileOrder, seriesFilesMap, selectedSeries?.id])
+
+	const isSeries = mediaType === 'series'
+	const multi = isSeries && (uppyFiles?.length || 0) >= 2
 	const canUpload =
 		mediaType === 'movie'
 			? customTitle.length > 0
-			: selectedSeries && seasonNumber && episodeNumber && customTitle.length > 0
+			: selectedSeries &&
+				seriesFolderName?.length > 0 &&
+				(multi ? true : seasonNumber && episodeNumber)
 
 	return (
 		<motion.div
@@ -371,74 +481,245 @@ const MediaUploader = () => {
 											variants={afterSelectVariants}
 											custom={0}
 										>
-											<div className='flex-1'>
-												<label
-													htmlFor='seasonNumber'
-													className='block text-lg font-semibold mb-2 text-gray-200'
-												>
-													Saison
-												</label>
-												<input
-													id='seasonNumber'
-													type='number'
-													min='1'
-													value={seasonNumber}
-													onChange={e => setSeasonNumber(e.target.value)}
-													placeholder='1'
-													className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium'
-												/>
-											</div>
-											<div className='flex-1'>
-												<label
-													htmlFor='episodeNumber'
-													className='block text-lg font-semibold mb-2 text-gray-200'
-												>
-													Épisode
-												</label>
-												<input
-													id='episodeNumber'
-													type='number'
-													min='1'
-													value={episodeNumber}
-													onChange={e => setEpisodeNumber(e.target.value)}
-													placeholder='1'
-													className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium'
-												/>
-											</div>
+											{!multi && (
+												<>
+													<div className='flex-1'>
+														<label
+															htmlFor='seasonNumber'
+															className='block text-lg font-semibold mb-2 text-gray-200'
+														>
+															Saison
+														</label>
+														<input
+															id='seasonNumber'
+															type='number'
+															min='1'
+															value={seasonNumber}
+															onChange={e =>
+																setSeasonNumber(e.target.value)
+															}
+															placeholder='1'
+															className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium'
+														/>
+													</div>
+													<div className='flex-1'>
+														<label
+															htmlFor='episodeNumber'
+															className='block text-lg font-semibold mb-2 text-gray-200'
+														>
+															Épisode
+														</label>
+														<input
+															id='episodeNumber'
+															type='number'
+															min='1'
+															value={episodeNumber}
+															onChange={e =>
+																setEpisodeNumber(e.target.value)
+															}
+															placeholder='1'
+															className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium'
+														/>
+													</div>
+												</>
+											)}
 										</motion.div>
+
+										{/* Multi-episodes mapping UI */}
+										{multi && (
+											<motion.div
+												className='flex flex-col gap-3'
+												variants={afterSelectVariants}
+												custom={1}
+											>
+												<label className='block text-lg font-semibold text-gray-200'>
+													Associer chaque fichier à une saison/épisode
+												</label>
+												<div className='flex flex-col gap-2'>
+													{fileOrder.map((fid, idx) => {
+														const f = uppyFiles.find(
+															ff => ff.id === fid
+														)
+														if (!f) return null
+														const map = seriesFilesMap[fid] || {
+															season: '',
+															episode: ''
+														}
+														const info = fileEpisodeInfo[fid] || {}
+														return (
+															<div
+																key={fid}
+																className='flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 border border-white/10'
+															>
+																<div className='w-8 text-sm text-gray-400'>
+																	{idx + 1}
+																</div>
+																<div className='flex-1 truncate'>
+																	{f.name}
+																</div>
+																<div className='flex items-center gap-2'>
+																	<input
+																		type='number'
+																		min='1'
+																		value={map.season}
+																		onChange={e =>
+																			setSeriesFilesMap(
+																				prev => ({
+																					...prev,
+																					[fid]: {
+																						...prev[
+																							fid
+																						],
+																						season: e
+																							.target
+																							.value
+																					}
+																				})
+																			)
+																		}
+																		placeholder='Saison'
+																		className='w-28 px-3 py-2 rounded bg-gray-800 border border-white/10 focus:border-red-500/60 outline-none text-sm'
+																	/>
+																	<input
+																		type='number'
+																		min='1'
+																		value={map.episode}
+																		onChange={e =>
+																			setSeriesFilesMap(
+																				prev => ({
+																					...prev,
+																					[fid]: {
+																						...prev[
+																							fid
+																						],
+																						episode:
+																							e.target
+																								.value
+																					}
+																				})
+																			)
+																		}
+																		placeholder='Épisode'
+																		className='w-28 px-3 py-2 rounded bg-gray-800 border border-white/10 focus:border-red-500/60 outline-none text-sm'
+																	/>
+																</div>
+																<div className='min-w-[180px] text-xs text-gray-400'>
+																	{info.loading
+																		? 'Chargement…'
+																		: info.title || ''}
+																</div>
+																<div className='flex items-center gap-1'>
+																	<button
+																		type='button'
+																		onClick={() =>
+																			setFileOrder(prev => {
+																				if (idx === 0)
+																					return prev
+																				const cp = [...prev]
+																				const [it] =
+																					cp.splice(
+																						idx,
+																						1
+																					)
+																				cp.splice(
+																					idx - 1,
+																					0,
+																					it
+																				)
+																				return cp
+																			})
+																		}
+																		className='px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs'
+																	>
+																		↑
+																	</button>
+																	<button
+																		type='button'
+																		onClick={() =>
+																			setFileOrder(prev => {
+																				if (
+																					idx ===
+																					prev.length - 1
+																				)
+																					return prev
+																				const cp = [...prev]
+																				const [it] =
+																					cp.splice(
+																						idx,
+																						1
+																					)
+																				cp.splice(
+																					idx + 1,
+																					0,
+																					it
+																				)
+																				return cp
+																			})
+																		}
+																		className='px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs'
+																	>
+																		↓
+																	</button>
+																</div>
+															</div>
+														)
+													})}
+												</div>
+											</motion.div>
+										)}
 									</>
 								)}
 
-								{/* Custom Title */}
-								<motion.div
-									className='flex flex-col gap-1 pt-4'
-									variants={afterSelectVariants}
-									custom={mediaType === 'series' ? 1 : 0}
-								>
-									<label
-										htmlFor='customTitle'
-										className='text-lg md:text-xl font-semibold tracking-wide text-gray-200'
+								{/* Names: movie rename vs series folder name */}
+								{mediaType === 'movie' ? (
+									<motion.div
+										className='flex flex-col gap-1 pt-4'
+										variants={afterSelectVariants}
+										custom={0}
 									>
-										{mediaType === 'movie'
-											? 'Renommer le film'
-											: 'Nom du fichier'}
-									</label>
-									<motion.input
-										whileFocus={{
-											boxShadow: '0 0 0 4px rgba(229,9,20,0.25)'
-										}}
-										id='customTitle'
-										type='text'
-										value={customTitle}
-										onChange={e => setCustomTitle(e.target.value)}
-										placeholder={
-											mediaType === 'movie'
-												? 'Titre personnalisé…'
-												: 'S01E01_Breaking_Bad.mp4'
-										}
-										className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg md:text-xl font-medium placeholder:text-gray-500 transition'
-									/>
-								</motion.div>
+										<label
+											htmlFor='customTitle'
+											className='text-lg md:text-xl font-semibold tracking-wide text-gray-200'
+										>
+											Renommer le film
+										</label>
+										<motion.input
+											whileFocus={{
+												boxShadow: '0 0 0 4px rgba(229,9,20,0.25)'
+											}}
+											id='customTitle'
+											type='text'
+											value={customTitle}
+											onChange={e => setCustomTitle(e.target.value)}
+											placeholder='Titre personnalisé…'
+											className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg md:text-xl font-medium placeholder:text-gray-500 transition'
+										/>
+									</motion.div>
+								) : (
+									<motion.div
+										className='flex flex-col gap-1 pt-4'
+										variants={afterSelectVariants}
+										custom={1}
+									>
+										<label
+											htmlFor='seriesFolder'
+											className='text-lg md:text-xl font-semibold tracking-wide text-gray-200'
+										>
+											Nom du dossier
+										</label>
+										<motion.input
+											whileFocus={{
+												boxShadow: '0 0 0 4px rgba(229,9,20,0.25)'
+											}}
+											id='seriesFolder'
+											type='text'
+											value={seriesFolderName}
+											onChange={e => setSeriesFolderName(e.target.value)}
+											placeholder={selectedSeries?.name || 'Nom du dossier…'}
+											className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg md:text-xl font-medium placeholder:text-gray-500 transition'
+										/>
+									</motion.div>
+								)}
 
 								{/* Transcoding Options */}
 								<motion.div
@@ -540,7 +821,7 @@ const MediaUploader = () => {
 								uppy={uppy}
 								height={430}
 								width='100%'
-								note='Sélectionner un fichier vidéo'
+								note='Sélectionner un ou plusieurs fichiers vidéo'
 								theme='dark'
 								showProgressDetails={true}
 								lang='fr_FR'

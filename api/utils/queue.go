@@ -92,9 +92,14 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
         }
 
         seriesFolder := fmt.Sprintf("%s_%d", sanitizeFileName(series.Title), series.TmdbID)
+        // optional custom subfolder for filesystem-only naming
+        base := filepath.Join(seriesDir, seriesFolder)
+        if strings.TrimSpace(series.CustomTitle) != "" {
+            base = filepath.Join(base, sanitizeFileName(series.CustomTitle))
+        }
         seasonFolder := fmt.Sprintf("Season %d", ep.SeasonNumber)
         fileName := fmt.Sprintf("%s%s", sanitizeFileName(ep.Title), ext)
-        dst := filepath.Join(seriesDir, seriesFolder, seasonFolder, fileName)
+        dst := filepath.Join(base, seasonFolder, fileName)
         if err := storage.MoveFile(inputPath, dst); err != nil {
             return "", fmt.Errorf("move failed: %w", err)
         }

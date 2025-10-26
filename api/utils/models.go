@@ -42,6 +42,7 @@ type MovieQuery struct {
 type Series struct {
 	ID           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Title        string             `json:"title" bson:"title"`
+	CustomTitle  string             `json:"-" bson:"customTitle,omitempty"`
 	TmdbID       int                `json:"tmdbID" bson:"tmdbID"`
 	ImdbID       string             `json:"imdbID,omitempty" bson:"imdbID,omitempty"`
 	Poster       string             `json:"poster" bson:"poster"`

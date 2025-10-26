@@ -34,12 +34,21 @@ const axiosDELETE = async (endpoint, body) => {
 		.catch(err => logAPIError(err))
 }
 
+const axiosPATCH = async (endpoint, body) => {
+	return axios
+		.patch(import.meta.env.VITE_API + endpoint, body)
+		.then(res => res.data)
+		.catch(err => logAPIError(err))
+}
+
 const axiosAPI = async (method, endpoint, body, params) => {
 	switch (method) {
 		case 'GET':
 			return axiosGET(endpoint, params)
 		case 'POST':
 			return axiosPOST(endpoint, body)
+		case 'PATCH':
+			return axiosPATCH(endpoint, body)
 		case 'DELETE':
 			return axiosDELETE(endpoint, body)
 		default:
@@ -187,4 +196,31 @@ export const useGetFullSerie = tmdbID => {
 		queryFn: () => fetchFullSerie(tmdbID),
 		enabled: !!tmdbID // ne lance que si tmdbID est défini
 	})
+}
+
+export function useGetFullSeason(tvId, seasonNumber) {
+	return useQuery({
+		queryKey: ['tmdb', 'tv', tvId, 'season', seasonNumber, LANG],
+		enabled: Boolean(tvId) && Number.isInteger(Number(seasonNumber)) && Boolean(TMDB_API_KEY),
+		queryFn: async () => {
+			const url = `https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}&language=${LANG}`
+			const res = await fetch(url)
+			if (!res.ok) {
+				throw new Error(`TMDB season fetch failed: ${res.status}`)
+			}
+			const json = await res.json()
+			return json
+		},
+		staleTime: 1000 * 60 * 10, // 10 minutes de cache
+		gcTime: 1000 * 60 * 60, // 1h en mémoire
+		retry: 1
+	})
+}
+
+export const fetchEpisodeDetails = async (seriesTmdbID, seasonNumber, episodeNumber) => {
+	const url = `https://api.themoviedb.org/3/tv/${seriesTmdbID}/season/${seasonNumber}/episode/${episodeNumber}?api_key=${TMDB_API_KEY}&language=${LANG}`
+	return axios
+		.get(url, {})
+		.then(res => res.data)
+		.catch(err => err.message)
 }

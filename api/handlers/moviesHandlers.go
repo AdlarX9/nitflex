@@ -104,6 +104,20 @@ func UploadMovie(c *gin.Context) {
 
     // destination
     dst := filepath.Join(".", "uploads", customTitle)
+    // For series uploads, ensure unique temp filename using source extension to avoid collisions
+    if mediaType == "series" {
+        ext := filepath.Ext(header.Filename)
+        if ext == "" {
+            ext = ".mp4"
+        }
+        base := strings.TrimSuffix(header.Filename, ext)
+        if base == "" {
+            base = customTitle
+        }
+        unique := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
+        dst = filepath.Join(".", "uploads", unique)
+    }
+
     out, err := os.Create(dst)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create file: %s", err.Error())})
@@ -204,5 +218,18 @@ func GetMovieByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, movie)
+	    c.JSON(http.StatusOK, movie)
+}
+
+// sanitizeName performs minimal filename sanitization for temp uploads
+func sanitizeName(name string) string {
+    n := strings.TrimSpace(name)
+    replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "", "'", "", "<", "", ">", "", "|", "-"}
+    for i := 0; i+1 < len(replacers); i += 2 {
+        n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
+    }
+    if n == "" {
+        n = "untitled"
+    }
+    return n
 }

@@ -2,73 +2,19 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { useAPI, useGetFullMovie, useMainContext } from '../app/hooks'
 import Loader from '../components/Loader'
 import { Link, useParams } from 'react-router-dom'
-import { IoPlayCircle, IoArrowBack, IoTimeOutline, IoFilmOutline, IoStar } from 'react-icons/io5'
+import { IoPlayCircle, IoTimeOutline, IoFilmOutline, IoStar } from 'react-icons/io5'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 
-/* 
-  Modern UI + Framer Motion animations
-  - Parallax + animated gradient & noise overlay
-  - Staggered content
-  - Subtle hover & focus states
-  - Animated sections on scroll
-  - Replaced <a href> with <Link> for internal navigation (SPA behavior)
-*/
+import {
+	BackButton,
+	ParallaxBackdrop,
+	GenreChips,
+	PersonCard,
+	TrailerEmbedSection
+} from '../components/DetailComponents'
 
-const fadeInUp = {
-	initial: { opacity: 0, y: 24 },
-	animate: (i = 0) => ({
-		opacity: 1,
-		y: 0,
-		transition: {
-			delay: 0.08 * i,
-			duration: 0.55,
-			ease: [0.22, 1, 0.36, 1]
-		}
-	})
-}
-
-const staggerContainer = {
-	initial: {},
-	animate: {
-		transition: {
-			staggerChildren: 0.08
-		}
-	}
-}
-
-const sectionReveal = {
-	initial: { opacity: 0, y: 40, scale: 0.98 },
-	whileInView: {
-		opacity: 1,
-		y: 0,
-		scale: 1,
-		transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] }
-	},
-	viewport: { once: true, margin: '0px 0px -80px 0px' }
-}
-
-const chipVariant = {
-	hidden: { opacity: 0, y: 14, scale: 0.96 },
-	show: i => ({
-		opacity: 1,
-		y: 0,
-		scale: 1,
-		transition: { delay: 0.04 * i, duration: 0.4, ease: 'easeOut' }
-	})
-}
-
-const cardVariant = {
-	hidden: { opacity: 0, y: 24 },
-	show: i => ({
-		opacity: 1,
-		y: 0,
-		transition: { delay: 0.05 * i, duration: 0.55, ease: [0.22, 1, 0.36, 1] }
-	})
-}
-
-const shimmer =
-	'after:absolute after:inset-0 after:bg-[linear-gradient(110deg,rgba(255,255,255,0.05),rgba(255,255,255,0.15),rgba(255,255,255,0.05))] after:bg-[length:200%_100%] after:animate-[shimmer_2.5s_infinite]'
+import { fadeInUp, staggerContainer, sectionReveal, shimmer } from '../components/variants'
 
 const MovieDetails = () => {
 	const { tmdbID } = useParams()
@@ -95,19 +41,6 @@ const MovieDetails = () => {
 			setRandomBackdrop(randomBackdropRef.current?.file_path)
 		}
 	}, [fullMovie, pickRandom])
-
-	// Parallax backdrop
-	const imgRef = useRef(null)
-	useEffect(() => {
-		const handleScroll = () => {
-			const scrollY = window.scrollY
-			if (imgRef.current) {
-				imgRef.current.style.transform = `translateY(${scrollY / 4}px) scale(1.05)`
-			}
-		}
-		window.addEventListener('scroll', handleScroll, { passive: true })
-		return () => window.removeEventListener('scroll', handleScroll)
-	}, [])
 
 	const trailer = useMemo(
 		() =>
@@ -151,7 +84,8 @@ const MovieDetails = () => {
 		similar,
 		recommendations,
 		tagline,
-		vote_average
+		vote_average,
+		production_countries
 	} = fullMovie
 
 	// Poster FR preference
@@ -171,53 +105,19 @@ const MovieDetails = () => {
 	const crew = credits?.crew || []
 	const directors = crew.filter(c => c.job === 'Director')
 	const writers = crew.filter(c => c.job === 'Writer' || c.job === 'Screenplay')
-	const countries = fullMovie?.production_countries?.map(c => c.name).join(', ') || ''
+	const countries =
+		production_countries?.map(c => c.name).join(', ') ||
+		fullMovie?.production_countries?.map(c => c.name).join(', ') ||
+		''
 	const noteSur10 = vote_average ? vote_average.toFixed(1) : null
 	const noteSur5 = vote_average ? (vote_average / 2).toFixed(1) : null
 
 	return (
 		<div className='relative w-full min-h-dvh bg-black text-gray-100 overflow-hidden'>
-			{/* Back button */}
-			<Link
-				to={-1}
-				className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-gray-800/70 to-gray-700/40 backdrop-blur-sm hover:from-gray-700/80 hover:to-gray-600/40 border border-white/10 text-base group shadow-lg'
-			>
-				<IoArrowBack className='text-lg group-hover:-translate-x-0.5 transition' />
-				<span className='uppercase tracking-wide font-semibold text-sm'>Retour</span>
-			</Link>
+			<BackButton />
 
 			{/* Backdrop */}
-			{backdropUrl && (
-				<>
-					<motion.img
-						ref={imgRef}
-						key={backdropUrl}
-						src={backdropUrl}
-						alt='Arrière-plan'
-						initial={{ opacity: 0, scale: 1.08 }}
-						animate={{ opacity: 0.5, scale: 1.05 }}
-						transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-						className='absolute inset-0 w-full h-auto object-cover pointer-events-none select-none z-0 will-change-transform'
-					/>
-					{/* Animated gradient overlay */}
-					<motion.div
-						aria-hidden
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ duration: 1 }}
-						className='absolute inset-0 bg-[radial-gradient(at_30%_20%,rgba(255,255,255,0.08),rgba(0,0,0,0)_60%),radial-gradient(at_80%_60%,rgba(255,0,0,0.15),rgba(0,0,0,0)_70%)] mix-blend-screen pointer-events-none'
-					/>
-					<div className='absolute inset-0 bg-gradient-to-b from-black via-black/60 to-[#05070d] z-0 pointer-events-none' />
-					{/* Noise overlay */}
-					<div
-						className='absolute inset-0 opacity-[0.18] mix-blend-overlay pointer-events-none z-0'
-						style={{
-							backgroundImage:
-								'repeating-linear-gradient(0deg,rgba(255,255,255,0.04)_0,rgba(255,255,255,0.04)_1px,transparent_1px,transparent_2px)'
-						}}
-					/>
-				</>
-			)}
+			{backdropUrl && <ParallaxBackdrop src={backdropUrl} />}
 
 			{/* Main Content */}
 			<main className='relative z-10 pt-28 pb-24 px-6 md:px-10 max-w-7xl mx-auto'>
@@ -243,9 +143,7 @@ const MovieDetails = () => {
 									className='w-full h-auto block transition duration-700 ease-out group-hover:scale-[1.03] group-hover:brightness-[0.85]'
 									loading='lazy'
 								/>
-								{/* Reflection */}
 								<div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-70 mix-blend-multiply' />
-								{/* Play overlay */}
 								<AnimatePresence>
 									{available && (
 										<motion.div
@@ -334,25 +232,7 @@ const MovieDetails = () => {
 						</motion.div>
 
 						{/* Genres */}
-						{genres?.length > 0 && (
-							<motion.div
-								className='flex flex-wrap gap-2'
-								variants={staggerContainer}
-								initial='initial'
-								animate='animate'
-							>
-								{genres.map((g, i) => (
-									<motion.span
-										key={g.id || g.name}
-										variants={chipVariant}
-										custom={i}
-										className='px-3 py-1 rounded-full bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/30 text-red-300 text-sm tracking-wide uppercase font-semibold backdrop-blur-sm'
-									>
-										{g.name}
-									</motion.span>
-								))}
-							</motion.div>
-						)}
+						<GenreChips genres={genres} />
 
 						{/* Tagline */}
 						{tagline && (
@@ -403,41 +283,7 @@ const MovieDetails = () => {
 						{/* Trailer */}
 						<AnimatePresence>
 							{trailer && (
-								<motion.div
-									initial={{ opacity: 0, y: 30 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: 30 }}
-									transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-									className='mt-2'
-								>
-									<div className='text-base font-semibold text-gray-200 mb-2 flex items-center gap-2'>
-										<IoFilmOutline className='text-lg opacity-80' />
-										Bande-annonce
-									</div>
-									<div className='relative rounded-xl overflow-hidden border border-white/10 shadow-xl bg-black/40 backdrop-blur-sm max-w-xl'>
-										{trailer.site === 'YouTube' ? (
-											<iframe
-												title='Bande-annonce'
-												width='600'
-												height='338'
-												src={`https://www.youtube.com/embed/${trailer.key}`}
-												allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-												allowFullScreen
-												className='w-full aspect-video'
-											/>
-										) : (
-											<a
-												href={trailer.url}
-												target='_blank'
-												rel='noopener noreferrer'
-												className='block p-6 text-blue-400 underline'
-											>
-												Voir la bande-annonce
-											</a>
-										)}
-										<div className='absolute inset-0 pointer-events-none bg-gradient-to-t from-black/60 via-transparent to-transparent' />
-									</div>
-								</motion.div>
+								<TrailerEmbedSection trailer={trailer} title='Bande-annonce' />
 							)}
 						</AnimatePresence>
 					</motion.div>
@@ -452,44 +298,7 @@ const MovieDetails = () => {
 							</h2>
 							<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6'>
 								{cast.map((actor, i) => (
-									<motion.div
-										key={actor.id}
-										variants={cardVariant}
-										initial='hidden'
-										whileInView='show'
-										custom={i}
-										viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-										className='group relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow-lg'
-									>
-										<Link
-											to={`/person/${actor.id}`}
-											className='block focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
-										>
-											<div className='relative aspect-[3/4] overflow-hidden'>
-												<img
-													src={
-														actor.profile_path
-															? `https://image.tmdb.org/t/p/w185${actor.profile_path}`
-															: 'https://via.placeholder.com/240x360?text=No+Image'
-													}
-													alt={actor.name}
-													className='object-cover w-full h-full transition duration-700 ease-out group-hover:scale-105 group-hover:brightness-90'
-													loading='lazy'
-												/>
-												<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
-											</div>
-											<div className='p-3 flex flex-col gap-1'>
-												<p className='text-base font-semibold leading-tight text-gray-100 truncate'>
-													{actor.name}
-												</p>
-												{actor.character && (
-													<p className='text-[11px] text-gray-400 leading-tight line-clamp-2'>
-														{actor.character}
-													</p>
-												)}
-											</div>
-										</Link>
-									</motion.div>
+									<PersonCard key={actor.id} person={actor} index={i} />
 								))}
 							</div>
 						</motion.section>
@@ -577,7 +386,7 @@ const MovieDetails = () => {
 											to={`/movie/${mov.id}`}
 											className='block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
 										>
-											<div className='relative aspect-[2/3]'>
+											<div className='relative aspect-[2/3] overflow-hidden'>
 												<img
 													src={
 														mov.poster_path
@@ -621,7 +430,7 @@ const MovieDetails = () => {
 											to={`/movie/${mov.id}`}
 											className='block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
 										>
-											<div className='relative aspect-[2/3]'>
+											<div className='relative aspect-[2/3] overflow-hidden'>
 												<img
 													src={
 														mov.poster_path
@@ -702,7 +511,6 @@ const MovieDetails = () => {
 				)}
 			</main>
 
-			{/* Footer subtle gradient */}
 			<div className='pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent' />
 		</div>
 	)
