@@ -1,4 +1,4 @@
-package main
+package utils
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -45,14 +45,8 @@ type Series struct {
 	TmdbID       int                `json:"tmdbID" bson:"tmdbID"`
 	ImdbID       string             `json:"imdbID,omitempty" bson:"imdbID,omitempty"`
 	Poster       string             `json:"poster" bson:"poster"`
-	Backdrop     string             `json:"backdrop,omitempty" bson:"backdrop,omitempty"`
-	Overview     string             `json:"overview,omitempty" bson:"overview,omitempty"`
-	FirstAirDate primitive.DateTime `json:"firstAirDate,omitempty" bson:"firstAirDate,omitempty"`
-	LastAirDate  primitive.DateTime `json:"lastAirDate,omitempty" bson:"lastAirDate,omitempty"`
-	Status       string             `json:"status,omitempty" bson:"status,omitempty"`
-	SeasonCount  int                `json:"seasonCount" bson:"seasonCount"`
-	EpisodeCount int                `json:"episodeCount" bson:"episodeCount"`
 	Date         primitive.DateTime `json:"date" bson:"date"` // When added to library
+	Seasons      []Season           `json:"seasons" bson:"seasons"`
 }
 
 // Season represents a season within a series
@@ -62,27 +56,19 @@ type Season struct {
 	TmdbID       int                `json:"tmdbID" bson:"tmdbID"`
 	SeasonNumber int                `json:"seasonNumber" bson:"seasonNumber"`
 	Name         string             `json:"name" bson:"name"`
-	Poster       string             `json:"poster,omitempty" bson:"poster,omitempty"`
-	Overview     string             `json:"overview,omitempty" bson:"overview,omitempty"`
-	AirDate      primitive.DateTime `json:"airDate,omitempty" bson:"airDate,omitempty"`
-	EpisodeCount int                `json:"episodeCount" bson:"episodeCount"`
+	Episodes     []Episode          `json:"episodes" bson:"episodes"`
 }
 
 // Episode represents an episode
 type Episode struct {
 	ID            primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	SeriesID      primitive.ObjectID `json:"seriesID" bson:"seriesID"`
-	SeasonID      primitive.ObjectID `json:"seasonID" bson:"seasonID"`
 	TmdbID        int                `json:"tmdbID" bson:"tmdbID"`
 	EpisodeNumber int                `json:"episodeNumber" bson:"episodeNumber"`
 	SeasonNumber  int                `json:"seasonNumber" bson:"seasonNumber"`
+	SeriesID      primitive.ObjectID `json:"seriesID" bson:"seriesID"`
 	Title         string             `json:"title" bson:"title"`
-	Overview      string             `json:"overview,omitempty" bson:"overview,omitempty"`
-	StillPath     string             `json:"stillPath,omitempty" bson:"stillPath,omitempty"` // Episode poster
-	AirDate       primitive.DateTime `json:"airDate,omitempty" bson:"airDate,omitempty"`
 	Runtime       int                `json:"runtime,omitempty" bson:"runtime,omitempty"` // Minutes
 	FilePath      string             `json:"filePath" bson:"filePath"`                   // Actual video file location
-	Format        string             `json:"format" bson:"format"`
 	CustomTitle   string             `json:"customTitle,omitempty" bson:"customTitle,omitempty"`
 	Date          primitive.DateTime `json:"date" bson:"date"` // When added to library
 }

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAPI } from '../app/hooks'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,6 +27,7 @@ const SerieDetails = () => {
 				if (!grouped[ep.seasonNumber]) grouped[ep.seasonNumber] = []
 				grouped[ep.seasonNumber].push(ep)
 			}
+			console.log(data.episodes)
 		}
 		return grouped
 	}, [data])

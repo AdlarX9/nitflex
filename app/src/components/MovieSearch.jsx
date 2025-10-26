@@ -62,13 +62,6 @@ const MovieSearch = ({ onSelect }) => {
 
 	return (
 		<div className='relative w-full font-sans'>
-			{/* Label */}
-			<label
-				htmlFor='movie-search'
-				className='block font-bold text-xl tracking-wide bg-gradient-to-r from-gray-200 to-gray-500 bg-clip-text text-transparent'
-			>
-				Nom du film
-			</label>
 
 			{/* Search wrapper */}
 			<div

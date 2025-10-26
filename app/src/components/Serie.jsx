@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+// eslint-disable-next-line
 import { motion } from 'framer-motion'
 
 const fadeVariants = {

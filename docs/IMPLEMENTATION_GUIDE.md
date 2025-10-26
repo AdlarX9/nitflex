@@ -10,38 +10,38 @@ This document describes the complete implementation of Nitflex's extended featur
 ┌─────────────────────────────────────────────────────────────┐
 │                      Nitflex Platform                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Frontend (React + Vite)                                     │
-│  ├── MediaUploader (Movies & Series)                         │
-│  ├── SeriesSearch (TMDB Integration)                         │
-│  ├── Enhanced Viewer (Episode Navigation)                    │
-│  ├── TranscodeJobs (Real-time Progress)                      │
-│  └── Explorer (Movies & Series)                              │
-│                                                              │
+│                                                             │
+│  Frontend (React + Vite)                                    │
+│  ├── MediaUploader (Movies & Series)                        │
+│  ├── SeriesSearch (TMDB Integration)                        │
+│  ├── Enhanced Viewer (Episode Navigation)                   │
+│  ├── TranscodeJobs (Real-time Progress)                     │
+│  └── Explorer (Movies & Series)                             │
+│                                                             │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Backend (Go + Gin)                                          │
-│  ├── Job Queue System (Worker Pool)                          │
-│  ├── Storage Abstraction (LocalStorage)                      │
-│  ├── Transcoding Pipeline (ffmpeg)                           │
-│  ├── SSE Streaming (Real-time Updates)                       │
-│  ├── Series Management (TMDB API)                            │
-│  └── Metadata Tagging                                        │
-│                                                              │
+│                                                             │
+│  Backend (Go + Gin)                                         │
+│  ├── Job Queue System (Worker Pool)                         │
+│  ├── Storage Abstraction (LocalStorage)                     │
+│  ├── Transcoding Pipeline (ffmpeg)                          │
+│  ├── SSE Streaming (Real-time Updates)                      │
+│  ├── Series Management (TMDB API)                           │
+│  └── Metadata Tagging                                       │
+│                                                             │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Electron (Optional Desktop App)                             │
-│  ├── Local Transcoding (Hardware Accel)                      │
+│                                                             │
+│  Electron (Optional Desktop App)                            │
+│  ├── Local Transcoding (Hardware Accel)                     │
 │  ├── Platform-specific Codecs                                │
-│  └── IPC Progress Reporting                                  │
-│                                                              │
+│  └── IPC Progress Reporting                                 │
+│                                                             │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Database (MongoDB)                                          │
-│  ├── Movies, Series, Episodes                                │
-│  ├── Users & Progress Tracking                               │
-│  └── Job Persistence                                         │
-│                                                              │
+│                                                             │
+│  Database (MongoDB)                                         │
+│  ├── Movies, Series, Episodes                               │
+│  ├── Users & Progress Tracking                              │
+│  └── Job Persistence                                        │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 import fr_FR from '@uppy/locales/lib/fr_FR.js'
@@ -10,8 +10,7 @@ import '../../node_modules/@uppy/dashboard/dist/style.css'
 import MovieSearch from '../components/MovieSearch'
 import SeriesSearch from '../components/SeriesSearch'
 import { Back } from '../components/NavBar'
-import { useMainContext } from '../app/hooks'
-import axios from 'axios'
+import { useMainContext, useAPIAfter, fetchFullSerie } from '../app/hooks'
 
 const containerVariants = {
 	hidden: { opacity: 0 },
@@ -87,6 +86,8 @@ const glowPulse = {
 
 const MediaUploader = () => {
 	const { refetchNewMovies, refetchNewSeries } = useMainContext()
+	const createSeries = useAPIAfter('POST', '/series')
+	const addEpisode = useAPIAfter('POST', '/series/:id/episodes')
 	const [mediaType, setMediaType] = useState('movie') // 'movie' or 'series'
 	const [processingLocation, setProcessingLocation] = useState('server')
 	const [transcodeMode, setTranscodeMode] = useState('server') // 'none', 'server', 'local'
@@ -122,25 +123,16 @@ const MediaUploader = () => {
 	)
 
 	useEffect(() => {
-		if (mediaType === 'movie') {
-			uppy.use(XHRUpload, {
-				endpoint: import.meta.env.VITE_API + '/movies',
-				formData: true,
-				fieldName: 'file'
-			})
-		} else {
-			// For series, we'll handle upload differently
-			uppy.use(XHRUpload, {
-				endpoint: import.meta.env.VITE_API + '/movies', // Temp endpoint
-				formData: true,
-				fieldName: 'file'
-			})
-		}
+		uppy.use(XHRUpload, {
+			endpoint: import.meta.env.VITE_API + '/movies',
+			formData: true,
+			fieldName: 'file'
+		})
 		return () => uppy.destroy()
-	}, [uppy, mediaType])
+	}, [uppy])
 
 	useEffect(() => {
-		uppy.on('complete', async result => {
+		const onComplete = async result => {
 			if (result.successful?.length > 0) {
 				const uploadedFile = result.successful[0]
 				const response = uploadedFile.response?.body
@@ -148,26 +140,18 @@ const MediaUploader = () => {
 				if (mediaType === 'series' && seriesID) {
 					// Create episode entry then create job (server/none)
 					try {
-						const epRes = await axios.post(
-							`${import.meta.env.VITE_API}/series/${seriesID}/episodes`,
+						await addEpisode.triggerAsync(
 							{
-								seriesTmdbID: selectedSeries.id,
 								seasonNumber: parseInt(seasonNumber),
 								episodeNumber: parseInt(episodeNumber),
 								filePath: response?.movie?.filePath || customTitle,
-								customTitle
-							}
-						)
-						const episode = epRes?.data
-						if (episode && transcodeMode !== 'local') {
-							await axios.post(`${import.meta.env.VITE_API}/jobs`, {
-								type: 'episode',
-								mediaID: episode.id,
-								tmdbID: episode.tmdbID,
-								inputPath: episode.filePath,
+								customTitle,
+								tmdbID: selectedSeries?.id,
 								transcodeMode
-							})
-						}
+							},
+							{},
+							`/series/${seriesID}/episodes`
+						)
 						// refresh series lists
 						if (typeof refetchNewSeries === 'function') refetchNewSeries()
 					} catch (error) {
@@ -184,24 +168,16 @@ const MediaUploader = () => {
 					}
 				}
 
-				// Create a server-side job for movies (server/none)
-				if (mediaType === 'movie' && response?.movie && transcodeMode !== 'local') {
-					try {
-						await axios.post(`${import.meta.env.VITE_API}/jobs`, {
-							type: 'movie',
-							mediaID: response.movie.id,
-							tmdbID: response.movie.tmdbID,
-							inputPath: response.movie.filePath,
-							transcodeMode
-						})
-					} catch (error) {
-						console.error('Failed to create job:', error)
-					}
-				}
+				// Server enqueues job automatically for movies; nothing to do here
 			}
 			refetchNewMovies()
 			if (typeof refetchNewSeries === 'function') refetchNewSeries()
-		})
+		}
+
+		uppy.on('complete', onComplete)
+		return () => {
+			uppy.off('complete', onComplete)
+		}
 	}, [
 		uppy,
 		refetchNewMovies,
@@ -214,7 +190,8 @@ const MediaUploader = () => {
 		seasonNumber,
 		episodeNumber,
 		customTitle,
-		transcodeMode
+		transcodeMode,
+		addEpisode
 	])
 
 	useEffect(() => {
@@ -247,19 +224,36 @@ const MediaUploader = () => {
 		}
 	}, [newMovie])
 
-	// Create series in backend when selected
+	// Create series in backend when selected (guard against repeated calls)
+	const lastCreatedSeriesId = useRef(null)
 	useEffect(() => {
-		if (selectedSeries && !seriesID) {
-			axios
-				.post(`${import.meta.env.VITE_API}/series`, {
-					tmdbID: selectedSeries.id
-				})
-				.then(res => {
-					setSeriesID(res.data.id)
-				})
-				.catch(err => console.error('Failed to create series:', err))
-		}
-	}, [selectedSeries, seriesID])
+		const sid = selectedSeries?.id
+		if (!sid || seriesID) return
+		if (lastCreatedSeriesId.current === sid) return
+		lastCreatedSeriesId.current = sid
+		;(async () => {
+			try {
+				const { data } = await fetchFullSerie(sid)
+				console.log(data)
+				const payload = {
+					title: data?.name || selectedSeries?.name || '',
+					tmdbID: sid,
+					imdbID: data?.external_ids?.imdb_id || '',
+					poster: data?.poster_path || selectedSeries?.poster_path || ''
+				}
+				const res = await createSeries.triggerAsync(payload)
+				if (res?.id) setSeriesID(res.id)
+			} catch (err) {
+				console.error('Failed to create series:', err)
+			}
+		})()
+	}, [
+		selectedSeries?.id,
+		selectedSeries?.name,
+		selectedSeries?.poster_path,
+		seriesID,
+		createSeries
+	])
 
 	const canUpload =
 		mediaType === 'movie'
@@ -328,7 +322,7 @@ const MediaUploader = () => {
 					<div className='flex gap-4 mb-2'>
 						<button
 							onClick={() => setMediaType('movie')}
-							className={`flex-1 py-3 px-6 rounded-xl text-2xl font-semibold transition ${
+							className={`flex-1 py-3 px-6 rounded-xl text-2xl font-semibold transition cursor-pointer ${
 								mediaType === 'movie'
 									? 'bg-red-500 text-white'
 									: 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
@@ -338,7 +332,7 @@ const MediaUploader = () => {
 						</button>
 						<button
 							onClick={() => setMediaType('series')}
-							className={`flex-1 py-3 px-6 rounded-xl text-2xl font-semibold transition ${
+							className={`flex-1 py-3 px-6 rounded-xl text-2xl font-semibold transition cursor-pointer ${
 								mediaType === 'series'
 									? 'bg-red-500 text-white'
 									: 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
@@ -551,6 +545,7 @@ const MediaUploader = () => {
 								showProgressDetails={true}
 								lang='fr_FR'
 								locale={fr_FR}
+								proudlyDisplayPoweredByUppy={false}
 							/>
 						</motion.div>
 					)}

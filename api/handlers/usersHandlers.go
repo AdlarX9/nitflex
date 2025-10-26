@@ -1,9 +1,11 @@
-package main
+package handlers
 
 import (
 	"context"
 	"net/http"
 	"time"
+	"api/utils"
+
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,7 +14,7 @@ import (
 
 // POST /users
 func CreateUser(c *gin.Context) {
-	var user User
+	var user utils.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -22,7 +24,7 @@ func CreateUser(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	res, err := GetCollection("users").InsertOne(ctx, user)
+	res, err := utils.GetCollection("users").InsertOne(ctx, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -41,12 +43,12 @@ func GetUsers(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := GetCollection("users").Find(ctx, bson.M{})
+	cursor, err := utils.GetCollection("users").Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	var users []User
+	var users []utils.User
 	if err = cursor.All(ctx, &users); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -64,8 +66,8 @@ func GetUserByID(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var user User
-	err = GetCollection("users").FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
+	var user utils.User
+	err = utils.GetCollection("users").FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Utilisateur non trouvé"})
 		return
@@ -83,7 +85,7 @@ func DeleteUser(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	res, err := GetCollection("users").DeleteOne(ctx, bson.M{"_id": objID})
+	res, err := utils.GetCollection("users").DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil || res.DeletedCount == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Suppression impossible"})
 		return
@@ -111,7 +113,7 @@ func ChangeUserName(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err = GetCollection("users").UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": bson.M{"name": input.Name}})
+	_, err = utils.GetCollection("users").UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": bson.M{"name": input.Name}})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

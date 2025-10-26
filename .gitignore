@@ -3,6 +3,8 @@
 *.env
 *.pem
 api/uploads
+api/movies
+api/series
 api/tmp
 mongodb_data
 utils/Nitflex.iconset

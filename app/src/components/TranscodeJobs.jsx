@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-	IoClose,
-	IoCheckmarkCircle,
-	IoAlertCircle,
-	IoStopCircle,
-	IoChevronDown,
-	IoChevronUp,
-	IoRefresh
-} from 'react-icons/io5'
+import { IoClose, IoCheckmarkCircle, IoAlertCircle, IoStopCircle, IoChevronDown, IoChevronUp } from 'react-icons/io5'
 import axios from 'axios'
 
 const STAGE_LABELS = {
@@ -109,23 +101,6 @@ const TranscodeJobs = () => {
 		}
 	}
 
-	const retryJob = async job => {
-		// Create a new job with same params
-		try {
-			await axios.post(`${import.meta.env.VITE_API}/jobs`, {
-				type: job.type,
-				mediaID: job.mediaID,
-				tmdbID: job.tmdbID,
-				inputPath: job.inputPath,
-				transcodeMode: job.transcodeMode,
-				transcodeOptions: job.transcodeOptions
-			})
-			fetchJobs()
-		} catch (error) {
-			console.error('Failed to retry job:', error)
-		}
-	}
-
 	const activeJobs = jobs.filter(j => !['completed', 'failed', 'canceled'].includes(j.stage))
 
 	if (activeJobs.length === 0) return null
@@ -205,25 +180,14 @@ const TranscodeJobs = () => {
 
 												{/* Actions */}
 												<div className='flex gap-1 ml-2'>
-													{job.stage === 'failed' ? (
+													{job.stage !== 'completed' && job.stage !== 'canceled' && (
 														<button
-															onClick={() => retryJob(job)}
-															className='p-2 hover:bg-green-500/20 rounded-lg transition text-green-400'
-															title='Réessayer'
+															onClick={() => cancelJob(job.id)}
+															className='p-2 hover:bg-red-500/20 rounded-lg transition text-red-400'
+															title='Annuler'
 														>
-															<IoRefresh size={18} />
+															<IoStopCircle size={18} />
 														</button>
-													) : (
-														job.stage !== 'completed' &&
-														job.stage !== 'canceled' && (
-															<button
-																onClick={() => cancelJob(job.id)}
-																className='p-2 hover:bg-red-500/20 rounded-lg transition text-red-400'
-																title='Annuler'
-															>
-																<IoStopCircle size={18} />
-															</button>
-														)
 													)}
 												</div>
 											</div>

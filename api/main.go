@@ -1,19 +1,19 @@
 package main
 
 import (
+	"api/utils"
+	"api/handlers"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"gin/storage"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
-var storageBackend *storage.LocalStorage
+var storageBackend *utils.LocalStorage
 
 func main() {
 	// Load .env file if it exists (optional for Docker)
@@ -43,19 +43,19 @@ func main() {
 
 	// Validate storage configuration
 	log.Println("Validating storage configuration...")
-	if err := storage.ValidateStorageConfig(tempDir, moviesDir, seriesDir); err != nil {
+	if err := utils.ValidateStorageConfig(tempDir, moviesDir, seriesDir); err != nil {
 		log.Fatalf("Storage validation failed: %v", err)
 	}
 	log.Println("Storage configuration validated successfully")
 
 	// Initialize storage backend
-	storageBackend = storage.NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
+	storageBackend = utils.NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
 
 	// Initialize job queue (2 workers by default)
 	workers := 2
 	log.Printf("Initializing job queue with %d workers", workers)
-	InitJobQueue(workers)
-	defer StopJobQueue()
+	utils.InitJobQueue(workers)
+	defer utils.StopJobQueue()
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -63,7 +63,7 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("Received shutdown signal, cleaning up...")
-		StopJobQueue()
+		utils.StopJobQueue()
 		os.Exit(0)
 	}()
 
@@ -79,46 +79,42 @@ func main() {
 	})
 
 	// Users
-	r.POST("/users", CreateUser)
-	r.GET("/users", GetUsers)
-	r.GET("/users/:id", GetUserByID)
-	r.DELETE("/users/:id", DeleteUser)
-	r.POST("/users/change_name/:id", ChangeUserName)
+	r.POST("/users", handlers.CreateUser)
+	r.GET("/users", handlers.GetUsers)
+	r.GET("/users/:id", handlers.GetUserByID)
+	r.DELETE("/users/:id", handlers.DeleteUser)
+	r.POST("/users/change_name/:id", handlers.ChangeUserName)
 
 	// Movies
-	r.POST("/movies", UploadMovie)
-	r.GET("/movies", GetMovies)
-	r.GET("/all_movies", GetAllMovies)
-	r.GET("/movie/:id", GetMovieByID)
-	r.GET("/tasks", getTasks)
-	r.GET("/video/:id", VideoStreamHandler)
-
-	// Ongoing Movies
-	r.POST("/ongoing_movies", UpdateOnGoingMovie)
-	r.GET("/ongoing_movies/:id", GetOnGoingMovieByID)
-	r.DELETE("/ongoing_movies/:id", DeleteOnGoingMovie)
-	r.DELETE("/all_ongoing_movies", DeleteAllOnGoingMovies)
-
-	// Jobs
-	r.POST("/jobs", CreateJob)
-	r.GET("/jobs", GetJobs)
-	r.GET("/jobs/:id", GetJobByID)
-	r.POST("/jobs/:id/cancel", CancelJob)
-	r.DELETE("/jobs/:id", DeleteJob)
-	r.GET("/jobs/stream", StreamJobs)
+	r.POST("/movies", handlers.UploadMovie)
+	r.GET("/movies", handlers.GetMovies)
+	r.GET("/movie/:id", handlers.GetMovieByID)
 
 	// Series
-	r.POST("/series", CreateSeries)
-	r.GET("/series", GetAllSeries)
-	r.GET("/series/:id", GetSeriesByID)
-	r.POST("/series/:id/episodes", AddEpisodeToSeries)
-	r.GET("/episode/:id", GetEpisodeByID)
-	r.GET("/video/episode/:id", EpisodeStreamHandler)
+	r.POST("/series", handlers.CreateSeries)
+	r.GET("/series", handlers.GetAllSeries)
+	r.GET("/series/:id", handlers.GetSeriesByID)
+	r.GET("/episode/:id", handlers.GetEpisodeByID)
+	r.POST("/series/:id/episodes", handlers.AddEpisodeToSeries)
 
-	// Ongoing Episodes
-	r.POST("/ongoing_episodes", UpdateOnGoingEpisode)
-	r.GET("/ongoing_episodes/:id", GetOnGoingEpisodeByID)
-	r.DELETE("/ongoing_episodes/:id", DeleteOnGoingEpisode)
+	// Stream
+	r.GET("/video/:id", handlers.VideoStreamHandler)
+	r.GET("/video/episode/:id", handlers.EpisodeStreamHandler)
+
+	// Ongoing Movies & Episodes
+	r.POST("/ongoing_movies", handlers.UpdateOnGoingMovie)
+	r.POST("/ongoing_episodes", handlers.UpdateOnGoingEpisode)
+	r.GET("/ongoing_movies/:id", handlers.GetOnGoingMovieByID)
+	r.GET("/ongoing_episodes/:id", handlers.GetOnGoingEpisodeByID)
+	r.DELETE("/ongoing_movies/:id", handlers.DeleteOnGoingMovie)
+	r.DELETE("/ongoing_episodes/:id", handlers.DeleteOnGoingEpisode)
+
+	// Jobs
+	r.GET("/jobs", handlers.GetJobs)
+	r.GET("/jobs/:id", handlers.GetJobByID)
+	r.POST("/jobs/:id/cancel", handlers.CancelJob)
+	// SSE
+	r.GET("/jobs/stream", handlers.StreamJobs)
 
 	log.Println("Server starting on :8080")
 	r.Run(":8080")

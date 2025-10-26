@@ -1,4 +1,4 @@
-package logging
+package utils
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ func (l *Logger) log(level LogLevel, message string, fields map[string]interface
 
 	// Simple JSON-like output
 	output := fmt.Sprintf("[%s] %s: %s", entry.Timestamp.Format(time.RFC3339), entry.Level, entry.Message)
-	
+
 	if len(fields) > 0 {
 		output += " {"
 		first := true
@@ -210,7 +210,7 @@ func InitLogger(logFile string) error {
 		}
 		log.SetOutput(f)
 	}
-	
+
 	log.SetFlags(0) // We handle formatting ourselves
 	return nil
 }

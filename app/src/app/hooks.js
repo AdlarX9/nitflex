@@ -7,26 +7,31 @@ export const useMainContext = () => useContext(MainContext)
 export const mainColor = '#D53522'
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_KEY
+const LANG = 'fr-FR'
+
+const logAPIError = error => {
+	console.error('API Error:', error)
+}
 
 const axiosGET = async (endpoint, params) => {
 	return axios
 		.get(import.meta.env.VITE_API + endpoint, { params })
 		.then(res => res.data)
-		.catch(() => null)
+		.catch(err => logAPIError(err))
 }
 
 const axiosPOST = async (endpoint, body) => {
 	return axios
 		.post(import.meta.env.VITE_API + endpoint, body)
 		.then(res => res.data)
-		.catch(() => null)
+		.catch(err => logAPIError(err))
 }
 
 const axiosDELETE = async (endpoint, body) => {
 	return axios
 		.delete(import.meta.env.VITE_API + endpoint, { data: body })
 		.then(res => res.data)
-		.catch(() => null)
+		.catch(err => logAPIError(err))
 }
 
 const axiosAPI = async (method, endpoint, body, params) => {
@@ -65,8 +70,8 @@ export const useAPIAfter = (method, endpoint) => {
 		mutation.mutate({ body, params, newEndpoint })
 	}
 
-	const triggerAsync = async (body = {}, params = {}) => {
-		return mutation.mutateAsync({ body, params })
+	const triggerAsync = async (body = {}, params = {}, newEndpoint = null) => {
+		return mutation.mutateAsync({ body, params, newEndpoint })
 	}
 
 	return { ...mutation, trigger, triggerAsync }
@@ -137,7 +142,7 @@ export function useGetMovieCovers(imdbID) {
 }
 
 export const fetchFullMovie = async tmdbID => {
-	const url = `https://api.themoviedb.org/3/movie/${tmdbID}?api_key=${TMDB_API_KEY}&append_to_response=credits,images,videos,release_dates,external_ids,keywords,reviews,similar,recommendations`
+	const url = `https://api.themoviedb.org/3/movie/${tmdbID}?api_key=${TMDB_API_KEY}&append_to_response=credits,images,videos,release_dates,external_ids,keywords,reviews,similar,recommendations&language=${LANG}`
 	return axios
 		.get(url, {})
 		.then(res => res.data)
@@ -153,7 +158,7 @@ export const useGetFullMovie = tmdbID => {
 }
 
 const fetchFullPerson = async personID => {
-	const url = `https://api.themoviedb.org/3/person/${personID}?api_key=${TMDB_API_KEY}&append_to_response=movie_credits,tv_credits,images,videos,external_ids`
+	const url = `https://api.themoviedb.org/3/person/${personID}?api_key=${TMDB_API_KEY}&append_to_response=movie_credits,tv_credits,images,videos,external_ids&language=${LANG}`
 	return axios
 		.get(url, {})
 		.then(res => res.data)
@@ -165,5 +170,21 @@ export const useGetPerson = personID => {
 		queryKey: ['fullPerson', personID],
 		queryFn: () => fetchFullPerson(personID),
 		enabled: !!personID // ne lance que si personID est défini
+	})
+}
+
+export const fetchFullSerie = async tmdbID => {
+	const url = `https://api.themoviedb.org/3/tv/${tmdbID}?api_key=${TMDB_API_KEY}&append_to_response=credits,images,videos,release_dates,external_ids,keywords,reviews,similar,recommendations&language=${LANG}`
+	return axios
+		.get(url, {})
+		.then(res => res.data)
+		.catch(err => err.message)
+}
+
+export const useGetFullSerie = tmdbID => {
+	return useQuery({
+		queryKey: ['fullSerie', tmdbID],
+		queryFn: () => fetchFullSerie(tmdbID),
+		enabled: !!tmdbID // ne lance que si tmdbID est défini
 	})
 }

@@ -1,6 +1,7 @@
-package main
+package handlers
 
 import (
+	"api/utils"
 	"context"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -21,8 +23,9 @@ func VideoStreamHandler(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Récupérer le film dans la base de données
-	var movie Movie
-	err := GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": parseInt(tmdbID)}).Decode(&movie)
+	var movie utils.Movie
+	idInt, _ := strconv.Atoi(tmdbID)
+	err := utils.GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&movie)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Film non trouvé"})
@@ -32,10 +35,50 @@ func VideoStreamHandler(c *gin.Context) {
 		return
 	}
 
-	// Exemple : récupération du chemin du fichier vidéo (à adapter selon ta base)
-	videoFile := filepath.Join(".", "uploads", movie.CustomTitle)
+	// Chemin du fichier vidéo stocké
+	videoFile := movie.FilePath
 
 	// Stream directement la vidéo
+	serveVideoStream(videoFile, c)
+}
+
+// GET /video/episode/:id - Stream episode video
+func EpisodeStreamHandler(c *gin.Context) {
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var episode utils.Episode
+	err = utils.GetCollection("episodes").FindOne(ctx, bson.M{"_id": objID}).Decode(&episode)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Episode not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	// Get video file path
+	videoFile := episode.FilePath
+	if videoFile == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Video file not found"})
+		return
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(videoFile); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Video file does not exist"})
+		return
+	}
+
+	// Stream video (reuse existing streaming logic)
 	serveVideoStream(videoFile, c)
 }
 

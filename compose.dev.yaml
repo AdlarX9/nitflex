@@ -37,8 +37,6 @@ services:
             - "8080:8080"
         volumes:
             - ./api:/app
-            - ./movies:/app/movies:rw
-            - ./series:/app/series:rw
         networks:
             - nitflex-network
         command: ["air", "-c", ".air.toml"]
