@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 import { IoTimeOutline, IoStar } from 'react-icons/io5'
@@ -209,19 +209,19 @@ const SerieDetails = () => {
 				>
 					{/* Poster */}
 					<motion.div
-						className='relative w-full md:w-auto md:flex-shrink-0'
+						className='relative w-full md:w-auto md:shrink-0'
 						custom={0}
 						variants={fadeInUp}
 					>
 						{posterUrl ? (
-							<div className='group relative w-64 md:w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gradient-to-br from-gray-800/40 to-gray-900/30 backdrop-blur-sm'>
+							<div className='group relative w-64 md:w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-linear-to-t from-gray-800/40 to-gray-900/30 backdrop-blur-sm'>
 								<img
 									src={posterUrl}
 									alt={title}
 									className='w-full h-auto block transition duration-700 ease-out group-hover:scale-[1.03] group-hover:brightness-[0.85]'
 									loading='lazy'
 								/>
-								<div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-70 mix-blend-multiply' />
+								<div className='pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent opacity-70 mix-blend-multiply' />
 							</div>
 						) : (
 							<div
@@ -240,7 +240,7 @@ const SerieDetails = () => {
 						animate='animate'
 					>
 						<motion.h1
-							className='text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight bg-gradient-to-br from-white to-gray-300 bg-clip-text text-transparent'
+							className='text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight bg-linear-to-t from-white to-gray-300 bg-clip-text text-transparent'
 							custom={0}
 							variants={fadeInUp}
 						>
@@ -270,7 +270,7 @@ const SerieDetails = () => {
 								</span>
 							)}
 							{vote10 && (
-								<span className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500/20 to-yellow-400/10 border border-yellow-400/30 text-yellow-300'>
+								<span className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-linear-to-r from-yellow-500/20 to-yellow-400/10 border border-yellow-400/30 text-yellow-300'>
 									<IoStar className='text-lg' /> {vote10} / 10{' '}
 									<span className='text-sm opacity-70'>({vote5} / 5)</span>
 								</span>
@@ -426,13 +426,13 @@ const SerieDetails = () => {
 									whileInView={{ opacity: 1, y: 0 }}
 									viewport={{ once: true }}
 									transition={{ delay: i * 0.05, duration: 0.5 }}
-									className='snap-start flex-shrink-0 w-40 group'
+									className='snap-start shrink-0 w-40 group'
 								>
-									<a
-										href={`/series/${tv.id}`}
-										className='block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
+									<Link
+										to={`/series/${tv.id}`}
+										className='block rounded-xl overflow-hidden bg-linear-to-t from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
 									>
-										<div className='relative aspect-[2/3]'>
+										<div className='relative aspect-2/3 overflow-hidden'>
 											<img
 												src={
 													tv.poster_path
@@ -443,14 +443,14 @@ const SerieDetails = () => {
 												className='w-full h-full object-cover transition duration-700 ease-out group-hover:scale-105 group-hover:brightness-90'
 												loading='lazy'
 											/>
-											<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+											<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 										</div>
 										<div className='p-2'>
 											<p className='text-sm font-medium leading-tight text-gray-100 line-clamp-2'>
 												{tv.name || tv.title}
 											</p>
 										</div>
-									</a>
+									</Link>
 								</motion.div>
 							))}
 						</div>
@@ -479,7 +479,7 @@ const SerieDetails = () => {
 				)}
 			</main>
 
-			<div className='pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent' />
+			<div className='pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-linear-to-t from-black to-transparent' />
 		</div>
 	)
 }

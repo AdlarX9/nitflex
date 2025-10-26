@@ -37,91 +37,103 @@ type JobUpdate struct {
 
 // moveToFinal moves the processed file to production storage and updates media FilePath
 func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (string, error) {
-    // Resolve env paths
-    tempDir := os.Getenv("TEMP_DIR")
-    if tempDir == "" { tempDir = "./uploads" }
-    moviesDir := os.Getenv("MOVIES_DIR")
-    if moviesDir == "" { moviesDir = "./movies" }
-    seriesDir := os.Getenv("SERIES_DIR")
-    if seriesDir == "" { seriesDir = "./series" }
+	// Resolve env paths
+	tempDir := os.Getenv("TEMP_DIR")
+	if tempDir == "" {
+		tempDir = "./uploads"
+	}
+	moviesDir := os.Getenv("MOVIES_DIR")
+	if moviesDir == "" {
+		moviesDir = "./movies"
+	}
+	seriesDir := os.Getenv("SERIES_DIR")
+	if seriesDir == "" {
+		seriesDir = "./series"
+	}
 
-    storage := NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
+	storage := NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
 
-    // Extract job fields
-    jtype, _ := job["type"].(string)
-    inputPath, _ := job["inputPath"].(string)
-    mediaID, _ := job["mediaID"].(primitive.ObjectID)
+	// Extract job fields
+	jtype, _ := job["type"].(string)
+	inputPath, _ := job["inputPath"].(string)
+	mediaID, _ := job["mediaID"].(primitive.ObjectID)
 
-    if inputPath == "" || mediaID == primitive.NilObjectID {
-        return "", fmt.Errorf("invalid job data: missing inputPath or mediaID")
-    }
+	if inputPath == "" || mediaID == primitive.NilObjectID {
+		return "", fmt.Errorf("invalid job data: missing inputPath or mediaID")
+	}
 
-    // Determine extension
-    ext := strings.ToLower(filepath.Ext(inputPath))
-    if ext == "" { ext = ".mp4" }
+	// Determine extension
+	ext := strings.ToLower(filepath.Ext(inputPath))
+	if ext == "" {
+		ext = ".mp4"
+	}
 
-    switch jtype {
-    case "movie":
-        // Load movie
-        var mv Movie
-        if err := q.db.Collection("movies").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&mv); err != nil {
-            return "", fmt.Errorf("movie not found: %w", err)
-        }
-        title := mv.CustomTitle
-        if title == "" { title = mv.Title }
-        fileName := fmt.Sprintf("%s_%d%s", sanitizeFileName(title), mv.TmdbID, ext)
-        dst := filepath.Join(moviesDir, fileName)
-        if err := storage.MoveFile(inputPath, dst); err != nil {
-            return "", fmt.Errorf("move failed: %w", err)
-        }
-        // Update movie path
-        if _, err := q.db.Collection("movies").UpdateOne(ctx, bson.M{"_id": mv.ID}, bson.M{"$set": bson.M{"filePath": dst}}); err != nil {
-            return "", fmt.Errorf("failed to update movie path: %w", err)
-        }
-        return dst, nil
+	switch jtype {
+	case "movie":
+		// Load movie
+		var mv Movie
+		if err := q.db.Collection("movies").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&mv); err != nil {
+			return "", fmt.Errorf("movie not found: %w", err)
+		}
+		title := mv.CustomTitle
+		if title == "" {
+			title = mv.Title
+		}
+		fileName := fmt.Sprintf("%s_%d%s", sanitizeFileName(title), mv.TmdbID, ext)
+		dst := filepath.Join(moviesDir, fileName)
+		if err := storage.MoveFile(inputPath, dst); err != nil {
+			return "", fmt.Errorf("move failed: %w", err)
+		}
+		// Update movie path
+		if _, err := q.db.Collection("movies").UpdateOne(ctx, bson.M{"_id": mv.ID}, bson.M{"$set": bson.M{"filePath": dst}}); err != nil {
+			return "", fmt.Errorf("failed to update movie path: %w", err)
+		}
+		return dst, nil
 
-    case "episode":
-        // Load episode and series
-        var ep Episode
-        if err := q.db.Collection("episodes").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&ep); err != nil {
-            return "", fmt.Errorf("episode not found: %w", err)
-        }
-        var series Series
-        if err := q.db.Collection("series").FindOne(ctx, bson.M{"_id": ep.SeriesID}).Decode(&series); err != nil {
-            return "", fmt.Errorf("series not found: %w", err)
-        }
+	case "episode":
+		// Load episode and series
+		var ep Episode
+		if err := q.db.Collection("episodes").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&ep); err != nil {
+			return "", fmt.Errorf("episode not found: %w", err)
+		}
+		var series Series
+		if err := q.db.Collection("series").FindOne(ctx, bson.M{"_id": ep.SeriesID}).Decode(&series); err != nil {
+			return "", fmt.Errorf("series not found: %w", err)
+		}
 
-        seriesFolder := fmt.Sprintf("%s_%d", sanitizeFileName(series.Title), series.TmdbID)
-        // optional custom subfolder for filesystem-only naming
-        base := filepath.Join(seriesDir, seriesFolder)
-        if strings.TrimSpace(series.CustomTitle) != "" {
-            base = filepath.Join(base, sanitizeFileName(series.CustomTitle))
-        }
-        seasonFolder := fmt.Sprintf("Season %d", ep.SeasonNumber)
-        fileName := fmt.Sprintf("%s%s", sanitizeFileName(ep.Title), ext)
-        dst := filepath.Join(base, seasonFolder, fileName)
-        if err := storage.MoveFile(inputPath, dst); err != nil {
-            return "", fmt.Errorf("move failed: %w", err)
-        }
-        // Update episode path
-        if _, err := q.db.Collection("episodes").UpdateOne(ctx, bson.M{"_id": ep.ID}, bson.M{"$set": bson.M{"filePath": dst}}); err != nil {
-            return "", fmt.Errorf("failed to update episode path: %w", err)
-        }
-        return dst, nil
-    }
+		seriesFolder := fmt.Sprintf("%s_%d", sanitizeFileName(series.Title), series.TmdbID)
+		// optional custom subfolder for filesystem-only naming
+		base := filepath.Join(seriesDir, seriesFolder)
+		if strings.TrimSpace(series.CustomTitle) != "" {
+			base = filepath.Join(base, sanitizeFileName(series.CustomTitle))
+		}
+		seasonFolder := fmt.Sprintf("Season %d", ep.SeasonNumber)
+		fileName := fmt.Sprintf("%s%s", sanitizeFileName(ep.Title), ext)
+		dst := filepath.Join(base, seasonFolder, fileName)
+		if err := storage.MoveFile(inputPath, dst); err != nil {
+			return "", fmt.Errorf("move failed: %w", err)
+		}
+		// Update episode path
+		if _, err := q.db.Collection("episodes").UpdateOne(ctx, bson.M{"_id": ep.ID}, bson.M{"$set": bson.M{"filePath": dst}}); err != nil {
+			return "", fmt.Errorf("failed to update episode path: %w", err)
+		}
+		return dst, nil
+	}
 
-    return "", fmt.Errorf("unsupported job type: %s", jtype)
+	return "", fmt.Errorf("unsupported job type: %s", jtype)
 }
 
 func sanitizeFileName(name string) string {
-    n := strings.TrimSpace(name)
-    // Replace common invalid path characters
-    replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "'", "", "<", "", ">", "", "|", "-"}
-    for i := 0; i+1 < len(replacers); i += 2 {
-        n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
-    }
-    if n == "" { n = "untitled" }
-    return n
+	n := strings.TrimSpace(name)
+	// Replace common invalid path characters
+	replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "'", "", "<", "", ">", "", "|", "-"}
+	for i := 0; i+1 < len(replacers); i += 2 {
+		n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
+	}
+	if n == "" {
+		n = "untitled"
+	}
+	return n
 }
 
 // Queue manages job processing
@@ -299,121 +311,121 @@ func (q *Queue) processJob(jobID primitive.ObjectID) {
 	// Process based on transcode mode
 	transcodeMode, _ := job["transcodeMode"].(string)
 
-    if transcodeMode == "none" {
-        q.updateJobStage(ctx, jobID, StageTagging, 50)
-        time.Sleep(500 * time.Millisecond) // Placeholder tagging
-        q.updateJobStage(ctx, jobID, StageMoving, 85)
-        if _, err := q.moveToFinal(ctx, job); err != nil {
-            log.Printf("Job %s move failed: %v", jobID.Hex(), err)
-            q.updateJobStage(ctx, jobID, StageFailed, 0)
-            return
-        }
-        q.updateJobStage(ctx, jobID, StageCompleted, 100)
-    } else if transcodeMode == "server" {
-        // Server-side transcoding (placeholder)
-        for i := 0; i <= 100; i += 10 {
-            select {
-            case <-ctx.Done():
-                log.Printf("Job %s canceled", jobID.Hex())
-                return
-            default:
-                q.updateJobStage(ctx, jobID, StageTranscoding, float64(i)*0.7)
-                time.Sleep(500 * time.Millisecond)
-            }
-        }
+	if transcodeMode == "none" {
+		q.updateJobStage(ctx, jobID, StageTagging, 50)
+		time.Sleep(500 * time.Millisecond) // Placeholder tagging
+		q.updateJobStage(ctx, jobID, StageMoving, 85)
+		if _, err := q.moveToFinal(ctx, job); err != nil {
+			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
+		q.updateJobStage(ctx, jobID, StageCompleted, 100)
+	} else if transcodeMode == "server" {
+		// Server-side transcoding (placeholder)
+		for i := 0; i <= 100; i += 10 {
+			select {
+			case <-ctx.Done():
+				log.Printf("Job %s canceled", jobID.Hex())
+				return
+			default:
+				q.updateJobStage(ctx, jobID, StageTranscoding, float64(i)*0.7)
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
 
-        q.updateJobStage(ctx, jobID, StageTagging, 80)
-        time.Sleep(500 * time.Millisecond)
-        q.updateJobStage(ctx, jobID, StageMoving, 90)
-        if _, err := q.moveToFinal(ctx, job); err != nil {
-            log.Printf("Job %s move failed: %v", jobID.Hex(), err)
-            q.updateJobStage(ctx, jobID, StageFailed, 0)
-            return
-        }
-        q.updateJobStage(ctx, jobID, StageCompleted, 100)
-    } else {
-        // Local transcoding (handled by Electron): just move and finish
-        q.updateJobStage(ctx, jobID, StageTagging, 70)
-        time.Sleep(500 * time.Millisecond)
-        q.updateJobStage(ctx, jobID, StageMoving, 90)
-        if _, err := q.moveToFinal(ctx, job); err != nil {
-            log.Printf("Job %s move failed: %v", jobID.Hex(), err)
-            q.updateJobStage(ctx, jobID, StageFailed, 0)
-            return
-        }
-        q.updateJobStage(ctx, jobID, StageCompleted, 100)
-    }
+		q.updateJobStage(ctx, jobID, StageTagging, 80)
+		time.Sleep(500 * time.Millisecond)
+		q.updateJobStage(ctx, jobID, StageMoving, 90)
+		if _, err := q.moveToFinal(ctx, job); err != nil {
+			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
+		q.updateJobStage(ctx, jobID, StageCompleted, 100)
+	} else {
+		// Local transcoding (handled by Electron): just move and finish
+		q.updateJobStage(ctx, jobID, StageTagging, 70)
+		time.Sleep(500 * time.Millisecond)
+		q.updateJobStage(ctx, jobID, StageMoving, 90)
+		if _, err := q.moveToFinal(ctx, job); err != nil {
+			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
+		q.updateJobStage(ctx, jobID, StageCompleted, 100)
+	}
 
-    log.Printf("Job %s completed", jobID.Hex())
+	log.Printf("Job %s completed", jobID.Hex())
 
-    // Delete job document after completion
-    if _, err := q.db.Collection("jobs").DeleteOne(ctx, bson.M{"_id": jobID}); err != nil {
-        log.Printf("Failed to delete completed job %s: %v", jobID.Hex(), err)
-    } else {
-        log.Printf("Deleted completed job %s", jobID.Hex())
-    }
+	// Delete job document after completion
+	if _, err := q.db.Collection("jobs").DeleteOne(ctx, bson.M{"_id": jobID}); err != nil {
+		log.Printf("Failed to delete completed job %s: %v", jobID.Hex(), err)
+	} else {
+		log.Printf("Deleted completed job %s", jobID.Hex())
+	}
 }
 
 // updateJobStage updates the job stage and progress
 func (q *Queue) updateJobStage(ctx context.Context, jobID primitive.ObjectID, stage string, progress float64) {
-    update := bson.M{
-        "stage":     stage,
-        "progress":  progress,
-        "updatedAt": primitive.NewDateTimeFromTime(time.Now()),
-    }
+	update := bson.M{
+		"stage":     stage,
+		"progress":  progress,
+		"updatedAt": primitive.NewDateTimeFromTime(time.Now()),
+	}
 
-    if stage == StageCompleted || stage == StageFailed || stage == StageCanceled {
-        update["completedAt"] = primitive.NewDateTimeFromTime(time.Now())
-    }
+	if stage == StageCompleted || stage == StageFailed || stage == StageCanceled {
+		update["completedAt"] = primitive.NewDateTimeFromTime(time.Now())
+	}
 
-    _, err := q.db.Collection("jobs").UpdateOne(
-        ctx,
-        bson.M{"_id": jobID},
-        bson.M{"$set": update},
-    )
+	_, err := q.db.Collection("jobs").UpdateOne(
+		ctx,
+		bson.M{"_id": jobID},
+		bson.M{"$set": update},
+	)
 
-    if err != nil {
-        log.Printf("Failed to update job %s: %v", jobID.Hex(), err)
-        return
-    }
+	if err != nil {
+		log.Printf("Failed to update job %s: %v", jobID.Hex(), err)
+		return
+	}
 
-    q.notifyUpdate(JobUpdate{
-        JobID:    jobID.Hex(),
-        Stage:    stage,
-        Progress: progress,
-    })
+	q.notifyUpdate(JobUpdate{
+		JobID:    jobID.Hex(),
+		Stage:    stage,
+		Progress: progress,
+	})
 }
 
 // loadPendingJobs loads jobs that were queued but not completed
 func (q *Queue) loadPendingJobs() {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    // Find jobs that are queued or in progress
-    cursor, err := q.db.Collection("jobs").Find(ctx, bson.M{
-        "stage": bson.M{
-            "$in": []string{StageQueued, StageTranscoding, StageTagging, StageMoving},
-        },
-    })
+	// Find jobs that are queued or in progress
+	cursor, err := q.db.Collection("jobs").Find(ctx, bson.M{
+		"stage": bson.M{
+			"$in": []string{StageQueued, StageTranscoding, StageTagging, StageMoving},
+		},
+	})
 
-    if err != nil {
-        log.Printf("Failed to load pending jobs: %v", err)
-        return
-    }
-    defer cursor.Close(ctx)
+	if err != nil {
+		log.Printf("Failed to load pending jobs: %v", err)
+		return
+	}
+	defer cursor.Close(ctx)
 
-    count := 0
-    for cursor.Next(ctx) {
-        var job map[string]interface{}
-        if err := cursor.Decode(&job); err != nil {
-            continue
-        }
+	count := 0
+	for cursor.Next(ctx) {
+		var job map[string]interface{}
+		if err := cursor.Decode(&job); err != nil {
+			continue
+		}
 
-        jobID := job["_id"].(primitive.ObjectID)
-        q.Enqueue(jobID)
-        count++
-    }
+		jobID := job["_id"].(primitive.ObjectID)
+		q.Enqueue(jobID)
+		count++
+	}
 
-    if count > 0 {
-        log.Printf("Loaded %d pending jobs", count)
-    }
+	if count > 0 {
+		log.Printf("Loaded %d pending jobs", count)
+	}
 }

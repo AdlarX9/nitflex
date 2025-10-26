@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import { IoClose, IoCheckmarkCircle, IoAlertCircle, IoStopCircle, IoChevronDown, IoChevronUp } from 'react-icons/io5'
+import {
+	IoClose,
+	IoCheckmarkCircle,
+	IoAlertCircle,
+	IoStopCircle,
+	IoChevronDown,
+	IoChevronUp
+} from 'react-icons/io5'
 import axios from 'axios'
 
 const STAGE_LABELS = {
@@ -27,31 +34,6 @@ const STAGE_COLORS = {
 const TranscodeJobs = () => {
 	const [jobs, setJobs] = useState([])
 	const [isCollapsed, setIsCollapsed] = useState(false)
-
-	useEffect(() => {
-		// Fetch initial jobs
-		fetchJobs()
-
-		// Connect to SSE for real-time updates
-		const eventSource = new EventSource(`${import.meta.env.VITE_API}/jobs/stream`)
-
-		eventSource.addEventListener('job-update', e => {
-			const update = JSON.parse(e.data)
-			updateJob(update)
-		})
-
-		eventSource.addEventListener('connected', () => {
-			console.log('Connected to job stream')
-		})
-
-		eventSource.onerror = () => {
-			console.error('SSE connection error')
-		}
-
-		return () => {
-			eventSource.close()
-		}
-	}, [])
 
 	const fetchJobs = async () => {
 		try {
@@ -92,6 +74,31 @@ const TranscodeJobs = () => {
 			return prevJobs
 		})
 	}
+
+	useEffect(() => {
+		// Fetch initial jobs
+		fetchJobs()
+
+		// Connect to SSE for real-time updates
+		const eventSource = new EventSource(`${import.meta.env.VITE_API}/jobs/stream`)
+
+		eventSource.addEventListener('job-update', e => {
+			const update = JSON.parse(e.data)
+			updateJob(update)
+		})
+
+		eventSource.addEventListener('connected', () => {
+			console.log('Connected to job stream')
+		})
+
+		eventSource.onerror = () => {
+			console.error('SSE connection error')
+		}
+
+		return () => {
+			eventSource.close()
+		}
+	}, [])
 
 	const cancelJob = async jobID => {
 		try {
@@ -180,15 +187,16 @@ const TranscodeJobs = () => {
 
 												{/* Actions */}
 												<div className='flex gap-1 ml-2'>
-													{job.stage !== 'completed' && job.stage !== 'canceled' && (
-														<button
-															onClick={() => cancelJob(job.id)}
-															className='p-2 hover:bg-red-500/20 rounded-lg transition text-red-400'
-															title='Annuler'
-														>
-															<IoStopCircle size={18} />
-														</button>
-													)}
+													{job.stage !== 'completed' &&
+														job.stage !== 'canceled' && (
+															<button
+																onClick={() => cancelJob(job.id)}
+																className='p-2 hover:bg-red-500/20 rounded-lg transition text-red-400'
+																title='Annuler'
+															>
+																<IoStopCircle size={18} />
+															</button>
+														)}
 												</div>
 											</div>
 
@@ -226,7 +234,7 @@ const TranscodeJobs = () => {
 												<div className='mt-2 flex items-start gap-2 text-red-400 text-sm bg-red-500/10 p-2 rounded'>
 													<IoAlertCircle
 														size={18}
-														className='flex-shrink-0 mt-0.5'
+														className='shrink-0 mt-0.5'
 													/>
 													<span className='text-xs'>
 														{job.errorMessage}

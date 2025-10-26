@@ -63,7 +63,7 @@ const SeriesSearch = ({ onSelect }) => {
 				<motion.div
 					initial={{ opacity: 0, y: -10 }}
 					animate={{ opacity: 1, y: 0 }}
-					className='mt-4 p-4 rounded-xl bg-gradient-to-r from-red-500/20 to-red-700/20 border border-red-500/30 flex items-center gap-4'
+					className='mt-4 p-4 rounded-xl bg-linear-to-r from-red-500/20 to-red-700/20 border border-red-500/30 flex items-center gap-4'
 				>
 					{selectedSeries.poster_path && (
 						<img
@@ -126,10 +126,10 @@ const SeriesSearch = ({ onSelect }) => {
 									<img
 										src={`https://image.tmdb.org/t/p/w92${series.poster_path}`}
 										alt={series.name}
-										className='w-12 h-18 rounded object-cover flex-shrink-0'
+										className='w-12 h-18 rounded object-cover shrink-0'
 									/>
 								) : (
-									<div className='w-12 h-18 rounded bg-gray-700 flex-shrink-0' />
+									<div className='w-12 h-18 rounded bg-gray-700 shrink-0' />
 								)}
 								<div className='flex-1 min-w-0'>
 									<h3 className='text-base font-semibold text-white truncate'>

@@ -52,10 +52,10 @@ const cardVariants = {
 }
 const Skeleton = ({ w = 200, h = 300 }) => (
 	<div
-		className='relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-700/40 to-gray-800/40 border border-white/10 animate-pulse'
+		className='relative rounded-2xl overflow-hidden bg-linear-to-br from-gray-700/40 to-gray-800/40 border border-white/10 animate-pulse'
 		style={{ width: w, height: h }}
 	>
-		<div className='absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.18)_50%,rgba(255,255,255,0)_100%)] bg-[length:190%_100%] animate-[shimmer_1.4s_infinite]' />
+		<div className='absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.18)_50%,rgba(255,255,255,0)_100%)] bg-size-[190%_100%] animate-[shimmer_1.4s_infinite]' />
 	</div>
 )
 
@@ -158,6 +158,7 @@ const Search = () => {
 
 	/* Debounce */
 	useEffect(() => {
+		// eslint-disable-next-line
 		setPending(mode === 'movies' ? Boolean(title || genre) : Boolean(title))
 		performSearch()
 		// eslint-disable-next-line
@@ -192,7 +193,7 @@ const Search = () => {
 							'repeating-linear-gradient(0deg,rgba(255,255,255,0.05)_0,rgba(255,255,255,0.05)_1px,transparent_1px,transparent_3px)'
 					}}
 				/>
-				<div className='absolute inset-0 bg-gradient-to-b from-black via-[#0c1219] to-black' />
+				<div className='absolute inset-0 bg-linear-to-b from-black via-[#0c1219] to-black' />
 			</div>
 
 			<div className='flex min-h-dvh w-full'>
@@ -215,11 +216,11 @@ const Search = () => {
 								initial='hidden'
 								animate='show'
 								exit='exit'
-								className='z-50 flex flex-col h-dvh w-[85%] max-w-[320px] lg:max-w-none lg:w-[360px] fixed lg:static top-0 left-0 bg-gradient-to-b from-[#111924]/95 to-[#0d141c]/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl lg:shadow-none pb-18'
+								className='z-50 flex flex-col h-dvh w-[85%] max-w-[320px] lg:max-w-none lg:w-[360px] fixed lg:static top-0 left-0 bg-linear-to-b from-[#111924]/95 to-[#0d141c]/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl lg:shadow-none pb-18'
 							>
 								{/* Header inside sidebar */}
 								<div className='flex items-center justify-between px-7 pt-7 pb-5'>
-									<h2 className='text-[1.6rem] leading-none font-bold tracking-wide uppercase bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent'>
+									<h2 className='text-[1.6rem] leading-none font-bold tracking-wide uppercase bg-linear-to-r from-white to-gray-400 bg-clip-text text-transparent'>
 										Filtres
 									</h2>
 									<button
@@ -566,7 +567,7 @@ const Search = () => {
 			</div>
 
 			{/* Bottom gradient */}
-			<div className='pointer-events-none fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent' />
+			<div className='pointer-events-none fixed bottom-0 left-0 right-0 h-40 bg-linear-to-t from-black to-transparent' />
 		</div>
 	)
 }

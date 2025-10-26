@@ -1,12 +1,17 @@
 package handlers
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"time"
 	"api/utils"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,221 +22,199 @@ import (
 
 // POST /series - Create series with minimal info
 func CreateSeries(c *gin.Context) {
-	var req struct {
-		Title       string `json:"title" binding:"required"`
-		TmdbID      int    `json:"tmdbID" binding:"required"`
-		ImdbID      string `json:"imdbID" binding:"required"`
-		Poster      string `json:"poster" binding:"required"`
-		CustomTitle string `json:"customTitle"`
-	}
+	// Expect a multipart form with:
+	// - files[]: multiple video files
+	// - tmdbID: series TMDB id (required)
+	// - title, imdbID, poster: optional (used only when creating a new series)
+	// - folderName: optional custom folder name (ignored if series already exists)
+	// - transcodeMode: optional (default handled in pipeline)
+	// - episodes: JSON array mapping each file to season/episode
+	//   e.g. [{"index":0,"seasonNumber":1,"episodeNumber":1}, ...]
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Check if series already exists
-	var existing utils.Series
-	err := utils.GetCollection("series").FindOne(ctx, bson.M{"tmdbID": req.TmdbID}).Decode(&existing)
-	if err == nil {
-		c.JSON(http.StatusOK, existing)
-		return
-	} else if err != mongo.ErrNoDocuments {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error: " + err.Error()})
-		return
-	}
-
-	series := utils.Series{
-		ID:          primitive.NewObjectID(),
-		Title:       req.Title,
-		TmdbID:      req.TmdbID,
-		ImdbID:      req.ImdbID,
-		Poster:      req.Poster,
-		CustomTitle: req.CustomTitle,
-		Date:        primitive.NewDateTimeFromTime(time.Now()),
-	}
-
-	if _, err := utils.GetCollection("series").InsertOne(ctx, series); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create series: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, series)
-}
-
-// PATCH /series/:id - Update series fields (currently supports customTitle)
-func UpdateSeries(c *gin.Context) {
-	id := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(id)
+	form, err := c.MultipartForm()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form: " + err.Error()})
 		return
 	}
 
-	var req struct {
-		CustomTitle string `json:"customTitle"`
+	get := func(key string) string {
+		if v, ok := form.Value[key]; ok && len(v) > 0 {
+			return v[0]
+		}
+		return ""
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+
+	tmdbStr := get("tmdbID")
+	if tmdbStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required"})
 		return
 	}
+	tmdbID, _ := strconv.Atoi(tmdbStr)
+	title := get("title")
+	imdbID := get("imdbID")
+	poster := get("poster")
+	folderName := get("folderName")
+	transcodeMode := get("transcodeMode")
+	episodesJSON := get("episodes")
 
-	update := bson.M{}
-	if req.CustomTitle != "" {
-		update["customTitle"] = req.CustomTitle
+	type EpMeta struct {
+		Index         int `json:"index"`
+		SeasonNumber  int `json:"seasonNumber"`
+		EpisodeNumber int `json:"episodeNumber"`
 	}
-
-	if len(update) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if _, err := utils.GetCollection("series").UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": update}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update series"})
-		return
-	}
-
-	var updated utils.Series
-	if err := utils.GetCollection("series").FindOne(ctx, bson.M{"_id": objID}).Decode(&updated); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated series"})
-		return
-	}
-
-	c.JSON(http.StatusOK, updated)
-}
-
-// POST /series/:id/episodes - Add episode (minimal info) then trigger pipeline
-func AddEpisodeToSeries(c *gin.Context) {
-	seriesIDStr := c.Param("id")
-	seriesID, err := primitive.ObjectIDFromHex(seriesIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
-		return
-	}
-
-	var req struct {
-		SeasonNumber  int    `json:"seasonNumber" binding:"required"`
-		EpisodeNumber int    `json:"episodeNumber" binding:"required"`
-		FilePath      string `json:"filePath" binding:"required"`
-		CustomTitle   string `json:"customTitle"`
-		Title         string `json:"title"`
-		TmdbID        int    `json:"tmdbID"`
-		TranscodeMode string `json:"transcodeMode"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	// Build episode doc
-	title := req.Title
-	if title == "" {
-		if req.CustomTitle != "" {
-			title = req.CustomTitle
-		} else {
-			title = fmt.Sprintf("S%02dE%02d", req.SeasonNumber, req.EpisodeNumber)
+	var epMetas []EpMeta
+	if episodesJSON != "" {
+		if err := json.Unmarshal([]byte(episodesJSON), &epMetas); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid episodes payload: " + err.Error()})
+			return
 		}
 	}
 
-	episode := utils.Episode{
-		ID:            primitive.NewObjectID(),
-		SeriesID:      seriesID,
-		SeasonNumber:  req.SeasonNumber,
-		EpisodeNumber: req.EpisodeNumber,
-		Title:         title,
-		FilePath:      req.FilePath,
-		CustomTitle:   req.CustomTitle,
-		TmdbID:        req.TmdbID,
-		Date:          primitive.NewDateTimeFromTime(time.Now()),
+	files := form.File["files[]"]
+	if len(files) == 0 {
+		files = form.File["files"]
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if _, err := utils.GetCollection("episodes").InsertOne(ctx, episode); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create episode: " + err.Error()})
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no files provided"})
 		return
 	}
 
-	// Respond first
-	c.JSON(http.StatusCreated, episode)
-
-	// Trigger pipeline asynchronously
-	go func(ep utils.Episode, mode string) {
-		_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, mode, nil)
-	}(episode, req.TranscodeMode)
-}
-
-// POST /series/:id/episodes/batch - Add multiple episodes at once and start pipelines
-func AddEpisodesBatch(c *gin.Context) {
-	seriesIDStr := c.Param("id")
-	seriesID, err := primitive.ObjectIDFromHex(seriesIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid series ID"})
-		return
-	}
-
-	var req struct {
-		Episodes []struct {
-			SeasonNumber  int    `json:"seasonNumber" binding:"required"`
-			EpisodeNumber int    `json:"episodeNumber" binding:"required"`
-			FilePath      string `json:"filePath" binding:"required"`
-			Title         string `json:"title"`
-			TmdbID        int    `json:"tmdbID"`
-			TranscodeMode string `json:"transcodeMode"`
-			CustomTitle   string `json:"customTitle"`
-		} `json:"episodes" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	created := make([]utils.Episode, 0, len(req.Episodes))
-	for _, it := range req.Episodes {
-		title := it.Title
-		if title == "" {
-			if it.CustomTitle != "" {
-				title = it.CustomTitle
-			} else {
-				title = fmt.Sprintf("S%02dE%02d", it.SeasonNumber, it.EpisodeNumber)
+	// Align epMetas length to files if needed
+	if len(epMetas) != len(files) {
+		// build default mapping by order if not provided
+		if len(epMetas) == 0 {
+			epMetas = make([]EpMeta, len(files))
+			for i := range files {
+				epMetas[i] = EpMeta{Index: i, SeasonNumber: 1, EpisodeNumber: i + 1}
 			}
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "episodes and files length mismatch"})
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Find or create series by tmdbID
+	var series utils.Series
+	findErr := utils.GetCollection("series").FindOne(ctx, bson.M{"tmdbID": tmdbID}).Decode(&series)
+	if findErr != nil {
+		if findErr != mongo.ErrNoDocuments {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error: " + findErr.Error()})
+			return
+		}
+		// Create new series
+		series = utils.Series{
+			ID:          primitive.NewObjectID(),
+			Title:       firstNonEmpty(title, fmt.Sprintf("Series %d", tmdbID)),
+			CustomTitle: strings.TrimSpace(folderName),
+			TmdbID:      tmdbID,
+			ImdbID:      imdbID,
+			Poster:      poster,
+			Date:        primitive.NewDateTimeFromTime(time.Now()),
+		}
+		if _, err := utils.GetCollection("series").InsertOne(ctx, series); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create series: " + err.Error()})
+			return
+		}
+	} else {
+		// Existing series: ignore folderName and keep as is
+	}
+
+	// Ensure temp uploads dir exists
+	if err := os.MkdirAll("./uploads", 0o755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare temp dir: " + err.Error()})
+		return
+	}
+
+	created := make([]utils.Episode, 0, len(files))
+
+	// Iterate files in order, match with epMetas by index
+	for i, fh := range files {
+		meta := epMetas[i]
+		if meta.SeasonNumber <= 0 || meta.EpisodeNumber <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid season/episode for file %d", i)})
+			return
 		}
 
+		// Save temp file
+		src, err := fh.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to open file %s: %v", fh.Filename, err)})
+			return
+		}
+		defer src.Close()
+
+		ext := strings.ToLower(filepath.Ext(fh.Filename))
+		if ext == "" {
+			ext = ".mp4"
+		}
+		base := strings.TrimSuffix(fh.Filename, ext)
+		if base == "" {
+			base = fmt.Sprintf("S%02dE%02d", meta.SeasonNumber, meta.EpisodeNumber)
+		}
+		tempName := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
+		dstPath := filepath.Join("./uploads", tempName)
+
+		out, err := os.Create(dstPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create temp file: %v", err)})
+			return
+		}
+		if _, err := io.Copy(out, src); err != nil {
+			out.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to write temp file: %v", err)})
+			return
+		}
+		out.Close()
+
+		// Create episode doc
+		epTitle := fmt.Sprintf("S%02dE%02d", meta.SeasonNumber, meta.EpisodeNumber)
 		ep := utils.Episode{
 			ID:            primitive.NewObjectID(),
-			SeriesID:      seriesID,
-			SeasonNumber:  it.SeasonNumber,
-			EpisodeNumber: it.EpisodeNumber,
-			Title:         title,
-			FilePath:      it.FilePath,
-			CustomTitle:   it.CustomTitle,
-			TmdbID:        it.TmdbID,
+			TmdbID:        tmdbID,
+			EpisodeNumber: meta.EpisodeNumber,
+			SeasonNumber:  meta.SeasonNumber,
+			SeriesID:      series.ID,
+			Title:         epTitle,
+			FilePath:      dstPath,
 			Date:          primitive.NewDateTimeFromTime(time.Now()),
 		}
 
 		if _, err := utils.GetCollection("episodes").InsertOne(ctx, ep); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create episode: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create episode: " + err.Error()})
 			return
 		}
-
 		created = append(created, ep)
 
-		// Start pipeline asynchronously per episode
-		go func(ep utils.Episode, mode string) {
-			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, mode, nil)
-		}(ep, it.TranscodeMode)
+		// Start pipeline (async)
+		go func(ep utils.Episode) {
+			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, transcodeMode, nil)
+		}(ep)
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"episodes": created})
+	c.JSON(http.StatusCreated, gin.H{"series": series, "episodes": created})
+}
+
+// sanitizeName performs minimal filename sanitization
+func sanitizeName(name string) string {
+	n := strings.TrimSpace(name)
+	replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "", "'", "", "<", "", ">", "", "|", "-"}
+	for i := 0; i+1 < len(replacers); i += 2 {
+		n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
+	}
+	if n == "" {
+		n = "untitled"
+	}
+	return n
+}
+
+func firstNonEmpty(a, b string) string {
+	if strings.TrimSpace(a) != "" {
+		return a
+	}
+	return b
 }
 
 // GET /series - Get all series
@@ -298,9 +281,11 @@ func GetSeriesByID(c *gin.Context) {
 // GET /episode/:id - Get episode by ID
 func GetEpisodeByID(c *gin.Context) {
 	id := c.Param("id")
+
+	// Parse MongoDB ObjectID from hex
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid episode id"})
 		return
 	}
 
@@ -318,39 +303,5 @@ func GetEpisodeByID(c *gin.Context) {
 		return
 	}
 
-	// Get series info
-	var series utils.Series
-	utils.GetCollection("series").FindOne(ctx, bson.M{"_id": episode.SeriesID}).Decode(&series)
-
-	// Get adjacent episodes for navigation
-	var prevEpisode, nextEpisode utils.Episode
-	utils.GetCollection("episodes").FindOne(ctx, bson.M{
-		"seriesID": episode.SeriesID,
-		"$or": []bson.M{
-			{"seasonNumber": episode.SeasonNumber, "episodeNumber": episode.EpisodeNumber - 1},
-			{"seasonNumber": episode.SeasonNumber - 1, "episodeNumber": bson.M{"$exists": true}},
-		},
-	}, options.FindOne().SetSort(bson.D{{Key: "seasonNumber", Value: -1}, {Key: "episodeNumber", Value: -1}})).Decode(&prevEpisode)
-
-	utils.GetCollection("episodes").FindOne(ctx, bson.M{
-		"seriesID": episode.SeriesID,
-		"$or": []bson.M{
-			{"seasonNumber": episode.SeasonNumber, "episodeNumber": episode.EpisodeNumber + 1},
-			{"seasonNumber": episode.SeasonNumber + 1, "episodeNumber": 1},
-		},
-	}, options.FindOne().SetSort(bson.D{{Key: "seasonNumber", Value: 1}, {Key: "episodeNumber", Value: 1}})).Decode(&nextEpisode)
-
-	response := gin.H{
-		"episode": episode,
-		"series":  series,
-	}
-
-	if prevEpisode.ID != primitive.NilObjectID {
-		response["prevEpisode"] = prevEpisode
-	}
-	if nextEpisode.ID != primitive.NilObjectID {
-		response["nextEpisode"] = nextEpisode
-	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, episode)
 }

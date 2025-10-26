@@ -45,13 +45,13 @@ const Confirmation = () => {
 					<div className='flex justify-around gap-5'>
 						<button
 							onClick={handleCancel}
-							className='bg-red-700 p-2 px-5 rounded-md border-1 border-red-600'
+							className='bg-red-700 p-2 px-5 rounded-md border border-red-600'
 						>
 							Cancel
 						</button>
 						<button
 							onClick={handleConfirm}
-							className='bg-blue-600 p-2 px-5 rounded-md border-1 border-blue-500'
+							className='bg-blue-600 p-2 px-5 rounded-md border border-blue-500'
 						>
 							Confirm
 						</button>

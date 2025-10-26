@@ -46,8 +46,8 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 	const overlayReadable = backdropVersion ? (
 		<>
 			{/* Soft gradient & vignette */}
-			<div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent opacity-95 mix-blend-multiply' />
-			<div className='pointer-events-none absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/40' />
+			<div className='pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/15 to-transparent opacity-95 mix-blend-multiply' />
+			<div className='pointer-events-none absolute inset-0 bg-linear-to-br from-black/30 via-transparent to-black/40' />
 			{/* Subtle noise */}
 			<div
 				className='pointer-events-none absolute inset-0 opacity-[0.15] mix-blend-overlay'
@@ -75,7 +75,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 			>
 				{/* Skeleton / shimmer */}
 				{posterExists && !imgLoaded && (
-					<div className='absolute inset-0 bg-gradient-to-br from-gray-800/60 to-gray-700/40 animate-pulse flex items-center justify-center'>
+					<div className='absolute inset-0 bg-linear-to-br from-gray-800/60 to-gray-700/40 animate-pulse flex items-center justify-center'>
 						<div className='w-16 h-16 rounded-full border-4 border-white/10 border-t-red-500 animate-spin' />
 					</div>
 				)}
@@ -101,7 +101,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 						decoding='async'
 						className={`absolute inset-0 w-full h-full object-cover ${
 							backdropVersion ? 'will-change-transform' : ''
-						} group-hover:scale-[1.025] transition duration-[1100ms] ease-[cubic-bezier(.16,1,.3,1)]`}
+						} group-hover:scale-[1.025] transition duration-1100ms ease-[cubic-bezier(.16,1,.3,1)]`}
 						src={imgSrc}
 						alt={movie?.title || 'Affiche'}
 						onLoad={handleImgLoad}
@@ -112,7 +112,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 
 				{/* Ambient hover highlight (not on fallback) */}
 				{posterExists && !imgError && (
-					<div className='absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t from-black/50 via-transparent to-black/40 mix-blend-overlay' />
+					<div className='absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-linear-to-t from-black/50 via-transparent to-black/40 mix-blend-overlay' />
 				)}
 
 				{overlayReadable}

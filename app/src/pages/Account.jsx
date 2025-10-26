@@ -61,7 +61,7 @@ const Account = () => {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.5 }}
-			className='min-h-dvh w-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-5'
+			className='min-h-dvh w-screen bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-5'
 		>
 			<motion.div
 				initial={{ y: 20, opacity: 0 }}
@@ -84,7 +84,7 @@ const Account = () => {
 				</div>
 
 				{/* Divider */}
-				<div className='h-px bg-gradient-to-r from-transparent via-nitflex-red to-transparent mb-8' />
+				<div className='h-px bg-linear-to-r from-transparent via-nitflex-red to-transparent mb-8' />
 
 				{/* Name Change Form */}
 				<div className='mb-8'>
@@ -132,7 +132,7 @@ const Account = () => {
 				</div>
 
 				{/* Divider */}
-				<div className='h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent mb-8' />
+				<div className='h-px bg-linear-to-r from-transparent via-gray-700 to-transparent mb-8' />
 
 				{/* Danger Zone */}
 				<div>

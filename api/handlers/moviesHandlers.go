@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"api/utils"
 	"context"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"api/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -83,99 +83,115 @@ func GetMovies(c *gin.Context) {
 // POST /movies - multipart upload endpoint
 // Minimal DB maintenance then trigger pipeline
 func UploadMovie(c *gin.Context) {
-    // metadata
-    customTitle := c.PostForm("customTitle")
-    tmdbIDStr := c.PostForm("tmdbID")
-    mediaType := c.PostForm("type")             // "movie" | "series"
-    transcodeMode := c.PostForm("transcodeMode") // may be empty => default in pipeline
+	// metadata
+	customTitle := c.PostForm("customTitle")
+	tmdbIDStr := c.PostForm("tmdbID")
+	mediaType := c.PostForm("type")              // "movie" | "series"
+	transcodeMode := c.PostForm("transcodeMode") // may be empty => default in pipeline
 
-    if customTitle == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "customTitle is required"})
-        return
-    }
+	if customTitle == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customTitle is required"})
+		return
+	}
 
-    // file
-    file, header, err := c.Request.FormFile("file")
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to get file: %s", err.Error())})
-        return
-    }
-    defer file.Close()
+	// file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to get file: %s", err.Error())})
+		return
+	}
+	defer file.Close()
 
-    // destination
-    dst := filepath.Join(".", "uploads", customTitle)
-    // For series uploads, ensure unique temp filename using source extension to avoid collisions
-    if mediaType == "series" {
-        ext := filepath.Ext(header.Filename)
-        if ext == "" {
-            ext = ".mp4"
-        }
-        base := strings.TrimSuffix(header.Filename, ext)
-        if base == "" {
-            base = customTitle
-        }
-        unique := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
-        dst = filepath.Join(".", "uploads", unique)
-    }
+	// destination
+	dst := filepath.Join(".", "uploads", customTitle)
+	// For series uploads, ensure unique temp filename using source extension to avoid collisions
+	if mediaType == "series" {
+		ext := filepath.Ext(header.Filename)
+		if ext == "" {
+			ext = ".mp4"
+		}
+		base := strings.TrimSuffix(header.Filename, ext)
+		if base == "" {
+			base = customTitle
+		}
+		unique := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
+		dst = filepath.Join(".", "uploads", unique)
+	}
 
-    out, err := os.Create(dst)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create file: %s", err.Error())})
-        return
-    }
-    defer out.Close()
-    if _, err := io.Copy(out, file); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to write file: %s", err.Error())})
-        return
-    }
+	out, err := os.Create(dst)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create file: %s", err.Error())})
+		return
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to write file: %s", err.Error())})
+		return
+	}
 
-    // Build minimal movie object for client response and/or DB
-    movie := utils.Movie{
-        ID:          primitive.NewObjectID(),
-        CustomTitle: customTitle,
-        FilePath:    dst,
-        Date:        primitive.NewDateTimeFromTime(time.Now()),
-        Format:      filepath.Ext(dst),
-    }
+	// Build minimal movie object for client response and/or DB
+	movie := utils.Movie{
+		ID:          primitive.NewObjectID(),
+		CustomTitle: customTitle,
+		FilePath:    dst,
+		Date:        primitive.NewDateTimeFromTime(time.Now()),
+		Format:      filepath.Ext(dst),
+	}
 
-    if mediaType != "series" {
-        // Parse tmdbID for movies
-        if tmdbIDStr == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required for movies"})
-            return
-        }
-        if id, err := strconv.Atoi(tmdbIDStr); err == nil {
-            movie.TmdbID = id
-        }
-    }
+	// Bind extra metadata provided by the frontend (either as individual fields or JSON in 'metadata')
+	if v := c.PostForm("poster"); v != "" {
+		movie.Poster = v
+	}
+	if v := c.PostForm("title"); v != "" {
+		movie.Title = v
+	}
+	if v := c.PostForm("imdbID"); v != "" {
+		movie.ImdbID = v
+	}
+	if v := c.PostForm("rating"); v != "" {
+		if r, err := strconv.ParseFloat(v, 64); err == nil {
+			movie.Rating = r
+		}
+	}
 
-    // If it's an episode upload, skip inserting into movies
-    if mediaType == "series" {
-        c.JSON(http.StatusOK, gin.H{
-            "url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-            "movie": movie,
-        })
-        return
-    }
+	if mediaType != "series" {
+		// Parse tmdbID for movies
+		if tmdbIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required for movies"})
+			return
+		}
+		if id, err := strconv.Atoi(tmdbIDStr); err == nil {
+			movie.TmdbID = id
+		}
+	}
 
-    // Insert movie into DB
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    if _, err := utils.GetCollection("movies").InsertOne(ctx, movie); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// If it's an episode upload, skip inserting into movies
+	if mediaType == "series" {
+		c.JSON(http.StatusOK, gin.H{
+			"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+			"movie": movie,
+		})
+		return
+	}
 
-    // Respond immediately
-    c.JSON(http.StatusOK, gin.H{
-        "url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-        "movie": movie,
-    })
+	// Insert movie into DB
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := utils.GetCollection("movies").InsertOne(ctx, movie); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    // Trigger pipeline AFTER response
-    go func(m utils.Movie) {
-        _ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, nil)
-    }(movie)
+	// Respond immediately
+	c.JSON(http.StatusOK, gin.H{
+		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"movie": movie,
+	})
+
+	// Trigger pipeline AFTER response
+	go func(m utils.Movie) {
+		_ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, nil)
+	}(movie)
 }
 
 // GET /all_movies
@@ -201,14 +217,14 @@ func GetAllMovies(c *gin.Context) {
 
 // GET /movie/:id
 func GetMovieByID(c *gin.Context) {
-    tmdbID := c.Param("id")
-    idInt, _ := strconv.Atoi(tmdbID)
+	tmdbID := c.Param("id")
+	idInt, _ := strconv.Atoi(tmdbID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Récupérer le film dans la base de données
 	var movie utils.Movie
-	    err := utils.GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&movie)
+	err := utils.GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&movie)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Film non trouvé", "id": tmdbID})
@@ -218,18 +234,5 @@ func GetMovieByID(c *gin.Context) {
 		return
 	}
 
-	    c.JSON(http.StatusOK, movie)
-}
-
-// sanitizeName performs minimal filename sanitization for temp uploads
-func sanitizeName(name string) string {
-    n := strings.TrimSpace(name)
-    replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "", "'", "", "<", "", ">", "", "|", "-"}
-    for i := 0; i+1 < len(replacers); i += 2 {
-        n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
-    }
-    if n == "" {
-        n = "untitled"
-    }
-    return n
+	c.JSON(http.StatusOK, movie)
 }

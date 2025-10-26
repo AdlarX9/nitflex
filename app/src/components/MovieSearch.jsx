@@ -62,7 +62,6 @@ const MovieSearch = ({ onSelect }) => {
 
 	return (
 		<div className='relative w-full font-sans'>
-
 			{/* Search wrapper */}
 			<div
 				className={`relative group rounded-xl overflow-hidden border 
@@ -102,7 +101,7 @@ const MovieSearch = ({ onSelect }) => {
 
 				{/* Loader bar (top) */}
 				<div
-					className={`absolute top-0 left-0 h-[3px] bg-gradient-to-r from-red-500 via-red-400 to-red-600 transition-all duration-500 ${
+					className={`absolute top-0 left-0 h-[3px] bg-linear-to-r from-red-500 via-red-400 to-red-600 transition-all duration-500 ${
 						loading ? 'w-full opacity-100' : 'w-0 opacity-0'
 					}`}
 				/>
@@ -130,7 +129,7 @@ const MovieSearch = ({ onSelect }) => {
 									}}
 								>
 									{/* Poster */}
-									<div className='h-20 rounded-md overflow-hidden bg-gray-800/40 flex items-center justify-center border border-white/10 flex-shrink-0 shadow-inner'>
+									<div className='h-20 rounded-md overflow-hidden bg-gray-800/40 flex items-center justify-center border border-white/10 shrink-0 shadow-inner'>
 										{movie.poster ? (
 											<img
 												src={movie.poster}

@@ -9,7 +9,7 @@ import { cardVariant, chipVariant, staggerContainer } from './variants'
 export const BackButton = () => (
 	<Link
 		to={-1}
-		className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-gray-800/70 to-gray-700/40 backdrop-blur-sm hover:from-gray-700/80 hover:to-gray-600/40 border border-white/10 text-base group shadow-lg'
+		className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-linear-to-br from-gray-800/70 to-gray-700/40 backdrop-blur-sm hover:from-gray-700/80 hover:to-gray-600/40 border border-white/10 text-base group shadow-lg'
 	>
 		<IoArrowBack className='text-lg group-hover:-translate-x-0.5 transition' />
 		<span className='uppercase tracking-wide font-semibold text-sm'>Retour</span>
@@ -51,7 +51,7 @@ export const ParallaxBackdrop = ({ src }) => {
 				transition={{ duration: 1 }}
 				className='absolute inset-0 bg-[radial-gradient(at_30%_20%,rgba(255,255,255,0.08),rgba(0,0,0,0)_60%),radial-gradient(at_80%_60%,rgba(255,0,0,0.15),rgba(0,0,0,0)_70%)] mix-blend-screen pointer-events-none'
 			/>
-			<div className='absolute inset-0 bg-gradient-to-b from-black via-black/60 to-[#05070d] z-0 pointer-events-none' />
+			<div className='absolute inset-0 bg-linear-to-b from-black via-black/60 to-[#05070d] z-0 pointer-events-none' />
 			<div
 				className='absolute inset-0 opacity-[0.18] mix-blend-overlay pointer-events-none z-0'
 				style={{
@@ -78,7 +78,7 @@ export const GenreChips = ({ genres = [] }) => {
 					key={g.id || g.name}
 					variants={chipVariant}
 					custom={i}
-					className='px-3 py-1 rounded-full bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/30 text-red-300 text-sm tracking-wide uppercase font-semibold backdrop-blur-sm'
+					className='px-3 py-1 rounded-full bg-linear-to-br from-red-600/30 to-red-500/20 border border-red-500/30 text-red-300 text-sm tracking-wide uppercase font-semibold backdrop-blur-sm'
 				>
 					{g.name}
 				</motion.span>
@@ -97,13 +97,13 @@ export const PersonCard = ({ person, index = 0 }) => {
 			whileInView='show'
 			custom={index}
 			viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-			className='group relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow-lg'
+			className='group relative rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow-lg'
 		>
 			<Link
 				to={`/person/${person.id}`}
 				className='block focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
 			>
-				<div className='relative aspect-[3/4] overflow-hidden'>
+				<div className='relative aspect-3/4 overflow-hidden'>
 					<img
 						src={
 							person.profile_path
@@ -114,7 +114,7 @@ export const PersonCard = ({ person, index = 0 }) => {
 						className='object-cover w-full h-full transition duration-700 ease-out group-hover:scale-105 group-hover:brightness-90'
 						loading='lazy'
 					/>
-					<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+					<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 				</div>
 				<div className='p-3 flex flex-col gap-1'>
 					<p className='text-base font-semibold leading-tight text-gray-100 truncate'>
@@ -165,7 +165,7 @@ export const TrailerEmbedSection = ({ trailer, title = 'Bande-annonce' }) => {
 						Voir la bande-annonce
 					</a>
 				) : null}
-				<div className='absolute inset-0 pointer-events-none bg-gradient-to-t from-black/60 via-transparent to-transparent' />
+				<div className='absolute inset-0 pointer-events-none bg-linear-to-t from-black/60 via-transparent to-transparent' />
 			</div>
 		</motion.div>
 	)
@@ -196,7 +196,7 @@ export const EpisodeCard = ({
 		available ? (
 			<div className='absolute left-0 right-0 top-0 bottom-0 z-10 flex items-center justify-center bg-black/10'>
 				<span className='w-12 h-12 rounded-full bg-black/60 border border-red-600 shadow flex items-center justify-center'>
-					<IoPlay className='text-white text-2xl translate-x-[1px]' />
+					<IoPlay className='text-white text-2xl translate-x-px' />
 				</span>
 			</div>
 		) : null
@@ -209,11 +209,11 @@ export const EpisodeCard = ({
 				whileInView='show'
 				custom={index}
 				viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-				className={`rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow ${available ? 'hover:shadow-red-500/10 transition' : 'opacity-95'}`}
+				className={`rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow ${available ? 'hover:shadow-red-500/10 transition' : 'opacity-95'}`}
 			>
 				<Wrapper>
 					<div className='flex gap-4 p-3 sm:p-4'>
-						<div className='relative w-40 sm:w-52 aspect-[16/9] flex-shrink-0 overflow-hidden rounded-lg'>
+						<div className='relative w-40 sm:w-52 aspect-video shrink-0 overflow-hidden rounded-lg'>
 							{still ? (
 								<img
 									src={`https://image.tmdb.org/t/p/w342${still}`}
@@ -224,7 +224,7 @@ export const EpisodeCard = ({
 							) : (
 								<div className='w-full h-full bg-gray-800' />
 							)}
-							<div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-90' />
+							<div className='absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent opacity-90' />
 							<PlayBadge />
 						</div>
 						<div className='min-w-0 flex-1 py-1'>
@@ -252,10 +252,10 @@ export const EpisodeCard = ({
 			whileInView='show'
 			custom={index}
 			viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-			className={`group rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative ${available ? '' : 'opacity-95 cursor-not-allowed'}`}
+			className={`group rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative ${available ? '' : 'opacity-95 cursor-not-allowed'}`}
 		>
 			<Wrapper>
-				<div className='relative aspect-[16/9]'>
+				<div className='relative aspect-video'>
 					{still ? (
 						<img
 							src={`https://image.tmdb.org/t/p/w342${still}`}
@@ -266,7 +266,7 @@ export const EpisodeCard = ({
 					) : (
 						<div className='w-full h-full bg-gray-800' />
 					)}
-					<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+					<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 					<PlayBadge />
 				</div>
 				<div className='p-3'>

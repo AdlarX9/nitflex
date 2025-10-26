@@ -6,6 +6,7 @@ api/uploads
 api/movies
 api/series
 api/tmp
+api/hls_cache
 mongodb_data
 utils/Nitflex.iconset
 app/node_modules

@@ -184,11 +184,11 @@ const PersonDetails = () => {
 	}
 
 	return (
-		<div className='relative w-full min-h-screen bg-gradient-to-b from-black via-[#0a0d13] to-black text-gray-100 overflow-x-hidden'>
+		<div className='relative w-full min-h-screen bg-linear-to-b from-black via-[#0a0d13] to-black text-gray-100 overflow-x-hidden'>
 			{/* Bouton retour optimisé */}
 			<Link
 				to={-1}
-				className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-gray-800/70 to-gray-700/30 backdrop-blur-md border border-white/10 shadow-lg hover:from-gray-700/80 hover:to-gray-600/40 transition text-sm group'
+				className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-linear-to-br from-gray-800/70 to-gray-700/30 backdrop-blur-md border border-white/10 shadow-lg hover:from-gray-700/80 hover:to-gray-600/40 transition text-sm group'
 			>
 				<IoArrowBack className='text-lg group-hover:-translate-x-0.5 transition' />
 				<span className='uppercase tracking-wide font-semibold text-xs'>Retour</span>
@@ -211,7 +211,7 @@ const PersonDetails = () => {
 					{/* Colonne gauche compacte */}
 					<div className='flex flex-col gap-8'>
 						<motion.div
-							className='relative w-52 sm:w-60 mx-auto lg:mx-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gradient-to-br from-gray-800/40 to-gray-900/30 backdrop-blur-sm'
+							className='relative w-52 sm:w-60 mx-auto lg:mx-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-linear-to-br from-gray-800/40 to-gray-900/30 backdrop-blur-sm'
 							variants={fadeInSimple}
 							initial='initial'
 							animate='animate'
@@ -222,7 +222,7 @@ const PersonDetails = () => {
 								className='w-full h-auto block object-cover'
 								loading='lazy'
 							/>
-							<div className='absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none' />
+							<div className='absolute inset-0 bg-linear-to-t from-black/75 via-black/20 to-transparent pointer-events-none' />
 							{/* Tags */}
 							<div className='absolute bottom-0 left-0 right-0 p-4 flex flex-wrap gap-2'>
 								{known_for_department && (
@@ -287,7 +287,7 @@ const PersonDetails = () => {
 									{secondaryImages.slice(0, 8).map((img, i) => (
 										<div
 											key={img.file_path + i}
-											className='relative flex-shrink-0 w-20 h-28 rounded-lg overflow-hidden bg-gray-800/40 border border-white/10'
+											className='relative shrink-0 w-20 h-28 rounded-lg overflow-hidden bg-gray-800/40 border border-white/10'
 										>
 											<img
 												src={`https://image.tmdb.org/t/p/w185${img.file_path}`}
@@ -295,7 +295,7 @@ const PersonDetails = () => {
 												className='w-full h-full object-cover'
 												loading='lazy'
 											/>
-											<div className='absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80 pointer-events-none' />
+											<div className='absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-80 pointer-events-none' />
 										</div>
 									))}
 								</div>
@@ -369,7 +369,7 @@ const PersonDetails = () => {
 							initial='initial'
 							animate='animate'
 						>
-							<h1 className='text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight tracking-tight bg-gradient-to-br from-white to-gray-300 bg-clip-text text-transparent'>
+							<h1 className='text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight tracking-tight bg-linear-to-br from-white to-gray-300 bg-clip-text text-transparent'>
 								{name}
 							</h1>
 							{biography && (
@@ -411,7 +411,7 @@ const PersonDetails = () => {
 										{allKnown.map((item, idx) => (
 											<motion.div
 												key={`${item.media_type}-${item.id}-${idx}`}
-												className='snap-start flex-shrink-0 w-36 sm:w-40 group'
+												className='snap-start shrink-0 w-36 sm:w-40 group'
 												variants={fastItem}
 											>
 												<Link
@@ -420,9 +420,9 @@ const PersonDetails = () => {
 															? `/tv/${item.id}`
 															: `/movie/${item.id}`
 													}
-													className='block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
+													className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
 												>
-													<div className='relative aspect-[2/3] overflow-hidden'>
+													<div className='relative aspect-2/3 overflow-hidden'>
 														<img
 															src={
 																item.poster_path
@@ -433,7 +433,7 @@ const PersonDetails = () => {
 															className='w-full h-full object-cover transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-90'
 															loading='lazy'
 														/>
-														<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+														<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 													</div>
 													<div className='p-2'>
 														<p className='text-[11px] font-medium leading-snug text-gray-100 line-clamp-2'>
@@ -456,7 +456,7 @@ const PersonDetails = () => {
 						{/* Filmographie */}
 						{(fullMovies.length > 0 || fullTv.length > 0) && (
 							<section className='flex flex-col gap-12'>
-								<h2 className='text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent flex items-center gap-3'>
+								<h2 className='text-2xl sm:text-3xl font-extrabold tracking-tight bg-linear-to-r from-white to-gray-300 bg-clip-text text-transparent flex items-center gap-3'>
 									<IoFilmOutline className='text-3xl text-red-500/70 drop-shadow-[0_0_8px_rgba(255,0,0,0.4)]' />
 									Filmographie complète
 								</h2>
@@ -474,9 +474,9 @@ const PersonDetails = () => {
 												<FilmItemMotion key={`${movie.id}-${idx}`}>
 													<Link
 														to={`/movie/${movie.id}`}
-														className='group relative block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
+														className='group relative block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'
 													>
-														<div className='relative aspect-[2/3] overflow-hidden'>
+														<div className='relative aspect-2/3 overflow-hidden'>
 															<img
 																src={
 																	movie.poster_path
@@ -487,7 +487,7 @@ const PersonDetails = () => {
 																className='object-cover w-full h-full transition duration-400 ease-out group-hover:scale-105 group-hover:brightness-[0.92]'
 																loading='lazy'
 															/>
-															<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+															<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 														</div>
 														<div className='p-2 flex flex-col gap-1'>
 															<p className='text-[11px] font-medium leading-tight text-gray-100 line-clamp-2'>
@@ -529,9 +529,9 @@ const PersonDetails = () => {
 												<FilmItemMotion key={`${tv.id}-${idx}`}>
 													<Link
 														to={`/series/${tv.id}`}
-														className='group relative block rounded-xl overflow-hidden bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-purple-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-purple-500/60'
+														className='group relative block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-purple-500/10 transition focus:outline-none focus-visible:ring focus-visible:ring-purple-500/60'
 													>
-														<div className='relative aspect-[2/3] overflow-hidden'>
+														<div className='relative aspect-2/3 overflow-hidden'>
 															<img
 																src={
 																	tv.poster_path
@@ -542,7 +542,7 @@ const PersonDetails = () => {
 																className='object-cover w-full h-full transition duration-400 ease-out group-hover:scale-105 group-hover:brightness-[0.92]'
 																loading='lazy'
 															/>
-															<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
+															<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 														</div>
 														<div className='p-2 flex flex-col gap-1'>
 															<p className='text-[11px] font-medium leading-tight text-gray-100 line-clamp-2'>
@@ -596,7 +596,7 @@ const PersonDetails = () => {
 			</AnimatePresence>
 
 			{/* Footer gradient */}
-			<div className='pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent' />
+			<div className='pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-linear-to-t from-black to-transparent' />
 		</div>
 	)
 }

@@ -40,23 +40,22 @@ type MovieQuery struct {
 
 // Series represents a TV show
 type Series struct {
-	ID           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Title        string             `json:"title" bson:"title"`
-	CustomTitle  string             `json:"-" bson:"customTitle,omitempty"`
-	TmdbID       int                `json:"tmdbID" bson:"tmdbID"`
-	ImdbID       string             `json:"imdbID,omitempty" bson:"imdbID,omitempty"`
-	Poster       string             `json:"poster" bson:"poster"`
-	Date         primitive.DateTime `json:"date" bson:"date"` // When added to library
-	Seasons      []Season           `json:"seasons" bson:"seasons"`
+	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Title       string             `json:"title" bson:"title"`
+	CustomTitle string             `json:"-" bson:"customTitle,omitempty"`
+	TmdbID      int                `json:"tmdbID" bson:"tmdbID"`
+	ImdbID      string             `json:"imdbID,omitempty" bson:"imdbID,omitempty"`
+	Poster      string             `json:"poster" bson:"poster"`
+	Date        primitive.DateTime `json:"date" bson:"date"` // When added to library
+	Seasons     []Season           `json:"seasons" bson:"seasons"`
 }
 
 // Season represents a season within a series
 type Season struct {
 	ID           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	SeriesID     primitive.ObjectID `json:"seriesID" bson:"seriesID"`
-	TmdbID       int                `json:"tmdbID" bson:"tmdbID"`
 	SeasonNumber int                `json:"seasonNumber" bson:"seasonNumber"`
-	Name         string             `json:"name" bson:"name"`
+	FolderName   string             `json:"folderName" bson:"folderName"`
 	Episodes     []Episode          `json:"episodes" bson:"episodes"`
 }
 

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"api/utils"
 	"api/handlers"
+	"api/utils"
 	"log"
 	"os"
 	"os/signal"
@@ -95,13 +95,14 @@ func main() {
 	r.GET("/series", handlers.GetAllSeries)
 	r.GET("/series/:id", handlers.GetSeriesByID)
 	r.GET("/episode/:id", handlers.GetEpisodeByID)
-	r.POST("/series/:id/episodes", handlers.AddEpisodeToSeries)
-	r.POST("/series/:id/episodes/batch", handlers.AddEpisodesBatch)
-	r.PATCH("/series/:id", handlers.UpdateSeries)
 
 	// Stream
 	r.GET("/video/:id", handlers.VideoStreamHandler)
 	r.GET("/video/episode/:id", handlers.EpisodeStreamHandler)
+
+	// HLS endpoints (master + assets via wildcard handler)
+	r.GET("/hls/movie/:id/*asset", handlers.HLSMovieAsset)
+	r.GET("/hls/episode/:id/*asset", handlers.HLSEpisodeAsset)
 
 	// Ongoing Movies & Episodes
 	r.POST("/ongoing_movies", handlers.UpdateOnGoingMovie)

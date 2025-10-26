@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import Hls from 'hls.js'
+import { AnimatePresence } from 'framer-motion'
 import Loader from '../components/Loader'
-import { IoPlay, IoPause, IoClose, IoPlayBack, IoPlayForward, IoTimeOutline } from 'react-icons/io5'
-// eslint-disable-next-line
-import { motion, AnimatePresence } from 'framer-motion'
-import { useAPI, useAPIAfter, useGetFullMovie, useMainContext } from '../app/hooks'
+import {
+	Gradients,
+	BufferingSpinner,
+	ControlsOverlay,
+	SeekToastOverlay,
+	MetadataErrorOverlay,
+	VideoErrorOverlay,
+	DoubleTapZones
+} from '../components/ViewerComponents'
+import {
+	useAPI,
+	useAPIAfter,
+	useGetEpisodeDetails,
+	useGetFullMovie,
+	useMainContext
+} from '../app/hooks'
 
 const SEEK_INTERVAL = 10
 const AUTO_HIDE_DELAY = 3000
@@ -16,25 +30,31 @@ const Viewer = () => {
 	const isEpisode = !!episodeID
 
 	// Movie or Episode data
+	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`, {}, {}, !!tmdbID)
 	const {
 		data: movie,
 		isPending: moviePending,
 		isError: movieError,
 		error: movieFetchError
-	} = useGetFullMovie(tmdbID, { enabled: !isEpisode })
-	const {
-		data: episodeData,
-		isPending: episodePending,
-		isError: episodeError
-	} = useAPI('GET', `/episode/${episodeID}`, {}, {}, { enabled: isEpisode })
+	} = useGetFullMovie(tmdbID)
 
-	const { data: storedMovie } = useAPI('GET', `/movie/${tmdbID}`, {}, {}, { enabled: !isEpisode })
+	const { data: episodeFewData, isPending: episodePending } = useAPI(
+		'GET',
+		`/episode/${episodeID}`,
+		{},
+		{},
+		!!episodeID
+	)
+	const { data: episodeData, isError: episodeError } = useGetEpisodeDetails(
+		episodeFewData?.tmdbID,
+		episodeFewData?.seasonNumber,
+		episodeFewData?.episodeNumber
+	)
+
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
 
 	// Extract data based on type
-	const mediaData = isEpisode ? episodeData?.episode : movie
-	const seriesData = episodeData?.series
 	const prevEpisode = episodeData?.prevEpisode
 	const nextEpisode = episodeData?.nextEpisode
 	const isPending = isEpisode ? episodePending : moviePending
@@ -43,6 +63,7 @@ const Viewer = () => {
 
 	const videoRef = useRef(null)
 	const wrapperRef = useRef(null)
+	const hlsRef = useRef(null)
 
 	const [controlsVisible, setControlsVisible] = useState(true)
 	const [paused, setPaused] = useState(true)
@@ -55,6 +76,16 @@ const Viewer = () => {
 	const [timeHover, setTimeHover] = useState(null)
 	const [seekToast, setSeekToast] = useState(null)
 
+	// Advanced playback state
+	const [playbackRate, setPlaybackRate] = useState(1)
+	const [isHls, setIsHls] = useState(false)
+	const [levels, setLevels] = useState([]) // [{height, bitrate, name}]
+	const [currentLevel, setCurrentLevel] = useState(-1) // -1 => auto
+	const [audioTracks, setAudioTracks] = useState([]) // [{name, lang}]
+	const [audioTrack, setAudioTrack] = useState(-1)
+	const [subtitleTracks, setSubtitleTracks] = useState([]) // [{name, lang}]
+	const [subtitleTrack, setSubtitleTrack] = useState(-1) // -1 => off
+
 	const { triggerAsync: updateOnGoingMovie } = useAPIAfter('POST', '/ongoing_movies')
 	const { triggerAsync: updateOnGoingEpisode } = useAPIAfter('POST', '/ongoing_episodes')
 	const saveTimeoutRef = useRef(null)
@@ -64,11 +95,20 @@ const Viewer = () => {
 	const seekToastTimerRef = useRef(null)
 	const lastTapRef = useRef(0)
 
-	const src = useMemo(() => {
+	// Try HLS first (fallback to progressive MP4 endpoints used previously)
+	const progressiveSrc = useMemo(() => {
 		if (isEpisode) {
 			return `${import.meta.env.VITE_API}/video/episode/${episodeID}`
 		}
 		return `${import.meta.env.VITE_API}/video/${tmdbID}`
+	}, [isEpisode, episodeID, tmdbID])
+
+	const hlsSrc = useMemo(() => {
+		if (isEpisode) {
+			// essaye des chemins courants d'HLS
+			return `${import.meta.env.VITE_API}/hls/episode/${episodeID}/master.m3u8`
+		}
+		return `${import.meta.env.VITE_API}/hls/movie/${tmdbID}/master.m3u8`
 	}, [isEpisode, episodeID, tmdbID])
 
 	const formatTime = useCallback(t => {
@@ -83,7 +123,7 @@ const Viewer = () => {
 
 	const remaining = duration - currentTime
 
-	// Plein écran (sécurisé)
+	// Fullscreen enforce (safe)
 	useEffect(() => {
 		const el = wrapperRef.current
 		if (!el) return
@@ -98,17 +138,17 @@ const Viewer = () => {
 				else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
 				else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
 				else if (el.msRequestFullscreen) el.msRequestFullscreen()
-				// eslint-disable-next-line
-			} catch (_) {
-				/* Ignorer */
-			}
+			} catch (_) {}
 		}
 	}, [])
 
 	const surfaceClick = e => {
 		if (
-			['BUTTON', 'INPUT', 'SPAN', 'SVG', 'PATH'].includes(e.target.tagName) ||
-			e.target.closest('button')
+			['BUTTON', 'INPUT', 'SPAN', 'SVG', 'PATH', 'SELECT', 'LABEL'].includes(
+				e.target.tagName
+			) ||
+			e.target.closest('button') ||
+			e.target.closest('select')
 		)
 			return
 		setControlsVisible(v => !v)
@@ -138,10 +178,27 @@ const Viewer = () => {
 		}
 	}, [showControls])
 
+	// Setup video events + HLS
 	useEffect(() => {
 		const video = videoRef.current
 		if (!video) return
 
+		// Cleanup previous HLS if any
+		if (hlsRef.current) {
+			try {
+				hlsRef.current.destroy()
+			} catch {}
+			hlsRef.current = null
+		}
+		setIsHls(false)
+		setLevels([])
+		setCurrentLevel(-1)
+		setAudioTracks([])
+		setAudioTrack(-1)
+		setSubtitleTracks([])
+		setSubtitleTrack(-1)
+
+		// Helper to wire DOM events
 		const updateBuffered = () => {
 			try {
 				if (video.buffered.length) {
@@ -149,7 +206,7 @@ const Viewer = () => {
 					setBufferedEnd(end)
 				}
 			} catch (e) {
-				console.error(e)
+				// ignore
 			}
 		}
 
@@ -193,11 +250,92 @@ const Viewer = () => {
 		video.addEventListener('playing', onPlaying)
 		video.addEventListener('error', onError)
 
-		// init
-		setPaused(video.paused)
-		setCurrentTime(video.currentTime)
-		setDuration(video.duration || 0)
-		updateBuffered()
+		// Try HLS first
+		const setupHls = () => {
+			if (video.canPlayType('application/vnd.apple.mpegurl')) {
+				// Safari native HLS
+				video.src = hlsSrc
+				setIsHls(true)
+			} else if (Hls.isSupported()) {
+				const hls = new Hls({
+					enableWorker: true,
+					lowLatencyMode: false,
+					backBufferLength: 60,
+					capLevelToPlayerSize: true
+				})
+				hlsRef.current = hls
+				hls.attachMedia(video)
+				hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+					hls.loadSource(hlsSrc)
+				})
+				hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+					setIsHls(true)
+					const lvls = (data.levels || []).map((lvl, i) => ({
+						index: i,
+						height: lvl.height,
+						bitrate: lvl.bitrate,
+						name: lvl.name || (lvl.height ? `${lvl.height}p` : `Niveau ${i}`)
+					}))
+					setLevels(lvls)
+					setCurrentLevel(-1) // auto
+				})
+				hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_, data) => {
+					const list = (data.audioTracks || []).map((t, i) => ({
+						index: i,
+						name: t.name || t.lang || `Piste ${i + 1}`,
+						lang: t.lang || ''
+					}))
+					setAudioTracks(list)
+					setAudioTrack(hls.audioTrack ?? -1)
+				})
+				hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_, data) => {
+					const list = (data.subtitleTracks || []).map((t, i) => ({
+						index: i,
+						name: t.name || t.lang || `Sous-titres ${i + 1}`,
+						lang: t.lang || ''
+					}))
+					setSubtitleTracks(list)
+					setSubtitleTrack(hls.subtitleTrack ?? -1)
+				})
+				hls.on(Hls.Events.ERROR, (_, data) => {
+					if (data.fatal) {
+						if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+							// fallback to progressive
+							try {
+								hls.destroy()
+							} catch {}
+							hlsRef.current = null
+							setIsHls(false)
+							video.src = progressiveSrc
+						} else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+							hls.recoverMediaError()
+						} else {
+							try {
+								hls.destroy()
+							} catch {}
+							hlsRef.current = null
+							setIsHls(false)
+							video.src = progressiveSrc
+						}
+					}
+				})
+			} else {
+				// Fallback progressive
+				video.src = progressiveSrc
+			}
+		}
+
+		// If we have metadata error, skip setting up media
+		if (!isError) {
+			// reset base states
+			setPaused(video.paused)
+			setCurrentTime(video.currentTime || 0)
+			setDuration(video.duration || 0)
+			updateBuffered()
+			setupHls()
+			// apply current playback rate
+			video.playbackRate = playbackRate
+		}
 
 		return () => {
 			video.removeEventListener('timeupdate', onTime)
@@ -207,9 +345,20 @@ const Viewer = () => {
 			video.removeEventListener('waiting', onWaiting)
 			video.removeEventListener('playing', onPlaying)
 			video.removeEventListener('error', onError)
+			if (hlsRef.current) {
+				try {
+					hlsRef.current.destroy()
+				} catch {}
+				hlsRef.current = null
+			}
 		}
-		// eslint-disable-next-line
-	}, [isSeeking, showControls])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [hlsSrc, progressiveSrc, isSeeking, isError])
+
+	// Apply playback rate to video element on change
+	useEffect(() => {
+		if (videoRef.current) videoRef.current.playbackRate = playbackRate
+	}, [playbackRate])
 
 	const maybeScheduleSave = t => {
 		if (!movie || !user?.id || !storedMovie?.id) return
@@ -231,16 +380,16 @@ const Viewer = () => {
 		if (!user?.id) return
 		if (!force && Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
 
-		if (isEpisode && episodeData?.episode?.id) {
+		if (isEpisode && episodeFewData?.id) {
 			// Save episode progress
 			savingRef.current = true
 			updateOnGoingEpisode({
-				tmdbID: episodeData.episode.tmdbID,
+				tmdbID: episodeFewData.tmdbID,
 				duration: Math.floor(duration),
 				position: Math.floor(t),
 				user: user.id,
-				episode: episodeData.episode.id,
-				series: episodeData.episode.seriesID
+				episode: episodeFewData.id,
+				series: episodeFewData.seriesID
 			})
 				.then(() => {
 					lastSavedTimeRef.current = t
@@ -283,6 +432,7 @@ const Viewer = () => {
 		// eslint-disable-next-line
 	}, [movie, user?.id, storedMovie?.id])
 
+	// Keyboard shortcuts
 	useEffect(() => {
 		const handler = e => {
 			if (!videoRef.current) return
@@ -298,6 +448,12 @@ const Viewer = () => {
 				case 'arrowleft':
 					e.preventDefault()
 					seek(-SEEK_INTERVAL)
+					break
+				case '>':
+					setPlaybackRate(r => Math.min(4, Math.round((r + 0.25) * 100) / 100))
+					break
+				case '<':
+					setPlaybackRate(r => Math.max(0.25, Math.round((r - 0.25) * 100) / 100))
 					break
 				case 'escape':
 					e.preventDefault()
@@ -379,12 +535,12 @@ const Viewer = () => {
 		const played = (currentTime / duration) * 100
 		const buff = (bufferedEnd / duration) * 100
 		return `linear-gradient(90deg,
-			#e50914 0%,
-			#e50914 ${played}%,
-			#a5272d ${played}%,
-			#a5272d ${buff}%,
-			#444 ${buff}%,
-			#444 100%)`
+      #e50914 0%,
+      #e50914 ${played}%,
+      #a5272d ${played}%,
+      #a5272d ${buff}%,
+      #444 ${buff}%,
+      #444 100%)`
 	}, [currentTime, duration, bufferedEnd])
 
 	const exitViewer = () => {
@@ -399,11 +555,9 @@ const Viewer = () => {
 	let poster = ''
 
 	if (isEpisode && episodeData) {
-		const ep = episodeData.episode
-		const series = episodeData.series
-		title = `${series?.title || ''} - S${String(ep?.seasonNumber).padStart(2, '0')}E${String(ep?.episodeNumber).padStart(2, '0')}${ep?.title ? ` - ${ep.title}` : ''}`
-		description = ep?.overview || ''
-		poster = ep?.stillPath || series?.poster || ''
+		title = `${episodeData.name}`
+		description = episodeData.overview
+		poster = episodeData.still_path
 	} else if (movie) {
 		title = movie.title || ''
 		description = movie.overview || ''
@@ -423,6 +577,42 @@ const Viewer = () => {
 		}
 	}, [nextEpisode, navigate])
 
+	// Quality selection
+	const handleSelectLevel = useCallback(
+		levelIndex => {
+			if (!isHls || !hlsRef.current) return
+			// -1 => auto
+			hlsRef.current.currentLevel = levelIndex
+			setCurrentLevel(levelIndex)
+		},
+		[isHls]
+	)
+
+	// Audio selection
+	const handleSelectAudio = useCallback(
+		trackIndex => {
+			if (!isHls || !hlsRef.current) return
+			if (trackIndex === -1) return
+			hlsRef.current.audioTrack = trackIndex
+			setAudioTrack(trackIndex)
+		},
+		[isHls]
+	)
+
+	// Subtitle selection
+	const handleSelectSubtitle = useCallback(
+		trackIndex => {
+			if (!isHls || !hlsRef.current) return
+			// -1 => off
+			hlsRef.current.subtitleTrack = trackIndex
+			setSubtitleTrack(trackIndex)
+		},
+		[isHls]
+	)
+
+	// Video element only when no metadata error and no fatal video error
+	const canShowVideo = !isError && !videoError
+
 	return (
 		<div
 			ref={wrapperRef}
@@ -430,289 +620,106 @@ const Viewer = () => {
 			style={{ WebkitTapHighlightColor: 'transparent' }}
 			onClick={surfaceClick}
 		>
-			<video
-				ref={videoRef}
-				src={src}
-				poster={poster ? `https://image.tmdb.org/t/p/w780${poster}` : undefined}
-				autoPlay
-				playsInline
-				controls={false}
-				className='absolute inset-0 w-full h-full object-contain bg-black'
-				tabIndex={-1}
-			/>
+			{canShowVideo && (
+				<video
+					ref={videoRef}
+					poster={poster ? `https://image.tmdb.org/t/p/w780${poster}` : undefined}
+					autoPlay
+					playsInline
+					controls={false}
+					className='absolute inset-0 w-full h-full object-contain bg-black'
+					tabIndex={-1}
+				/>
+			)}
 
-			{/* Gradients */}
-			<div className='pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-black/90 to-transparent' />
-			<div className='pointer-events-none absolute inset-x-0 bottom-0 h-60 bg-gradient-to-t from-black/95 to-transparent' />
+			<AnimatePresence>{controlsVisible && canShowVideo && <Gradients />}</AnimatePresence>
 
 			{/* Zones double tap */}
-			<div
-				className='absolute inset-y-0 left-0 w-1/2'
-				onDoubleClick={() => seek(-SEEK_INTERVAL)}
-				onTouchEnd={() => handleZoneTap('back')}
-			/>
-			<div
-				className='absolute inset-y-0 right-0 w-1/2'
-				onDoubleClick={() => seek(SEEK_INTERVAL)}
-				onTouchEnd={() => handleZoneTap('forward')}
+			<DoubleTapZones
+				onBack={() => seek(-SEEK_INTERVAL)}
+				onForward={() => seek(SEEK_INTERVAL)}
+				onTap={handleZoneTap}
 			/>
 
 			{/* Buffering spinner */}
-			<AnimatePresence>
-				{isBuffering && (
-					<motion.div
-						className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-					>
-						<div className='w-24 h-24 border-4 border-white/20 border-t-red-500 rounded-full animate-spin' />
-					</motion.div>
-				)}
-			</AnimatePresence>
+			<AnimatePresence>{isBuffering && <BufferingSpinner />}</AnimatePresence>
 
 			{/* Overlay contrôles */}
 			<AnimatePresence>
-				{controlsVisible && (
-					<motion.div
-						className='absolute inset-0 z-40 flex flex-col justify-between pointer-events-none'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.25 }}
-					>
-						{/* Top */}
-						<div className='flex items-start justify-between px-10 pt-10 pointer-events-auto'>
-							<button
-								onClick={exitViewer}
-								className='rounded-full p-4 bg-black/65 hover:bg-black/80 transition text-white border border-white/10'
-								title='Retour'
-							>
-								<IoClose size={40} />
-							</button>
-							<div className='flex flex-col max-w-[55%] items-end text-right gap-2'>
-								{title && (
-									<motion.h1
-										className='text-white font-bold text-3xl md:text-4xl leading-tight'
-										initial={{ y: -10, opacity: 0 }}
-										animate={{ y: 0, opacity: 1 }}
-									>
-										{title}
-									</motion.h1>
-								)}
-								{description && (
-									<motion.p
-										className='text-gray-300 text-lg md:text-xl line-clamp-2'
-										initial={{ y: -8, opacity: 0 }}
-										animate={{ y: 0, opacity: 1 }}
-									>
-										{description}
-									</motion.p>
-								)}
-							</div>
-						</div>
-
-						{/* Centre */}
-						<div className='flex items-center justify-center gap-[14vw] md:gap-32 pointer-events-auto'>
-							<button
-								onClick={() => seek(-SEEK_INTERVAL)}
-								className='rounded-full p-6 bg-black/55 hover:bg-black/70 transition text-white border border-white/10'
-								title={`Reculer ${SEEK_INTERVAL} s`}
-							>
-								<IoPlayBack className='w-15 h-auto' />
-							</button>
-							<button
-								onClick={handlePlayPause}
-								className='rounded-full p-8 bg-black/60 hover:bg-black/75 transition text-white border border-white/10 shadow-2xl'
-								title={paused ? 'Lecture' : 'Pause'}
-							>
-								{paused ? (
-									<IoPlay className='w-20 h-auto' />
-								) : (
-									<IoPause className='w-20 h-auto' />
-								)}
-							</button>
-							<button
-								onClick={() => seek(SEEK_INTERVAL)}
-								className='rounded-full p-6 bg-black/55 hover:bg-black/70 transition text-white border border-white/10'
-								title={`Avancer ${SEEK_INTERVAL} s`}
-							>
-								<IoPlayForward className='w-15 h-auto' />
-							</button>
-						</div>
-
-						{/* Bas */}
-						<div className='relative w-full px-10 pb-12 pointer-events-auto'>
-							{timeHover != null && (
-								<div
-									className='absolute -top-8 left-0 translate-x-[-50%] px-4 py-2 rounded-xl bg-black/80 text-white text-sm font-semibold border border-white/10'
-									style={{
-										transform: `translateX(calc(${(timeHover / duration) * 100}% - 50%))`
-									}}
-								>
-									{formatTime(timeHover)}
-								</div>
-							)}
-
-							<div className='flex items-center gap-5 mb-5'>
-								<span className='text-gray-200 font-mono text-base md:text-xl min-w-[62px] text-right'>
-									{formatTime(currentTime)}
-								</span>
-								<div className='flex-1 relative'>
-									<input
-										type='range'
-										min={0}
-										max={duration || 0}
-										step={0.1}
-										value={currentTime}
-										onChange={handleProgressChange}
-										onMouseMove={handleRangeMouseMove}
-										onMouseLeave={handleRangeLeave}
-										onTouchStart={handleTouchStart}
-										onTouchMove={handleTouchMove}
-										onTouchEnd={handleTouchEnd}
-										className='w-full h-2 rounded appearance-none cursor-pointer flex items-center'
-										style={{
-											background: progressBackground,
-											outline: 'none'
-										}}
-									/>
-								</div>
-								<span className='text-gray-200 font-mono text-base md:text-xl min-w-[62px]'>
-									{formatTime(duration)}
-								</span>
-							</div>
-
-							<div className='flex items-center justify-between text-gray-300 text-base md:text-lg'>
-								<div className='flex items-center gap-6'>
-									<div className='flex items-center gap-3'>
-										<IoTimeOutline className='text-3xl' />
-										<span className='font-mono text-lg'>
-											-{formatTime(remaining > 0 ? remaining : 0)}
-										</span>
-									</div>
-									{isBuffering && (
-										<span className='text-amber-300 animate-pulse font-semibold'>
-											Buffering…
-										</span>
-									)}
-									{isEpisode && (prevEpisode || nextEpisode) && (
-										<div className='flex items-center gap-3'>
-											{prevEpisode && (
-												<button
-													onClick={goToPrevEpisode}
-													className='px-4 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 text-white text-sm font-medium transition'
-												>
-													← Épisode précédent
-												</button>
-											)}
-											{nextEpisode && (
-												<button
-													onClick={goToNextEpisode}
-													className='px-4 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-sm font-medium transition'
-												>
-													Épisode suivant →
-												</button>
-											)}
-										</div>
-									)}
-								</div>
-								<p className='text-sm md:text-lg text-gray-500 select-none'>
-									Espace / ← → / Esc
-								</p>
-							</div>
-						</div>
-					</motion.div>
+				{controlsVisible && canShowVideo && (
+					<ControlsOverlay
+						title={title}
+						description={description}
+						paused={paused}
+						onExit={exitViewer}
+						onPlayPause={handlePlayPause}
+						onSeekBack={() => seek(-SEEK_INTERVAL)}
+						onSeekForward={() => seek(SEEK_INTERVAL)}
+						// Progress
+						timeHover={timeHover}
+						formatTime={formatTime}
+						currentTime={currentTime}
+						duration={duration}
+						progressBackground={progressBackground}
+						onProgressChange={handleProgressChange}
+						onRangeMouseMove={handleRangeMouseMove}
+						onRangeLeave={handleRangeLeave}
+						onTouchStart={handleTouchStart}
+						onTouchMove={handleTouchMove}
+						onTouchEnd={handleTouchEnd}
+						remaining={remaining}
+						isBuffering={isBuffering}
+						// Episodes nav
+						isEpisode={isEpisode}
+						prevEpisode={prevEpisode}
+						nextEpisode={nextEpisode}
+						goToPrevEpisode={goToPrevEpisode}
+						goToNextEpisode={goToNextEpisode}
+						// Advanced controls
+						playbackRate={playbackRate}
+						setPlaybackRate={setPlaybackRate}
+						isHls={isHls}
+						qualityLevels={levels}
+						currentLevel={currentLevel}
+						onSelectLevel={handleSelectLevel}
+						audioTracks={audioTracks}
+						audioTrack={audioTrack}
+						onSelectAudio={handleSelectAudio}
+						subtitleTracks={subtitleTracks}
+						subtitleTrack={subtitleTrack}
+						onSelectSubtitle={handleSelectSubtitle}
+					/>
 				)}
 			</AnimatePresence>
 
 			{/* Toast seek */}
-			<AnimatePresence>
-				{seekToast && (
-					<motion.div
-						className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[50%] z-50 pointer-events-none '
-						initial={{ opacity: 0, y: 24, scale: 0.9 }}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
-						exit={{ opacity: 0, y: -12, scale: 0.95 }}
-						transition={{ duration: 0.25 }}
-					>
-						<div className='px-5 py-2.5 rounded-full bg-black/75 backdrop-blur-md text-white text-lg font-bold border border-white/10 shadow-xl shadow-black'>
-							{seekToast}
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+			<AnimatePresence>{seekToast && <SeekToastOverlay text={seekToast} />}</AnimatePresence>
 
 			{/* Overlay chargement métadonnées */}
 			<AnimatePresence>
 				{isPending && (
-					<motion.div
-						className='absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-50'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-					>
+					<div className='absolute inset-0 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm z-50'>
 						<Loader />
-						<p className='text-white text-2xl tracking-wide mt-6'>
-							Chargement du film…
-						</p>
-					</motion.div>
+						<p className='text-white text-2xl tracking-wide mt-6'>Chargement…</p>
+					</div>
 				)}
 			</AnimatePresence>
 
 			{/* Erreur chargement métadonnées */}
 			<AnimatePresence>
-				{!isPending && isError && !movie && (
-					<motion.div
-						className='absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-[60] text-red-500 p-10'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-					>
-						<IoClose size={100} className='mb-8' />
-						<h2 className='text-4xl font-bold mb-4'>Film introuvable</h2>
-						<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>
-							{error?.message || 'Impossible de charger les informations.'}
-						</p>
-						<button
-							onClick={() => navigate(-1)}
-							className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
-						>
-							Retour
-						</button>
-					</motion.div>
+				{!isPending && isError && (
+					<MetadataErrorOverlay message={error?.message} onBack={() => navigate(-1)} />
 				)}
 			</AnimatePresence>
 
 			{/* Erreur vidéo */}
 			<AnimatePresence>
 				{videoError && (
-					<motion.div
-						className='absolute inset-0 flex flex-col items-center justify-center bg-black/95 z-[70] text-red-500 p-10'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-					>
-						<IoClose size={100} className='mb-8' />
-						<h2 className='text-4xl font-bold mb-4'>Erreur de lecture</h2>
-						<p className='text-gray-400 text-center max-w-xl mb-10 text-xl'>
-							{videoError}
-						</p>
-						<div className='flex gap-6'>
-							<button
-								onClick={() => window.location.reload()}
-								className='px-10 py-5 rounded-2xl bg-gray-700 text-white hover:bg-gray-600 transition font-semibold text-lg'
-							>
-								Réessayer
-							</button>
-							<button
-								onClick={exitViewer}
-								className='px-10 py-5 rounded-2xl bg-red-600 text-white hover:bg-red-500 transition font-semibold text-lg'
-							>
-								Retour
-							</button>
-						</div>
-					</motion.div>
+					<VideoErrorOverlay
+						message={videoError}
+						onRetry={() => window.location.reload()}
+						onBack={exitViewer}
+					/>
 				)}
 			</AnimatePresence>
 		</div>

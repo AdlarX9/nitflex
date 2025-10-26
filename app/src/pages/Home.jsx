@@ -152,7 +152,7 @@ const Home = () => {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.5 }}
-			className='flex flex-col items-center justify-center min-h-dvh gap-6 py-8 px-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+			className='flex flex-col items-center justify-center min-h-dvh gap-6 py-8 px-4 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900'
 		>
 			{createPortal(
 				<motion.div

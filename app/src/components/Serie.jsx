@@ -36,7 +36,7 @@ const Serie = ({ series }) => {
 				aria-label={`Ouvrir la fiche de la série ${series?.title || 'Série'}`}
 			>
 				{posterExists && !imgLoaded && (
-					<div className='absolute inset-0 bg-gradient-to-br from-gray-800/60 to-gray-700/40 animate-pulse flex items-center justify-center'>
+					<div className='absolute inset-0 bg-linear-to-br from-gray-800/60 to-gray-700/40 animate-pulse flex items-center justify-center'>
 						<div className='w-16 h-16 rounded-full border-4 border-white/10 border-t-red-500 animate-spin' />
 					</div>
 				)}
@@ -56,7 +56,7 @@ const Serie = ({ series }) => {
 						animate={imgLoaded ? 'loaded' : 'initial'}
 						loading='lazy'
 						decoding='async'
-						className='absolute inset-0 w-full h-full object-cover group-hover:scale-[1.025] transition duration-[1100ms] ease-[cubic-bezier(.16,1,.3,1)]'
+						className='absolute inset-0 w-full h-full object-cover group-hover:scale-[1.025] transition duration-1100ms ease-[cubic-bezier(.16,1,.3,1)]'
 						src={imgSrc}
 						alt={series?.title || 'Affiche'}
 						onLoad={handleImgLoad}

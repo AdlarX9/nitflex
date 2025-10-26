@@ -18,7 +18,7 @@ import { mainColor } from '../app/hooks'
 export const Back = ({ to = '/' }) => {
 	return createPortal(
 		<motion.header
-			className='fixed top-0 left-0 z-[60]'
+			className='fixed top-0 left-0 z-60'
 			initial={{ opacity: 0, y: -8 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.4, ease: [0.25, 0.8, 0.4, 1] }}
@@ -114,7 +114,7 @@ const NavBar = () => {
 	}
 
 	return createPortal(
-		<div className='pointer-events-none fixed inset-0 z-[55]'>
+		<div className='pointer-events-none fixed inset-0 z-55'>
 			<AnimatePresence>
 				{displayNav && (
 					<motion.footer

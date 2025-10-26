@@ -54,9 +54,9 @@ const Explorer = () => {
 						/>
 					)}
 					{/* Top gradient fade */}
-					<div className='absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-black via-transparent to-transparent' />
+					<div className='absolute top-0 left-0 right-0 h-48 bg-linear-to-b from-black via-transparent to-transparent' />
 					{/* Bottom gradient fade */}
-					<div className='absolute bottom-0 left-0 right-0 h-72 bg-gradient-to-t from-black via-black/30 to-transparent' />
+					<div className='absolute bottom-0 left-0 right-0 h-72 bg-linear-to-t from-black via-black/30 to-transparent' />
 				</div>
 
 				{/* HERO MOVIE */}
@@ -80,7 +80,7 @@ const Explorer = () => {
 						) : (
 							/* Skeleton placeholder when mainMovie not ready */
 							<motion.div
-								className='w-[96%] ml-[2%] h-150 max-h-[66dvh] rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-700/40 animate-pulse flex items-center justify-center text-gray-400 text-lg tracking-wide'
+								className='w-[96%] ml-[2%] h-150 max-h-[66dvh] rounded-2xl border border-white/10 bg-linear-to-br from-gray-800/50 to-gray-700/40 animate-pulse flex items-center justify-center text-gray-400 text-lg tracking-wide'
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 0.6 }}
 							>

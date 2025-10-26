@@ -24,9 +24,7 @@ const OnGoingMovie = ({ id }) => {
 	}
 
 	if (onGoingLoading || movieLoading || !movie || !onGoingMovie) {
-		return (
-			<div className='relative w-60 h-36 rounded-lg bg-gray-700 animate-pulse flex-shrink-0' />
-		)
+		return <div className='relative w-60 h-36 rounded-lg bg-gray-700 animate-pulse shrink-0' />
 	}
 
 	const progressPercent = (onGoingMovie.position / onGoingMovie.duration) * 100
@@ -37,7 +35,7 @@ const OnGoingMovie = ({ id }) => {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3 }}
-			className='relative w-60 h-36 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0 group'
+			className='relative w-60 h-36 rounded-lg overflow-hidden bg-gray-800 shrink-0 group'
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 		>
@@ -78,7 +76,7 @@ const OnGoingMovie = ({ id }) => {
 			</Link>
 
 			{/* Title overlay at bottom */}
-			<div className='absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent'>
+			<div className='absolute bottom-0 left-0 right-0 p-2 bg-linear-to-t from-black/90 to-transparent'>
 				<h4 className='text-white text-xs font-medium truncate'>{movie?.title}</h4>
 				<p className='text-gray-300 text-xs'>
 					{Math.round(onGoingMovie.position / 60)} min /{' '}

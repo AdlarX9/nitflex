@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"api/utils"
 	"context"
 	"net/http"
 	"time"
-	"api/utils"
-
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"

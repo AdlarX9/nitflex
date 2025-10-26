@@ -41,7 +41,7 @@ const axiosPATCH = async (endpoint, body) => {
 		.catch(err => logAPIError(err))
 }
 
-const axiosAPI = async (method, endpoint, body, params) => {
+export const axiosAPI = async (method, endpoint, body = {}, params = {}) => {
 	switch (method) {
 		case 'GET':
 			return axiosGET(endpoint, params)
@@ -56,13 +56,23 @@ const axiosAPI = async (method, endpoint, body, params) => {
 	}
 }
 
-export const useAPI = (method, endpoint, body = {}, params = {}) => {
+export const useAPI = (method, endpoint, body = {}, params = {}, enabled = true) => {
 	const query = useQuery({
-		queryKey: [method, endpoint, body, params],
+		queryKey: [
+			method,
+			endpoint,
+			body ? JSON.stringify(body) : 'null',
+			params ? JSON.stringify(params) : 'null'
+		],
 		queryFn: () => axiosAPI(method, endpoint, body, params),
 		retry: false,
 		refetchOnWindowFocus: false,
-		refetchOnReconnect: false
+		refetchOnReconnect: false,
+		refetchOnMount: false,
+		keepPreviousData: true,
+		staleTime: 1000 * 60 * 10, // 10 minutes
+		gcTime: 1000 * 60 * 60, // 1 hour cache
+		enabled
 	})
 
 	return query
@@ -162,7 +172,13 @@ export const useGetFullMovie = tmdbID => {
 	return useQuery({
 		queryKey: ['fullMovie', tmdbID],
 		queryFn: () => fetchFullMovie(tmdbID),
-		enabled: !!tmdbID // ne lance que si tmdbID est défini
+		enabled: !!tmdbID, // ne lance que si tmdbID est défini
+		refetchOnMount: false,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+		keepPreviousData: true,
+		staleTime: 1000 * 60 * 10,
+		gcTime: 1000 * 60 * 60
 	})
 }
 
@@ -223,4 +239,27 @@ export const fetchEpisodeDetails = async (seriesTmdbID, seasonNumber, episodeNum
 		.get(url, {})
 		.then(res => res.data)
 		.catch(err => err.message)
+}
+
+export const useGetEpisodeDetails = (seriesTmdbID, seasonNumber, episodeNumber) => {
+	return useQuery({
+		queryKey: [
+			'tmdb',
+			'tv',
+			seriesTmdbID,
+			'season',
+			seasonNumber,
+			'episode',
+			episodeNumber,
+			LANG
+		],
+		queryFn: () => fetchEpisodeDetails(seriesTmdbID, seasonNumber, episodeNumber),
+		enabled: !!seriesTmdbID && !!seasonNumber && !!episodeNumber,
+		refetchOnMount: false,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+		keepPreviousData: true,
+		staleTime: 1000 * 60 * 10,
+		gcTime: 1000 * 60 * 60
+	})
 }

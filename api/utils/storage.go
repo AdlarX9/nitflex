@@ -32,12 +32,12 @@ func NewLocalStorage(roots []string) *LocalStorage {
 // ValidatePath checks if a path is within allowed roots and prevents directory traversal
 func (ls *LocalStorage) ValidatePath(path string) error {
 	cleanPath := filepath.Clean(path)
-	
+
 	// Check for directory traversal attempts
 	if strings.Contains(cleanPath, "..") {
 		return fmt.Errorf("directory traversal not allowed: %s", path)
 	}
-	
+
 	// Check if path is within allowed roots
 	for _, root := range ls.AllowedRoots {
 		cleanRoot := filepath.Clean(root)
@@ -45,7 +45,7 @@ func (ls *LocalStorage) ValidatePath(path string) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("path %s is not within allowed roots", path)
 }
 
@@ -60,11 +60,11 @@ func (ls *LocalStorage) EnsureDir(path string) error {
 	if err := ls.ValidatePath(path); err != nil {
 		return err
 	}
-	
+
 	if ls.PathExists(path) {
 		return nil
 	}
-	
+
 	return os.MkdirAll(path, 0755)
 }
 
@@ -73,24 +73,24 @@ func (ls *LocalStorage) WriteFile(src, dst string) error {
 	if err := ls.ValidatePath(dst); err != nil {
 		return err
 	}
-	
+
 	// Ensure destination directory exists
 	dstDir := filepath.Dir(dst)
 	if err := ls.EnsureDir(dstDir); err != nil {
 		return err
 	}
-	
+
 	// Read source file
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	
+
 	// Write to destination
 	if err := os.WriteFile(dst, data, 0644); err != nil {
 		return fmt.Errorf("failed to write destination file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -99,23 +99,23 @@ func (ls *LocalStorage) MoveFile(src, dst string) error {
 	if err := ls.ValidatePath(dst); err != nil {
 		return err
 	}
-	
+
 	// Ensure destination directory exists
 	dstDir := filepath.Dir(dst)
 	if err := ls.EnsureDir(dstDir); err != nil {
 		return err
 	}
-	
+
 	// Try atomic rename first (works if same filesystem)
 	if err := os.Rename(src, dst); err == nil {
 		return nil
 	}
-	
+
 	// Fallback: copy then delete
 	if err := ls.WriteFile(src, dst); err != nil {
 		return err
 	}
-	
+
 	return os.Remove(src)
 }
 
@@ -124,7 +124,7 @@ func (ls *LocalStorage) DeleteFile(path string) error {
 	if err := ls.ValidatePath(path); err != nil {
 		return err
 	}
-	
+
 	return os.Remove(path)
 }
 
@@ -135,12 +135,12 @@ func ValidateStorageConfig(tempDir, moviesDir, seriesDir string) error {
 		"MOVIES_DIR": moviesDir,
 		"SERIES_DIR": seriesDir,
 	}
-	
+
 	for name, dir := range dirs {
 		if dir == "" {
 			return fmt.Errorf("%s is not configured", name)
 		}
-		
+
 		// Check if directory exists
 		info, err := os.Stat(dir)
 		if err != nil {
@@ -155,7 +155,7 @@ func ValidateStorageConfig(tempDir, moviesDir, seriesDir string) error {
 		} else if !info.IsDir() {
 			return fmt.Errorf("%s: %s is not a directory", name, dir)
 		}
-		
+
 		// Check if writable by creating a test file
 		testFile := filepath.Join(dir, ".nitflex_write_test")
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -163,6 +163,6 @@ func ValidateStorageConfig(tempDir, moviesDir, seriesDir string) error {
 		}
 		os.Remove(testFile)
 	}
-	
+
 	return nil
 }
