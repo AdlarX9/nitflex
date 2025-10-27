@@ -61,7 +61,6 @@ export const MainProvider = ({ children }) => {
 	const refetchUser = () => {
 		fetchUser().then(user => {
 			if (user) setUser(user)
-			console.log('user', user)
 		})
 	}
 

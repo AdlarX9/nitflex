@@ -1,13 +1,13 @@
-import { useMainContext } from '../app/hooks'
+import { useMainContext, useAPI } from '../app/hooks'
 import './style.scss'
 import { Back } from '../components/NavBar'
 import Loader from '../components/Loader'
 import Movie from '../components/Movie'
 import Serie from '../components/Serie'
-import OnGoingMovie from '../components/OnGoingMovie'
+import OnGoingItem from '../components/OnGoingItem'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 
 const fadeIn = (delay = 0) => ({
 	initial: { opacity: 0, y: 24, filter: 'blur(4px)' },
@@ -24,9 +24,32 @@ const Explorer = () => {
 		useMainContext()
 	const [mainBackdrop, setMainBackdrop] = useState(null)
 
-	const hasOngoing = (user?.onGoingMovies?.length || 0) > 0
+	const { data: ongoingMedia, refetch } = useAPI('GET', `/ongoing_media/${user?.id}`, {}, {}, !!user?.id)
+	const dedupedOngoing = useMemo(() => {
+		if (!Array.isArray(ongoingMedia)) return []
+		const seenSeries = new Set()
+		const out = []
+		for (const it of ongoingMedia) {
+			if (it.type === 'episode') {
+				if (seenSeries.has(it.seriesId)) continue
+				seenSeries.add(it.seriesId)
+				out.push(it)
+			} else {
+				out.push(it)
+			}
+		}
+		return out
+	}, [ongoingMedia])
+	const hasOngoing = (dedupedOngoing.length || 0) > 0
 	const recentList = useMemo(() => newMovies || [], [newMovies])
 	const recentSeries = useMemo(() => newSeries || [], [newSeries])
+
+	useEffect(() => {
+		if (user?.id) {
+			refetch()
+		}
+		// eslint-disable-next-line
+	}, [])
 
 	return (
 		<div className='h-dvh scrollable'>
@@ -106,24 +129,13 @@ const Explorer = () => {
 
 							<div className='relative mt-3'>
 								<div
-									className='flex gap-5 scrollable scrollable-horizontal px-10 pt-3 pb-6 scroll-smooth snap-x snap-mandatory'
+									className='flex gap-5 scrollable scrollable-horizontal mx-10 pt-3 pb-6 scroll-smooth snap-x snap-mandatory'
 									style={{ WebkitOverflowScrolling: 'touch' }}
 								>
-									{user.onGoingMovies.map((id, idx) => (
-										<motion.div
-											key={id + '_' + idx}
-											className='snap-start'
-											initial={{ opacity: 0, y: 18 }}
-											whileInView={{ opacity: 1, y: 0 }}
-											viewport={{ once: true, margin: '0px 0px -40px 0px' }}
-											transition={{
-												duration: 0.45,
-												delay: idx * 0.04,
-												ease: [0.22, 1, 0.36, 1]
-											}}
-										>
-											<OnGoingMovie id={id} />
-										</motion.div>
+									{dedupedOngoing.map((item, idx) => (
+										<div key={(item.type || 'm') + '_' + (item.id || idx)} className='snap-start'>
+											<OnGoingItem item={item} index={idx} onDeleted={refetch} />
+										</div>
 									))}
 								</div>
 							</div>

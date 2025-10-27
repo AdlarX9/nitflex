@@ -145,10 +145,11 @@ const SerieDetails = () => {
 		return target?.season_number ?? null
 	}, [seasonsList])
 
-	const [selectedSeason, setSelectedSeason] = useState(null)
+	const [selectedSeason, setSelectedSeason] = useState(localStorage.getItem('selectedSeason') || null)
 	useEffect(() => {
-		if (defaultSeason != null) setSelectedSeason(defaultSeason)
-	}, [defaultSeason])
+		if (defaultSeason != null && selectedSeason == null) setSelectedSeason(defaultSeason)
+		localStorage.setItem('selectedSeason', selectedSeason)
+	}, [defaultSeason, selectedSeason])
 
 	// Hook TMDB: récupérer la saison sélectionnée (inclut episodes[])
 	const {

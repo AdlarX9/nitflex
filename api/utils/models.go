@@ -5,8 +5,12 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 type User struct {
 	ID                primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
 	Name              string               `json:"name" bson:"name"`
-	OnGoingMoviesID   []primitive.ObjectID `json:"onGoingMovies" bson:"onGoingMovies"`
-	OnGoingEpisodesID []primitive.ObjectID `json:"onGoingEpisodes" bson:"onGoingEpisodes"`
+	OnGoingMediasID   []primitive.ObjectID `json:"onGoingMedias" bson:"onGoingMedias"`
+}
+
+type OnGoingMedia struct {
+	Type string `json:"type" bson:"type"` // "movie" | "episode"
+	ID   primitive.ObjectID `json:"id" bson:"id,omitempty"` // MovieID or EpisodeID
 }
 
 type Movie struct {
@@ -78,7 +82,7 @@ type OnGoingEpisode struct {
 	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	EpisodeID primitive.ObjectID `json:"episode" bson:"episode"`
 	SeriesID  primitive.ObjectID `json:"series" bson:"series"`
-	TmdbID    int                `json:"tmdbID" bson:"tmdbID"`     // Episode TMDB ID
+	TmdbID    int                `json:"tmdbID" bson:"tmdbID"`     // Series TMDB ID
 	Duration  int                `json:"duration" bson:"duration"` // Seconds
 	Position  int                `json:"position" bson:"position"` // Seconds
 	UserID    primitive.ObjectID `json:"user" bson:"user"`

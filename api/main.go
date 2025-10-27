@@ -110,13 +110,10 @@ func main() {
 	r.GET("/hls/movie/:id/*asset", handlers.HLSMovieAsset)
 	r.GET("/hls/episode/:id/*asset", handlers.HLSEpisodeAsset)
 
-	// Ongoing Movies & Episodes
-	r.POST("/ongoing_movies", handlers.UpdateOnGoingMovie)
-	r.POST("/ongoing_episodes", handlers.UpdateOnGoingEpisode)
-	r.GET("/ongoing_movies/:id", handlers.GetOnGoingMovieByID)
-	r.GET("/ongoing_episodes/:id", handlers.GetOnGoingEpisodeByID)
-	r.DELETE("/ongoing_movies/:id", handlers.DeleteOnGoingMovie)
-	r.DELETE("/ongoing_episodes/:id", handlers.DeleteOnGoingEpisode)
+	// Ongoing Media (unified)
+	r.POST("/ongoing_media", handlers.UpdateOnGoingMedia)
+	r.GET("/ongoing_media/:id", handlers.GetOnGoingMediaByUserID)
+	r.DELETE("/ongoing_media/:id", handlers.DeleteOnGoingMedia)
 
 	// Jobs
 	r.GET("/jobs", handlers.GetJobs)

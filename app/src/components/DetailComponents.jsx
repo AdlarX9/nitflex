@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 // eslint-disable-next-line
 import { motion } from 'framer-motion'
 import { IoArrowBack, IoPlay } from 'react-icons/io5'
 import { cardVariant, chipVariant, staggerContainer } from './variants'
+import { useAPI, useMainContext } from '../app/hooks'
 
 // Back navigation button (consistent styling)
 export const BackButton = () => (
@@ -178,11 +179,23 @@ export const EpisodeCard = ({
 	layout = 'card', // 'card' | 'list'
 	index = 0
 }) => {
+	// Ongoing progress lookup must be declared before any return (hooks order)
+	const { user } = useMainContext()
+	const { data: ongoingMedia } = useAPI('GET', `/ongoing_media/${user?.id}`, {}, {}, !!user?.id)
+	const progress = useMemo(() => {
+		if (!ongoingMedia || !episode?.id) return 0
+		const it = ongoingMedia.find(i => i.type === 'episode' && i.episodeId === episode.id)
+		if (!it || !it.duration) return 0
+		const pct = (it.position / it.duration) * 100
+		return Math.max(0, Math.min(100, pct))
+	}, [ongoingMedia, episode?.id])
+
 	if (!episode) return null
 	const sNum = episode.seasonNumber ?? episode.season_number
 	const eNum = episode.episodeNumber ?? episode.episode_number
 	const title = episode.title || episode.name
 	const still = episode.stillPath || episode.still_path
+
 	const Wrapper = ({ children }) =>
 		available ? (
 			<Link to={`/viewer/episode/${episode.id}`} className='block'>
@@ -209,7 +222,7 @@ export const EpisodeCard = ({
 				whileInView='show'
 				custom={index}
 				viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-				className={`rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow ${available ? 'hover:shadow-red-500/10 transition' : 'opacity-95'}`}
+				className={`relative rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow ${available ? 'hover:shadow-red-500/10 transition' : 'opacity-95'}`}
 			>
 				<Wrapper>
 					<div className='flex gap-4 p-3 sm:p-4'>
@@ -240,6 +253,11 @@ export const EpisodeCard = ({
 						</div>
 					</div>
 				</Wrapper>
+				{progress > 0 && (
+					<div className='absolute bottom-0 left-0 right-0 h-1 bg-black/60'>
+						<div className='h-full bg-nitflex-red' style={{ width: `${progress}%` }} />
+					</div>
+				)}
 			</motion.div>
 		)
 	}
@@ -281,6 +299,11 @@ export const EpisodeCard = ({
 					)}
 				</div>
 			</Wrapper>
+			{progress > 0 && (
+				<div className='absolute bottom-0 left-0 right-0 h-1 bg-black/60'>
+					<div className='h-full bg-nitflex-red' style={{ width: `${progress}%` }} />
+				</div>
+			)}
 		</motion.div>
 	)
 }

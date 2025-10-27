@@ -318,7 +318,7 @@ const PersonDetails = () => {
 										href={`https://www.imdb.com/name/${external_ids.imdb_id}`}
 										target='_blank'
 										rel='noopener noreferrer'
-										className='px-3 py-1.5 rounded-full text-[10px] font-semibold bg-[#f5c518]/15 border border-[#f5c518]/40 text-[#f5c518] hover:bg-[#f5c518]/25 transition shadow-sm inline-flex items-center gap-1'
+										className='px-3 py-1.5 rounded-full text-sm font-semibold bg-[#f5c518]/15 border border-[#f5c518]/40 text-[#f5c518] hover:bg-[#f5c518]/25 transition shadow-sm inline-flex items-center gap-1'
 									>
 										<IoLinkOutline className='text-sm' />
 										IMDb
@@ -329,7 +329,7 @@ const PersonDetails = () => {
 										href={`https://facebook.com/${external_ids.facebook_id}`}
 										target='_blank'
 										rel='noopener noreferrer'
-										className='px-3 py-1.5 rounded-full text-[10px] font-semibold bg-[#1877f3]/15 border border-[#1877f3]/40 text-[#1877f3] hover:bg-[#1877f3]/25 transition shadow-sm inline-flex items-center gap-1'
+										className='px-3 py-1.5 rounded-full text-sm font-semibold bg-[#1877f3]/15 border border-[#1877f3]/40 text-[#1877f3] hover:bg-[#1877f3]/25 transition shadow-sm inline-flex items-center gap-1'
 									>
 										<IoLinkOutline className='text-sm' />
 										Facebook
@@ -340,7 +340,7 @@ const PersonDetails = () => {
 										href={`https://instagram.com/${external_ids.instagram_id}`}
 										target='_blank'
 										rel='noopener noreferrer'
-										className='px-3 py-1.5 rounded-full text-[10px] font-semibold bg-[#E4405F]/15 border border-[#E4405F]/40 text-[#E4405F] hover:bg-[#E4405F]/25 transition shadow-sm inline-flex items-center gap-1'
+										className='px-3 py-1.5 rounded-full text-sm font-semibold bg-[#E4405F]/15 border border-[#E4405F]/40 text-[#E4405F] hover:bg-[#E4405F]/25 transition shadow-sm inline-flex items-center gap-1'
 									>
 										<IoLinkOutline className='text-sm' />
 										Instagram
@@ -351,7 +351,7 @@ const PersonDetails = () => {
 										href={`https://twitter.com/${external_ids.twitter_id}`}
 										target='_blank'
 										rel='noopener noreferrer'
-										className='px-3 py-1.5 rounded-full text-[10px] font-semibold bg-[#1DA1F2]/15 border border-[#1DA1F2]/40 text-[#1DA1F2] hover:bg-[#1DA1F2]/25 transition shadow-sm inline-flex items-center gap-1'
+										className='px-3 py-1.5 rounded-full text-sm font-semibold bg-[#1DA1F2]/15 border border-[#1DA1F2]/40 text-[#1DA1F2] hover:bg-[#1DA1F2]/25 transition shadow-sm inline-flex items-center gap-1'
 									>
 										<IoLinkOutline className='text-sm' />
 										Twitter/X
@@ -416,8 +416,8 @@ const PersonDetails = () => {
 											>
 												<Link
 													to={
-														item.media_type === 'tv'
-															? `/tv/${item.id}`
+														item.first_air_date
+															? `/series/${item.id}`
 															: `/movie/${item.id}`
 													}
 													className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative focus:outline-none focus-visible:ring focus-visible:ring-red-500/60'

@@ -22,7 +22,7 @@ import {
 
 const SEEK_INTERVAL = 10
 const AUTO_HIDE_DELAY = 3000
-const SAVE_DEBOUNCE = 1200
+const SAVE_DEBOUNCE = 300
 const MIN_SAVE_DELTA = 5 // secondes
 
 const Viewer = () => {
@@ -53,6 +53,8 @@ const Viewer = () => {
 
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
+
+	const { data: onGoingMedias } = useAPI('GET', `/ongoing_media/${user.id}`)
 
 	// Extract data based on type
 	const prevEpisode = episodeData?.prevEpisode
@@ -86,8 +88,7 @@ const Viewer = () => {
 	const [subtitleTracks, setSubtitleTracks] = useState([]) // [{name, lang}]
 	const [subtitleTrack, setSubtitleTrack] = useState(-1) // -1 => off
 
-	const { triggerAsync: updateOnGoingMovie } = useAPIAfter('POST', '/ongoing_movies')
-	const { triggerAsync: updateOnGoingEpisode } = useAPIAfter('POST', '/ongoing_episodes')
+	const { triggerAsync: updateOnGoingMedia } = useAPIAfter('POST', '/ongoing_media')
 	const saveTimeoutRef = useRef(null)
 	const lastSavedTimeRef = useRef(0)
 	const savingRef = useRef(false)
@@ -123,6 +124,17 @@ const Viewer = () => {
 
 	const remaining = duration - currentTime
 
+	useEffect(() => {
+		const it = onGoingMedias?.find(
+			og => og?.episodeId === episodeID || og?.tmdbID === tmdbID
+		)
+		if (it) {
+			setCurrentTime(it?.position)
+			videoRef.current.currentTime = it?.position
+		}
+		// eslint-disable-next-line
+	}, [])
+
 	// Fullscreen enforce (safe)
 	useEffect(() => {
 		const el = wrapperRef.current
@@ -138,7 +150,8 @@ const Viewer = () => {
 				else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
 				else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
 				else if (el.msRequestFullscreen) el.msRequestFullscreen()
-			} catch (_) {}
+				// eslint-disable-next-line
+			} catch {}
 		}
 	}, [])
 
@@ -187,6 +200,7 @@ const Viewer = () => {
 		if (hlsRef.current) {
 			try {
 				hlsRef.current.destroy()
+				// eslint-disable-next-line
 			} catch {}
 			hlsRef.current = null
 		}
@@ -205,6 +219,7 @@ const Viewer = () => {
 					const end = video.buffered.end(video.buffered.length - 1)
 					setBufferedEnd(end)
 				}
+				// eslint-disable-next-line
 			} catch (e) {
 				// ignore
 			}
@@ -303,6 +318,7 @@ const Viewer = () => {
 							// fallback to progressive
 							try {
 								hls.destroy()
+								// eslint-disable-next-line
 							} catch {}
 							hlsRef.current = null
 							setIsHls(false)
@@ -312,6 +328,7 @@ const Viewer = () => {
 						} else {
 							try {
 								hls.destroy()
+								// eslint-disable-next-line
 							} catch {}
 							hlsRef.current = null
 							setIsHls(false)
@@ -348,6 +365,7 @@ const Viewer = () => {
 			if (hlsRef.current) {
 				try {
 					hlsRef.current.destroy()
+					// eslint-disable-next-line
 				} catch {}
 				hlsRef.current = null
 			}
@@ -361,7 +379,9 @@ const Viewer = () => {
 	}, [playbackRate])
 
 	const maybeScheduleSave = t => {
-		if (!movie || !user?.id || !storedMovie?.id) return
+		if (!user?.id) return
+		if (isEpisode && !episodeFewData?.id) return
+		if (!isEpisode && (!movie || !storedMovie?.id)) return
 		if (Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
 		if (savingRef.current) return
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
@@ -371,7 +391,9 @@ const Viewer = () => {
 	}
 
 	const saveProgressImmediate = t => {
-		if (!movie || !user?.id || !storedMovie?.id) return
+		if (!user?.id) return
+		if (isEpisode && !episodeFewData?.id) return
+		if (!isEpisode && (!movie || !storedMovie?.id)) return
 		if (savingRef.current) return
 		saveProgress(t, true)
 	}
@@ -383,7 +405,8 @@ const Viewer = () => {
 		if (isEpisode && episodeFewData?.id) {
 			// Save episode progress
 			savingRef.current = true
-			updateOnGoingEpisode({
+			updateOnGoingMedia({
+				type: 'episode',
 				tmdbID: episodeFewData.tmdbID,
 				duration: Math.floor(duration),
 				position: Math.floor(t),
@@ -401,7 +424,8 @@ const Viewer = () => {
 		} else if (!isEpisode && movie && storedMovie?.id) {
 			// Save movie progress
 			savingRef.current = true
-			updateOnGoingMovie({
+			updateOnGoingMedia({
+				type: 'movie',
 				tmdbID: parseInt(tmdbID),
 				duration: Math.floor(duration),
 				position: Math.floor(t),
@@ -430,7 +454,7 @@ const Viewer = () => {
 			if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
 		}
 		// eslint-disable-next-line
-	}, [movie, user?.id, storedMovie?.id])
+	}, [movie, user?.id, storedMovie?.id, isEpisode, episodeFewData])
 
 	// Keyboard shortcuts
 	useEffect(() => {

@@ -119,97 +119,101 @@ const NavBar = () => {
 				{displayNav && (
 					<motion.footer
 						key='nav'
-						className='pointer-events-auto fixed bottom-0 left-0 w-full flex justify-around
-              px-4 py-3 md:px-6
-              bg-[linear-gradient(145deg,rgba(16,18,22,0.82),rgba(28,30,34,0.7))]
-              backdrop-blur-xl border-t border-white/10
-              shadow-[0_-6px_30px_-8px_rgba(0,0,0,0.8)]
-              select-none'
+						className={`pointer-events-auto fixed bottom-0 left-0 right-${location.pathname === '/explorer' ? '4' : '0'} flex justify-center pl-4 pr-${location.pathname === '/explorer' ? '0' : '4'} py-3 md:pl-6 md:pr-${location.pathname === '/explorer' ? '2' : '6'} bg-[linear-gradient(145deg,rgba(16,18,22,0.82),rgba(28,30,34,0.7))] backdrop-blur-xl border-t border-white/10 shadow-[0_-6px_30px_-8px_rgba(0,0,0,0.8)] select-none`}
 						variants={navVariants}
 						initial='hidden'
 						animate='visible'
 						exit='exit'
 					>
-						{/* Animated gradient line background */}
-						<motion.div
-							aria-hidden
-							className='absolute inset-0 pointer-events-none'
-							style={{
-								background:
-									'linear-gradient(120deg,rgba(255,255,255,0.07),rgba(255,255,255,0) 30%,rgba(255,255,255,0) 70%,rgba(255,255,255,0.1))'
-							}}
-							animate={{
-								backgroundPosition: ['0% 0%', '120% 0%', '0% 0%']
-							}}
-							transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-						/>
+						<div className='flex items-center justify-around w-4/5'>
+							{/* Animated gradient line background */}
+							<motion.div
+								aria-hidden
+								className='absolute inset-0 pointer-events-none'
+								style={{
+									background:
+										'linear-gradient(120deg,rgba(255,255,255,0.07),rgba(255,255,255,0) 30%,rgba(255,255,255,0) 70%,rgba(255,255,255,0.1))'
+								}}
+								animate={{
+									backgroundPosition: ['0% 0%', '120% 0%', '0% 0%']
+								}}
+								transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+							/>
 
-						{items.map(
-							// eslint-disable-next-line
-							({ key, path, activeIcon: Active, inactiveIcon: Inactive, label }) => {
-								const isActive = pathname === key
-								return (
-									<motion.button
-										key={key}
-										onClick={() => navigate(path)}
-										className='relative flex flex-col items-center gap-1 px-2 py-1 md:px-3
+							{items.map(
+								({
+									key,
+									path,
+									// eslint-disable-next-line
+									activeIcon: Active,
+									// eslint-disable-next-line
+									inactiveIcon: Inactive,
+									label
+								}) => {
+									const isActive = pathname === key
+									return (
+										<motion.button
+											key={key}
+											onClick={() => navigate(path)}
+											className='relative flex flex-col items-center gap-1 px-2 py-1 md:px-3
                     rounded-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/40
                     cursor-pointer group transition-colors'
-										whileTap={{ scale: 0.9 }}
-										whileHover={{ y: -2 }}
-										aria-label={label}
-									>
-										{/* Active indicator halo */}
-										<AnimatePresence>
-											{isActive && (
-												<motion.span
-													key='halo'
-													className='absolute -inset-3 rounded-2xl bg-[radial-gradient(circle_at_50%_50%,rgba(229,9,20,0.25),transparent_70%)] opacity-80 pointer-events-none'
-													variants={indicatorVariants}
-													initial='initial'
-													animate='animate'
-													exit={{
-														opacity: 0,
-														scale: 0.5,
-														transition: { duration: 0.25 }
-													}}
-												/>
-											)}
-										</AnimatePresence>
+											whileTap={{ scale: 0.9 }}
+											whileHover={{ y: -2 }}
+											aria-label={label}
+										>
+											{/* Active indicator halo */}
+											<AnimatePresence>
+												{isActive && (
+													<motion.span
+														key='halo'
+														className='absolute -inset-3 rounded-2xl bg-[radial-gradient(circle_at_50%_50%,rgba(229,9,20,0.25),transparent_70%)] opacity-80 pointer-events-none'
+														variants={indicatorVariants}
+														initial='initial'
+														animate='animate'
+														exit={{
+															opacity: 0,
+															scale: 0.5,
+															transition: { duration: 0.25 }
+														}}
+													/>
+												)}
+											</AnimatePresence>
 
-										<motion.span
-											className='relative z-10 flex items-center justify-center'
-											animate={{
-												scale: isActive ? 1.18 : 1,
-												rotate: isActive ? 0 : 0
-											}}
-											transition={{
-												type: 'spring',
-												stiffness: 340,
-												damping: 22
-											}}
-										>
-											{isActive ? (
-												<Active
-													style={{
-														color: activeColor,
-														filter: 'drop-shadow(0 0 6px rgba(229,9,20,0.5))'
-													}}
-													className='text-[1.9rem] md:text-[2.15rem]'
-												/>
-											) : (
-												<Inactive className='text-[1.9rem] md:text-[2.15rem] text-gray-300 group-hover:text-gray-100 transition-colors' />
-											)}
-										</motion.span>
-										<span
-											className={`relative z-10 text-[0.65rem] md:text-[0.75rem] font-medium tracking-wide ${isActive ? 'text-red-400 drop-shadow-[0_0_6px_rgba(229,9,20,0.45)]' : 'text-gray-400 group-hover:text-gray-300'} transition-colors`}
-										>
-											{label}
-										</span>
-									</motion.button>
-								)
-							}
-						)}
+											<motion.span
+												className='relative z-10 flex items-center justify-center'
+												animate={{
+													scale: isActive ? 1.18 : 1,
+													rotate: isActive ? 0 : 0
+												}}
+												transition={{
+													type: 'spring',
+													stiffness: 340,
+													damping: 22
+												}}
+											>
+												{isActive ? (
+													<Active
+														style={{
+															color: activeColor,
+															filter: 'drop-shadow(0 0 6px rgba(229,9,20,0.5))'
+														}}
+														className='text-[1.9rem] md:text-[2.15rem]'
+													/>
+												) : (
+													<Inactive className='text-[1.9rem] md:text-[2.15rem] text-gray-300 group-hover:text-gray-100 transition-colors' />
+												)}
+											</motion.span>
+											<span
+												className={`relative z-10 text-[0.65rem] md:text-[0.75rem] font-medium tracking-wide ${isActive ? 'text-red-400 drop-shadow-[0_0_6px_rgba(229,9,20,0.45)]' : 'text-gray-400 group-hover:text-gray-300'} transition-colors`}
+											>
+												{label}
+											</span>
+										</motion.button>
+									)
+								}
+							)}
+						</div>
 					</motion.footer>
 				)}
 			</AnimatePresence>

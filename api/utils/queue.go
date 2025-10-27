@@ -280,7 +280,7 @@ func (q *Queue) worker(id int) {
 	}
 }
 
-// processJob processes a single job
+// processJob processes a single job => Progression simulée pouette pouette cacahuète chatgpt :|
 func (q *Queue) processJob(jobID primitive.ObjectID) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -312,14 +312,6 @@ func (q *Queue) processJob(jobID primitive.ObjectID) {
 	transcodeMode, _ := job["transcodeMode"].(string)
 
 	if transcodeMode == "none" {
-		q.updateJobStage(ctx, jobID, StageTagging, 50)
-		time.Sleep(500 * time.Millisecond) // Placeholder tagging
-		q.updateJobStage(ctx, jobID, StageMoving, 85)
-		if _, err := q.moveToFinal(ctx, job); err != nil {
-			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
-			q.updateJobStage(ctx, jobID, StageFailed, 0)
-			return
-		}
 		q.updateJobStage(ctx, jobID, StageCompleted, 100)
 	} else if transcodeMode == "server" {
 		// Server-side transcoding (placeholder)

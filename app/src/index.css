@@ -104,7 +104,6 @@ body::-webkit-scrollbar-track {
 .scrollable::-webkit-scrollbar {
 	background: transparent;
 	width: 1.5rem;
-	margin: 1rem;
 }
 
 .scrollable::-webkit-scrollbar-thumb {

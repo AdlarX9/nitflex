@@ -45,13 +45,11 @@ const Account = () => {
 			if (res) {
 				deleteAccount({ id: user.id }).then(res => {
 					if (res?.error) {
-						console.log('error', res.error)
+						console.error('error', res.error)
 					} else {
 						setUser({})
 					}
 				})
-			} else {
-				console.log('no')
 			}
 		})
 	}

@@ -82,7 +82,8 @@ export const useAPIAfter = (method, endpoint) => {
 	const mutation = useMutation({
 		mutationKey: [method, endpoint],
 		mutationFn: ({ body, params, newEndpoint }) =>
-			axiosAPI(method, newEndpoint || endpoint, body, params)
+			axiosAPI(method, newEndpoint || endpoint, body, params),
+		retry: 0
 	})
 
 	const trigger = (body = {}, params = {}, newEndpoint = null) => {
