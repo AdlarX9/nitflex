@@ -2,29 +2,50 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig, globalIgnores } from 'eslint/config'
 
-export default defineConfig([
-	globalIgnores(['dist']),
+export default [
+	// Chemins ignorés globalement
+	{ ignores: ['dist', 'build', 'node_modules'] },
+
+	// Preset base ESLint (flat)
+	js.configs.recommended,
+
+	// Bloc projet
 	{
 		files: ['**/*.{js,jsx}'],
-		extends: [
-			js.configs.recommended,
-			reactHooks.configs['recommended-latest'],
-			reactRefresh.configs.vite
-		],
 		languageOptions: {
-			ecmaVersion: 2020,
-			globals: globals.browser,
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			globals: {
+				...globals.browser,
+				...globals.node
+			},
+			// IMPORTANT: ecmaFeatures doit être sous parserOptions en flat config
 			parserOptions: {
 				ecmaVersion: 'latest',
-				ecmaFeatures: { jsx: true },
-				sourceType: 'module'
+				sourceType: 'module',
+				ecmaFeatures: { jsx: true }
 			}
 		},
+		// En flat config, plugins est un objet
+		plugins: {
+			'react-hooks': reactHooks,
+			'react-refresh': reactRefresh
+		},
+		// Règles explicites (évite les presets legacy)
 		rules: {
-			'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-			'react-hooks/set-state-in-effect': 'error'
+			// React Hooks (équivalent du preset recommandé)
+			'react-hooks/rules-of-hooks': 'error',
+			'react-hooks/exhaustive-deps': 'warn',
+
+			// React Refresh (équivalent recommandé/vite)
+			'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+
+			// Tes règles
+			'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }]
+
+			// Note: la règle "react-hooks/set-state-in-effect" n'existe pas
+			// dans eslint-plugin-react-hooks officiel. Ne l’active pas ici.
 		}
 	}
-])
+]

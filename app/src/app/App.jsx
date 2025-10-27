@@ -13,6 +13,7 @@ import Confirmation from '../components/Confirmation.jsx'
 import MovieDetails from '../pages/MovieDetails.jsx'
 import SerieDetails from '../pages/SerieDetails.jsx'
 import PersonDetails from '../pages/PersonDetails.jsx'
+import TranscodeJobs from '../components/TranscodeJobs.jsx'
 
 const queryClient = new QueryClient()
 
@@ -23,6 +24,7 @@ const App = () => {
 				<MainProvider>
 					<NavBar />
 					<Confirmation />
+					<TranscodeJobs />
 					<Routes>
 						<Route path='/' element={<Home />} />
 						<Route path='/upload' element={<MediaUploader />} />

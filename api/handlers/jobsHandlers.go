@@ -3,6 +3,8 @@ package handlers
 import (
 	"api/utils"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -74,38 +76,52 @@ func CancelJob(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Job canceled"})
 }
 
-// GET /jobs/stream - SSE endpoint for real-time job updates
+// GET /jobs/stream - SSE endpoint
 func StreamJobs(c *gin.Context) {
-	// Set SSE headers
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
+	// Headers SSE
+	c.Header("Content-Type", "text/event-stream; charset=utf-8")
+	c.Header("Cache-Control", "no-cache, no-transform")
 	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("X-Accel-Buffering", "no")
+	// CORS est géré globalement par le middleware cors.Default() dans main.go.
+	// Ne pas redéfinir Access-Control-Allow-Origin ici pour éviter les doublons invalides.
 
-	// Subscribe to job updates
+	// Souscription
 	updateChan := utils.SubscribeJobUpdates()
 	defer utils.UnsubscribeJobUpdates(updateChan)
 
-	// Send initial connection message
-	c.SSEvent("connected", gin.H{"message": "Connected to job stream"})
-	c.Writer.Flush()
+	// 200 OK + initial flush
+	c.Status(http.StatusOK)
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		// Client does not support streaming
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	// Send an initial comment to trigger onopen immediately
+	fmt.Fprint(c.Writer, ": init\n\n")
+	flusher.Flush()
 
-	// Stream updates
-	ticker := time.NewTicker(30 * time.Second)
+	// Keepalive ticker
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return
-		case update := <-updateChan:
-			// Send update to client
-			c.SSEvent("job-update", update)
-			c.Writer.Flush()
+		case update, ok := <-updateChan:
+			if !ok {
+				return
+			}
+			b, _ := json.Marshal(update)
+			fmt.Fprint(c.Writer, "event: job-update\n")
+			fmt.Fprintf(c.Writer, "data: %s\n\n", string(b))
+			flusher.Flush()
 		case <-ticker.C:
-			// Send keepalive
-			c.SSEvent("keepalive", gin.H{"time": time.Now().Unix()})
-			c.Writer.Flush()
+			// SSE comment keepalive to keep the connection hot
+			fmt.Fprint(c.Writer, ": keepalive\n\n")
+			flusher.Flush()
 		}
 	}
 }

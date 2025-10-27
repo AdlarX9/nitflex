@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-	IoClose,
 	IoCheckmarkCircle,
 	IoAlertCircle,
 	IoStopCircle,
@@ -10,6 +9,7 @@ import {
 	IoChevronUp
 } from 'react-icons/io5'
 import axios from 'axios'
+import { useLocation } from 'react-router-dom'
 
 const STAGE_LABELS = {
 	queued: 'En attente',
@@ -34,6 +34,7 @@ const STAGE_COLORS = {
 const TranscodeJobs = () => {
 	const [jobs, setJobs] = useState([])
 	const [isCollapsed, setIsCollapsed] = useState(false)
+	const location = useLocation()
 
 	const fetchJobs = async () => {
 		try {
@@ -49,56 +50,38 @@ const TranscodeJobs = () => {
 		}
 	}
 
-	const updateJob = update => {
-		setJobs(prevJobs => {
-			const existingIndex = prevJobs.findIndex(j => j.id === update.JobID)
-			if (existingIndex >= 0) {
-				const updated = [...prevJobs]
-				updated[existingIndex] = {
-					...updated[existingIndex],
-					stage: update.Stage,
-					progress: update.Progress,
-					eta: update.ETA,
-					errorMessage: update.Error
-				}
-
-				// Remove if completed/failed/canceled
-				if (['completed', 'failed', 'canceled'].includes(update.Stage)) {
-					setTimeout(() => {
-						setJobs(prev => prev.filter(j => j.id !== update.JobID))
-					}, 3000)
-				}
-
-				return updated
+	const ensureJobLoaded = async jobID => {
+		try {
+			const { data } = await axios.get(`${import.meta.env.VITE_API}/jobs/${jobID}`)
+			if (!['completed', 'failed', 'canceled'].includes(data.stage)) {
+				setJobs(prev => (prev.some(j => j.id === data.id) ? prev : [...prev, data]))
 			}
-			return prevJobs
-		})
+		} catch {
+			// ignore if not found
+		}
 	}
 
-	useEffect(() => {
-		// Fetch initial jobs
-		fetchJobs()
-
-		// Connect to SSE for real-time updates
-		const eventSource = new EventSource(`${import.meta.env.VITE_API}/jobs/stream`)
-
-		eventSource.addEventListener('job-update', e => {
-			const update = JSON.parse(e.data)
-			updateJob(update)
+	const applyUpdate = update => {
+		setJobs(prevJobs => {
+			const idx = prevJobs.findIndex(j => j.id === update.JobID)
+			if (idx === -1) return prevJobs
+			const updated = [...prevJobs]
+			updated[idx] = {
+				...updated[idx],
+				stage: update.Stage ?? updated[idx].stage,
+				progress:
+					typeof update.Progress === 'number' ? update.Progress : updated[idx].progress,
+				eta: typeof update.ETA === 'number' ? update.ETA : updated[idx].eta,
+				errorMessage: update.Error ?? updated[idx].errorMessage
+			}
+			if (['completed', 'failed', 'canceled'].includes(updated[idx].stage)) {
+				setTimeout(() => {
+					setJobs(prev => prev.filter(j => j.id !== update.JobID))
+				}, 3000)
+			}
+			return updated
 		})
-
-		eventSource.addEventListener('connected', () => {
-			console.log('Connected to job stream')
-		})
-
-		eventSource.onerror = () => {
-			console.error('SSE connection error')
-		}
-
-		return () => {
-			eventSource.close()
-		}
-	}, [])
+	}
 
 	const cancelJob = async jobID => {
 		try {
@@ -108,15 +91,57 @@ const TranscodeJobs = () => {
 		}
 	}
 
+	useEffect(() => {
+		// Fetch initial jobs
+		fetchJobs()
+
+		let es
+		let reconnectTimer
+		const connect = () => {
+			// Connect to SSE for real-time updates
+			es = new EventSource('/jobs/stream')
+			// Standard EventSource open event (fires when connected)
+			es.onopen = () => {
+				if (reconnectTimer) {
+					clearTimeout(reconnectTimer)
+					reconnectTimer = null
+				}
+			}
+			es.addEventListener('job-update', async e => {
+				const update = JSON.parse(e.data)
+				await ensureJobLoaded(update.JobID)
+				applyUpdate(update)
+			})
+			es.addEventListener('connected', () => {
+				// reset any pending reconnect
+				if (reconnectTimer) {
+					clearTimeout(reconnectTimer)
+					reconnectTimer = null
+				}
+			})
+			es.onerror = () => {
+				es && es.close()
+				reconnectTimer = setTimeout(connect, 3000)
+			}
+		}
+		connect()
+		return () => {
+			reconnectTimer && clearTimeout(reconnectTimer)
+			es && es.close()
+		}
+	}, [])
+
 	const activeJobs = jobs.filter(j => !['completed', 'failed', 'canceled'].includes(j.stage))
 
-	if (activeJobs.length === 0) return null
+	if (activeJobs.length === 0 || (location.pathname !== '/' && location.pathname !== '/upload'))
+		return null
 
 	return (
 		<motion.div
 			initial={{ opacity: 0, x: -20 }}
 			animate={{ opacity: 1, x: 0 }}
-			className='fixed top-5 left-4 z-50 w-96 max-w-[calc(100vw-2rem)]'
+			style={{ y: location.pathname === '/' ? '1rem' : '5rem' }}
+			className='fixed transition-all ease-in-out left-4 z-50 w-96 max-w-[calc(100vw-2rem)]'
 		>
 			<div className='bg-gray-900/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden'>
 				{/* Header */}

@@ -68,7 +68,13 @@ func main() {
 	}()
 
 	r := gin.Default()
-	r.Use(cors.Default())
+	corsCfg := cors.Config{
+		AllowAllOrigins: true,
+		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Last-Event-ID"},
+		ExposeHeaders:   []string{"Content-Type"},
+	}
+	r.Use(cors.New(corsCfg))
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -114,10 +120,10 @@ func main() {
 
 	// Jobs
 	r.GET("/jobs", handlers.GetJobs)
+	// SSE must be declared BEFORE the dynamic :id route to avoid conflicts
+	r.GET("/jobs/stream", handlers.StreamJobs)
 	r.GET("/jobs/:id", handlers.GetJobByID)
 	r.POST("/jobs/:id/cancel", handlers.CancelJob)
-	// SSE
-	r.GET("/jobs/stream", handlers.StreamJobs)
 
 	log.Println("Server starting on :8080")
 	r.Run(":8080")

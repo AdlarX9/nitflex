@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+// eslint-disable-next-line
+import { motion } from 'framer-motion'
 import { IoBugOutline, IoSearch, IoCloseCircleOutline } from 'react-icons/io5'
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_KEY
@@ -15,6 +17,7 @@ const MovieSearch = ({ onSelect }) => {
 	const [results, setResults] = useState([])
 	const [loading, setLoading] = useState(false)
 	const [focused, setFocused] = useState(false)
+	const [selectedMovie, setSelectedMovie] = useState(null)
 	const fetchTimeout = useRef()
 	const errorRef = useRef('')
 
@@ -63,49 +66,82 @@ const MovieSearch = ({ onSelect }) => {
 	return (
 		<div className='relative w-full font-sans'>
 			{/* Search wrapper */}
-			<div
-				className={`relative group rounded-xl overflow-hidden border 
+			{!selectedMovie ? (
+				<div
+					className={`relative group rounded-xl overflow-hidden border 
 					${focused ? 'border-red-500/70 shadow-[0_0_0_3px_rgba(229,9,20,0.25)]' : 'border-white/10'} 
 					bg-[linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] 
 					backdrop-blur-md transition-all`}
-			>
-				{/* Icone gauche */}
-				<div className='absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none'>
-					<IoSearch className='text-gray-400 text-xl' />
+				>
+					{/* Icone gauche */}
+					<div className='absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none'>
+						<IoSearch className='text-gray-400 text-xl' />
+					</div>
+
+					<input
+						id='movie-search'
+						type='text'
+						autoComplete='off'
+						value={query}
+						onChange={e => setQuery(e.target.value)}
+						onFocus={() => setFocused(true)}
+						onBlur={() => setTimeout(() => setFocused(false), 150)}
+						placeholder='Rechercher un film...'
+						className='w-full pl-14 pr-12 py-4 bg-transparent text-gray-100 placeholder:text-gray-500 text-lg leading-none outline-none'
+					/>
+
+					{/* Clear button */}
+					{query && (
+						<button
+							type='button'
+							onClick={clearQuery}
+							className='absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-200 transition'
+							title='Effacer'
+							tabIndex={0}
+						>
+							<IoCloseCircleOutline size={22} />
+						</button>
+					)}
+
+					{/* Loader bar (top) */}
+					<div
+						className={`absolute top-0 left-0 h-[3px] bg-linear-to-r from-red-500 via-red-400 to-red-600 transition-all duration-500 ${
+							loading ? 'w-full opacity-100' : 'w-0 opacity-0'
+						}`}
+					/>
 				</div>
-
-				<input
-					id='movie-search'
-					type='text'
-					autoComplete='off'
-					value={query}
-					onChange={e => setQuery(e.target.value)}
-					onFocus={() => setFocused(true)}
-					onBlur={() => setTimeout(() => setFocused(false), 150)}
-					placeholder='Rechercher un film...'
-					className='w-full pl-14 pr-12 py-4 bg-transparent text-gray-100 placeholder:text-gray-500 text-lg leading-none outline-none'
-				/>
-
-				{/* Clear button */}
-				{query && (
+			) : (
+				<motion.div
+					initial={{ opacity: 0, y: -10 }}
+					animate={{ opacity: 1, y: 0 }}
+					className='mt-4 p-4 rounded-xl bg-linear-to-r from-red-500/20 to-red-700/20 border border-red-500/30 flex items-center gap-4'
+				>
+					{selectedMovie.poster && (
+						<img
+							src={selectedMovie.poster}
+							alt={selectedMovie.title}
+							className='w-20 h-30 rounded object-cover'
+						/>
+					)}
+					<div className='flex-1'>
+						<h3 className='text-lg font-semibold text-white'>{selectedMovie.title}</h3>
+						<p className='text-sm text-gray-300'>
+							{selectedMovie.release_date
+								? new Date(selectedMovie.release_date).getFullYear()
+								: 'N/A'}
+						</p>
+					</div>
 					<button
-						type='button'
-						onClick={clearQuery}
-						className='absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-200 transition'
-						title='Effacer'
-						tabIndex={0}
+						onClick={() => {
+							setSelectedMovie(null)
+							onSelect?.(null)
+						}}
+						className='px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white transition text-2xl'
 					>
-						<IoCloseCircleOutline size={22} />
+						Changer
 					</button>
-				)}
-
-				{/* Loader bar (top) */}
-				<div
-					className={`absolute top-0 left-0 h-[3px] bg-linear-to-r from-red-500 via-red-400 to-red-600 transition-all duration-500 ${
-						loading ? 'w-full opacity-100' : 'w-0 opacity-0'
-					}`}
-				/>
-			</div>
+				</motion.div>
+			)}
 
 			{/* Dropdown results */}
 			<div className='relative'>
@@ -125,6 +161,7 @@ const MovieSearch = ({ onSelect }) => {
 										setQuery(movie.title)
 										setFocused(false)
 										setResults([])
+										setSelectedMovie(movie)
 										if (onSelect) onSelect(movie)
 									}}
 								>

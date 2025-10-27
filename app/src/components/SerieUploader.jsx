@@ -3,6 +3,7 @@ import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 import fr_FR from '@uppy/locales/lib/fr_FR.js'
 import { Dashboard } from '@uppy/react'
+// eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 import '../../node_modules/@uppy/core/dist/style.css'
 import '../../node_modules/@uppy/dashboard/dist/style.css'
@@ -52,7 +53,6 @@ const SerieUploader = ({
 
 	// Series state
 	const [selectedSeries, setSelectedSeries] = useState(null)
-	const [seriesID] = useState(null)
 	const [seriesFolderName, setSeriesFolderName] = useState('')
 	const [uppyFiles, setUppyFiles] = useState([])
 	const [seriesFilesMap, setSeriesFilesMap] = useState({}) // {fileId: {season:'', episode:''}}
@@ -199,10 +199,10 @@ const SerieUploader = ({
 												key={f.id}
 												className='flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 border border-white/10'
 											>
-												<div className='w-8 text-sm text-gray-400'>
+												<div className='pl-3 w-8 text-lg text-gray-400'>
 													{idx + 1}
 												</div>
-												<div className='flex-1 truncate'>{f.name}</div>
+												<div className='flex-1 truncate text-xl'>{f.name}</div>
 												<div className='flex items-center gap-2'>
 													<input
 														type='number'

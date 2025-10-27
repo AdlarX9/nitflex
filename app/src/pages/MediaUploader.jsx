@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+// eslint-disable-next-line
 import { motion, useReducedMotion } from 'framer-motion'
 import { Back } from '../components/NavBar'
 import MovieUploader from '../components/MovieUploader'
@@ -68,7 +69,7 @@ const MediaUploader = () => {
 
 	return (
 		<motion.div
-			className={`w-screen h-dvh flex justify-center ${hasSelection && 'items-center'} scrollable relative`}
+			className={`w-full min-h-dvh flex justify-center ${hasSelection && 'items-center'} scrollable relative`}
 			variants={containerVariants}
 			initial='hidden'
 			animate='visible'
@@ -113,7 +114,7 @@ const MediaUploader = () => {
 				/>
 			</motion.div>
 
-			<div className='flex items-center flex-col gap-8 w-full max-w-[860px] px-6 pb-20'>
+			<div className='flex items-center flex-col gap-8 w-full max-w-[860px] px-6 pb-20 mt-10'>
 				<motion.h1
 					className={`text-[2.8rem] md:text-[3.6rem] font-extrabold tracking-tight text-center bg-linear-to-r from-red-500 via-red-400 to-red-700 bg-clip-text text-transparent ${!hasSelection && 'mt-[10vh]'}`}
 					variants={titleVariants}

@@ -6,7 +6,6 @@ import Loader from '../components/Loader'
 import PopUp from '../components/PopUp'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import TranscodeJobs from '../components/TranscodeJobs'
 import { IoCloudUploadOutline, IoPersonCircle } from 'react-icons/io5'
 // eslint-disable-next-line
 import { motion } from 'framer-motion'
@@ -84,7 +83,6 @@ const Accounts = () => {
 			transition={{ duration: 0.5, delay: 0.3 }}
 			className='flex gap-6 mt-8 flex-wrap justify-center items-start max-w-4xl'
 		>
-			<TranscodeJobs />
 			{data && data.map((user, idx) => <Account key={user.id} user={user} index={idx} />)}
 			{isPending ? (
 				<Loader />

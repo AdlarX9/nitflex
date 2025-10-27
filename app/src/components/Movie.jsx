@@ -101,7 +101,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 						decoding='async'
 						className={`absolute inset-0 w-full h-full object-cover ${
 							backdropVersion ? 'will-change-transform' : ''
-						} group-hover:scale-[1.025] transition duration-1100ms ease-[cubic-bezier(.16,1,.3,1)]`}
+						} group-hover:scale-[1.025] transition duration-1100 ease-[cubic-bezier(.16,1,.3,1)]`}
 						src={imgSrc}
 						alt={movie?.title || 'Affiche'}
 						onLoad={handleImgLoad}

@@ -8,7 +8,15 @@ export default defineConfig({
 	server: {
 		host: true,
 		port: 5173,
-		strictPort: true
+		strictPort: true,
+		proxy: {
+			// Toutes les requêtes commençant par /api vont vers le backend
+			'/jobs': {
+				target: 'http://api:8080', // nom du service Docker (même réseau)
+				changeOrigin: true,
+				// rewrite: path => path.replace(/^\/jobs/, '')
+			}
+		}
 	},
 	build: {
 		outDir: 'dist',

@@ -51,15 +51,15 @@ const SeriesSearch = ({ onSelect }) => {
 
 	return (
 		<div className='relative'>
-			<input
-				type='text'
-				value={query}
-				onChange={e => setQuery(e.target.value)}
-				placeholder='Rechercher une série (The Office, Breaking Bad...)'
-				className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium placeholder:text-gray-500 transition'
-			/>
-
-			{selectedSeries && (
+			{!selectedSeries ? (
+				<input
+					type='text'
+					value={query}
+					onChange={e => setQuery(e.target.value)}
+					placeholder='Rechercher une série (The Office, Breaking Bad...)'
+					className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg font-medium placeholder:text-gray-500 transition'
+				/>
+			) : (
 				<motion.div
 					initial={{ opacity: 0, y: -10 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -69,7 +69,7 @@ const SeriesSearch = ({ onSelect }) => {
 						<img
 							src={`https://image.tmdb.org/t/p/w92${selectedSeries.poster_path}`}
 							alt={selectedSeries.name}
-							className='w-12 h-18 rounded object-cover'
+							className='w-20 h-30 rounded object-cover'
 						/>
 					)}
 					<div className='flex-1'>
@@ -85,7 +85,7 @@ const SeriesSearch = ({ onSelect }) => {
 							setSelectedSeries(null)
 							onSelect(null)
 						}}
-						className='px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white transition'
+						className='px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white transition text-2xl'
 					>
 						Changer
 					</button>

@@ -10,17 +10,19 @@ services:
         environment:
             MONGO_INITDB_DATABASE: nitflex
         ports:
-            - "27017:27017"
+            - '27017:27017'
         volumes:
             - mongodb_dev_data:/data/db
         networks:
             - nitflex-network
         healthcheck:
-            test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+            test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
             interval: 10s
             timeout: 5s
             retries: 5
             start_period: 10s
+        logging:
+            driver: 'none'
 
     # Go API in dev mode with hot reload
     api:
@@ -34,14 +36,15 @@ services:
             - PORT=8080
             - GIN_MODE=debug
         ports:
-            - "8080:8080"
+            - '8080:8080'
         volumes:
             - ./api:/app
         networks:
             - nitflex-network
-        command: ["air", "-c", ".air.toml"]
+        command: ['air', '-c', '.air.toml']
         healthcheck:
-            test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+            test:
+                ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8080/health']
             interval: 10s
             timeout: 5s
             retries: 5
@@ -57,13 +60,13 @@ services:
         environment:
             - VITE_API=http://localhost:8080
         ports:
-            - "5173:5173"
+            - '5173:5173'
         volumes:
             - ./app:/app
             - /app/node_modules
         networks:
             - nitflex-network
-        command: ["pnpm", "run", "dev", "--host"]
+        command: ['pnpm', 'run', 'dev', '--host']
 
 volumes:
     mongodb_dev_data:

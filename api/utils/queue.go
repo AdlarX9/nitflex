@@ -231,7 +231,7 @@ func (q *Queue) Subscribe() chan JobUpdate {
 	q.listenersMutex.Lock()
 	defer q.listenersMutex.Unlock()
 
-	ch := make(chan JobUpdate, 10)
+	ch := make(chan JobUpdate, 256)
 	q.updateListeners = append(q.updateListeners, ch)
 	return ch
 }
