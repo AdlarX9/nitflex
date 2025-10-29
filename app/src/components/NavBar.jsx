@@ -155,9 +155,7 @@ const NavBar = () => {
 										<motion.button
 											key={key}
 											onClick={() => navigate(path)}
-											className='relative flex flex-col items-center gap-1 px-2 py-1 md:px-3
-                    rounded-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-red-600/40
-                    cursor-pointer group transition-colors'
+											className='relative flex flex-col items-center gap-1 px-2 py-1 md:px-3 rounded-xl focus:outline-none focus-visible:ring-4 cursor-pointer group transition-colors'
 											whileTap={{ scale: 0.9 }}
 											whileHover={{ y: -2 }}
 											aria-label={label}

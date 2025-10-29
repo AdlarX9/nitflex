@@ -108,20 +108,20 @@ func StreamJobs(c *gin.Context) {
 
 	for {
 		select {
-		case <-c.Request.Context().Done():
-			return
-		case update, ok := <-updateChan:
-			if !ok {
+			case <-c.Request.Context().Done():
 				return
-			}
-			b, _ := json.Marshal(update)
-			fmt.Fprint(c.Writer, "event: job-update\n")
-			fmt.Fprintf(c.Writer, "data: %s\n\n", string(b))
-			flusher.Flush()
-		case <-ticker.C:
-			// SSE comment keepalive to keep the connection hot
-			fmt.Fprint(c.Writer, ": keepalive\n\n")
-			flusher.Flush()
+			case update, ok := <-updateChan:
+				if !ok {
+					return
+				}
+				b, _ := json.Marshal(update)
+				fmt.Fprint(c.Writer, "event: job-update\n")
+				fmt.Fprintf(c.Writer, "data: %s\n\n", string(b))
+				flusher.Flush()
+			case <-ticker.C:
+				// SSE comment keepalive to keep the connection hot
+				fmt.Fprint(c.Writer, ": keepalive\n\n")
+				flusher.Flush()
 		}
 	}
 }

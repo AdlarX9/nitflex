@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+	import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Hls from 'hls.js'
 import { AnimatePresence } from 'framer-motion'
@@ -24,6 +24,7 @@ const SEEK_INTERVAL = 10
 const AUTO_HIDE_DELAY = 3000
 const SAVE_DEBOUNCE = 300
 const MIN_SAVE_DELTA = 5 // secondes
+const AUTONEXT_SECONDS = 5
 
 const Viewer = () => {
 	const { tmdbID, episodeID } = useParams()
@@ -54,14 +55,75 @@ const Viewer = () => {
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
 
-	const { data: onGoingMedias } = useAPI('GET', `/ongoing_media/${user.id}`)
-
-	// Extract data based on type
+	// Extract data based on type (placed early to avoid TDZ in hooks that depend on them)
 	const prevEpisode = episodeData?.prevEpisode
 	const nextEpisode = episodeData?.nextEpisode
 	const isPending = isEpisode ? episodePending : moviePending
 	const isError = isEpisode ? episodeError : movieError
 	const error = movieFetchError
+
+	// Chapters for end-credits detection (backend ffprobe)
+	const { data: episodeChapters } = useAPI(
+		'GET',
+		`/video/episode/${episodeID}/chapters`,
+		{},
+		{},
+		!!episodeID
+	)
+	const { data: movieChapters } = useAPI(
+		'GET',
+		`/video/${tmdbID}/chapters`,
+		{},
+		{},
+		!!tmdbID && !isEpisode
+	)
+	const creditsStart = useMemo(() => {
+		const arr = isEpisode ? episodeChapters?.chapters : movieChapters?.chapters
+		if (!Array.isArray(arr) || arr.length <= 2) return null
+		const last = arr[arr.length - 1]
+		const start = parseFloat(last?.start || 0)
+		return Number.isFinite(start) ? start : null
+	}, [isEpisode, episodeChapters, movieChapters])
+
+	// Auto-next overlay state
+	const [autoNextVisible, setAutoNextVisible] = useState(false)
+	const [autoNextCountdown, setAutoNextCountdown] = useState(AUTONEXT_SECONDS)
+	const autoNextTimerRef = useRef(null)
+
+	const performAutoAction = useCallback(() => {
+		if (isEpisode && nextEpisode?.id) {
+			navigate(`/viewer/episode/${nextEpisode.id}`)
+			return
+		}
+		navigate(-1)
+	}, [isEpisode, nextEpisode, navigate])
+
+	const startAutoNext = useCallback(() => {
+		if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current)
+		setAutoNextVisible(true)
+		setAutoNextCountdown(AUTONEXT_SECONDS)
+		autoNextTimerRef.current = setInterval(() => {
+			setAutoNextCountdown(prev => {
+				if (prev <= 1) {
+					clearInterval(autoNextTimerRef.current)
+					autoNextTimerRef.current = null
+					performAutoAction()
+					return 0
+				}
+				return prev - 1
+			})
+		}, 1000)
+	}, [performAutoAction])
+
+	// Clear countdown on unmount
+	useEffect(() => {
+		return () => {
+			if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current)
+		}
+	}, [])
+
+	const { data: onGoingMedias } = useAPI('GET', `/ongoing_media/${user.id}`)
+
 
 	const videoRef = useRef(null)
 	const wrapperRef = useRef(null)
@@ -87,6 +149,11 @@ const Viewer = () => {
 	const [audioTrack, setAudioTrack] = useState(-1)
 	const [subtitleTracks, setSubtitleTracks] = useState([]) // [{name, lang}]
 	const [subtitleTrack, setSubtitleTrack] = useState(-1) // -1 => off
+
+	useEffect(() => {
+		if (!creditsStart || autoNextVisible || !duration) return
+		if (currentTime >= creditsStart) startAutoNext()
+	}, [currentTime, creditsStart, duration, autoNextVisible, startAutoNext])
 
 	const { triggerAsync: updateOnGoingMedia } = useAPIAfter('POST', '/ongoing_media')
 	const saveTimeoutRef = useRef(null)
@@ -125,9 +192,7 @@ const Viewer = () => {
 	const remaining = duration - currentTime
 
 	useEffect(() => {
-		const it = onGoingMedias?.find(
-			og => og?.episodeId === episodeID || og?.tmdbID === tmdbID
-		)
+		const it = onGoingMedias?.find(og => og?.episodeId === episodeID || og?.tmdbID === tmdbID)
 		if (it) {
 			setCurrentTime(it?.position)
 			videoRef.current.currentTime = it?.position
@@ -200,8 +265,9 @@ const Viewer = () => {
 		if (hlsRef.current) {
 			try {
 				hlsRef.current.destroy()
-				// eslint-disable-next-line
-			} catch {}
+			} catch (err) {
+				console.error('Error destroying HLS:', err)
+			}
 			hlsRef.current = null
 		}
 		setIsHls(false)
@@ -219,9 +285,8 @@ const Viewer = () => {
 					const end = video.buffered.end(video.buffered.length - 1)
 					setBufferedEnd(end)
 				}
-				// eslint-disable-next-line
-			} catch (e) {
-				// ignore
+			} catch (err) {
+				console.error('Error updating buffered:', err)
 			}
 		}
 
@@ -246,6 +311,9 @@ const Viewer = () => {
 		}
 		const onWaiting = () => setIsBuffering(true)
 		const onPlaying = () => setIsBuffering(false)
+		const onEnded = () => {
+			if (!autoNextVisible) startAutoNext()
+		}
 		const onError = e => {
 			const code = e.target.error?.code
 			const map = {
@@ -264,6 +332,7 @@ const Viewer = () => {
 		video.addEventListener('waiting', onWaiting)
 		video.addEventListener('playing', onPlaying)
 		video.addEventListener('error', onError)
+		video.addEventListener('ended', onEnded)
 
 		// Try HLS first
 		const setupHls = () => {
@@ -318,8 +387,9 @@ const Viewer = () => {
 							// fallback to progressive
 							try {
 								hls.destroy()
-								// eslint-disable-next-line
-							} catch {}
+							} catch (err) {
+								console.error('Error destroying HLS:', err)
+							}
 							hlsRef.current = null
 							setIsHls(false)
 							video.src = progressiveSrc
@@ -328,8 +398,9 @@ const Viewer = () => {
 						} else {
 							try {
 								hls.destroy()
-								// eslint-disable-next-line
-							} catch {}
+							} catch (err) {
+								console.error('Error destroying HLS:', err)
+							}
 							hlsRef.current = null
 							setIsHls(false)
 							video.src = progressiveSrc
@@ -362,16 +433,18 @@ const Viewer = () => {
 			video.removeEventListener('waiting', onWaiting)
 			video.removeEventListener('playing', onPlaying)
 			video.removeEventListener('error', onError)
+			video.removeEventListener('ended', onEnded)
 			if (hlsRef.current) {
 				try {
 					hlsRef.current.destroy()
-					// eslint-disable-next-line
-				} catch {}
+				} catch (err) {
+					console.error('Error destroying HLS:', err)
+				}
 				hlsRef.current = null
 			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [hlsSrc, progressiveSrc, isSeeking, isError])
+	}, [hlsSrc, progressiveSrc, isSeeking, isError, startAutoNext, autoNextVisible])
 
 	// Apply playback rate to video element on change
 	useEffect(() => {
@@ -746,6 +819,21 @@ const Viewer = () => {
 					/>
 				)}
 			</AnimatePresence>
+
+			{/* Auto-next / Return overlay */}
+			{autoNextVisible && (
+				<div className='absolute bottom-6 right-6 z-60'>
+					<button
+						onClick={performAutoAction}
+						className='px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white shadow-lg flex items-center gap-3'
+					>
+						<span className='font-semibold text-sm'>
+							{isEpisode && nextEpisode?.id ? 'Épisode suivant' : 'Retourner au menu'}
+						</span>
+						<span className='text-xs bg-black/40 px-2 py-0.5 rounded'>{autoNextCountdown}s</span>
+					</button>
+				</div>
+			)}
 		</div>
 	)
 }

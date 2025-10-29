@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,21 +36,7 @@ type JobUpdate struct {
 
 // moveToFinal moves the processed file to production storage and updates media FilePath
 func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (string, error) {
-	// Resolve env paths
-	tempDir := os.Getenv("TEMP_DIR")
-	if tempDir == "" {
-		tempDir = "./uploads"
-	}
-	moviesDir := os.Getenv("MOVIES_DIR")
-	if moviesDir == "" {
-		moviesDir = "./movies"
-	}
-	seriesDir := os.Getenv("SERIES_DIR")
-	if seriesDir == "" {
-		seriesDir = "./series"
-	}
-
-	storage := NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
+	storage := NewLocalStorage([]string{TEMP_DIR, MOVIES_DIR, SERIES_DIR})
 
 	// Extract job fields
 	jtype, _ := job["type"].(string)
@@ -80,7 +65,7 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
 			title = mv.Title
 		}
 		fileName := fmt.Sprintf("%s_%d%s", sanitizeFileName(title), mv.TmdbID, ext)
-		dst := filepath.Join(moviesDir, fileName)
+		dst := filepath.Join(MOVIES_DIR, fileName)
 		if err := storage.MoveFile(inputPath, dst); err != nil {
 			return "", fmt.Errorf("move failed: %w", err)
 		}
@@ -103,7 +88,7 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
 
 		seriesFolder := fmt.Sprintf("%s_%d", sanitizeFileName(series.Title), series.TmdbID)
 		// optional custom subfolder for filesystem-only naming
-		base := filepath.Join(seriesDir, seriesFolder)
+		base := filepath.Join(SERIES_DIR, seriesFolder)
 		if strings.TrimSpace(series.CustomTitle) != "" {
 			base = filepath.Join(base, sanitizeFileName(series.CustomTitle))
 		}

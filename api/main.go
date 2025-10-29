@@ -22,34 +22,15 @@ func main() {
 		log.Printf("Note: .env file not found, using environment variables from system")
 	}
 
-	// Get storage configuration from environment
-	tempDir := os.Getenv("TEMP_DIR")
-	moviesDir := os.Getenv("MOVIES_DIR")
-	seriesDir := os.Getenv("SERIES_DIR")
-
-	// Fallback to legacy paths if not configured
-	if tempDir == "" {
-		tempDir = "./uploads"
-		log.Printf("TEMP_DIR not configured, using fallback: %s", tempDir)
-	}
-	if moviesDir == "" {
-		moviesDir = "./movies"
-		log.Printf("MOVIES_DIR not configured, using fallback: %s", moviesDir)
-	}
-	if seriesDir == "" {
-		seriesDir = "./series"
-		log.Printf("SERIES_DIR not configured, using fallback: %s", seriesDir)
-	}
-
 	// Validate storage configuration
 	log.Println("Validating storage configuration...")
-	if err := utils.ValidateStorageConfig(tempDir, moviesDir, seriesDir); err != nil {
+	if err := utils.ValidateStorageConfig(); err != nil {
 		log.Fatalf("Storage validation failed: %v", err)
 	}
 	log.Println("Storage configuration validated successfully")
 
 	// Initialize storage backend
-	storageBackend = utils.NewLocalStorage([]string{tempDir, moviesDir, seriesDir})
+	storageBackend = utils.NewLocalStorage([]string{utils.TEMP_DIR, utils.MOVIES_DIR, utils.SERIES_DIR})
 
 	// Initialize job queue (2 workers by default)
 	workers := 2
@@ -105,6 +86,8 @@ func main() {
 	// Stream
 	r.GET("/video/:id", handlers.VideoStreamHandler)
 	r.GET("/video/episode/:id", handlers.EpisodeStreamHandler)
+	r.GET("/video/:id/chapters", handlers.MovieChaptersHandler)
+	r.GET("/video/episode/:id/chapters", handlers.EpisodeChaptersHandler)
 
 	// HLS endpoints (master + assets via wildcard handler)
 	r.GET("/hls/movie/:id/*asset", handlers.HLSMovieAsset)

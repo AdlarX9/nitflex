@@ -7,7 +7,7 @@ WORKDIR /app
 RUN go install github.com/cosmtrek/air@v1.40.0
 
 # Install wget for healthcheck
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget ffmpeg
 
 # Copy go mod files
 COPY go.mod go.sum ./

@@ -16,15 +16,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 # Final stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates ffmpeg
 
-WORKDIR /root/
+WORKDIR /app
 
-# Copy the binary from builder
-COPY --from=builder /app/main .
-
-# Create uploads directory
+# Create directories
 RUN mkdir -p ./uploads
+RUN mkdir -p ./movies
+RUN mkdir -p ./series
 
 EXPOSE 8080
 
