@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 
 export const MainContext = createContext()
 export const useMainContext = () => useContext(MainContext)
@@ -263,4 +264,20 @@ export const useGetEpisodeDetails = (seriesTmdbID, seasonNumber, episodeNumber) 
 		staleTime: 1000 * 60 * 10,
 		gcTime: 1000 * 60 * 60
 	})
+}
+
+export function useGoBackToNonVideo(prefix = '/viewer') {
+	const ctx = useMainContext()
+	const navigate = useNavigate()
+	if (!ctx) throw new Error('useGoBackToNonVideo must be used within <HistoryTrackerProvider>')
+
+	return useCallback(() => {
+		const { path } = ctx.findDeltaToLastNonPrefix(prefix)
+		// Use absolute navigation for reliability (history delta may be unavailable)
+		if (path) {
+			navigate(path, { replace: true })
+			return
+		}
+		navigate('/explorer', { replace: true })
+	}, [navigate, ctx, prefix])
 }

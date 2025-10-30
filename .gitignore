@@ -1,16 +1,14 @@
+# Banned files
 *.vscode
 *.DS_Store
 *.env
 *.pem
-api/uploads
-api/movies
-api/series
-api/tmp
-api/hls_cache
+
+# Docker volumes
 mongodb_data
+
+# auto-generated files
 utils/Nitflex.iconset
-app/node_modules
-app/pnpm-lock.yaml
-app/dist
-app/Nitflex.app
+
+# AIChats :)
 /AIChats/

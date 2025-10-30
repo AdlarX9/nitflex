@@ -185,7 +185,7 @@ export const EpisodeCard = ({
 	const progress = useMemo(() => {
 		if (!ongoingMedia || !episode?.id) return 0
 		const it = ongoingMedia.find(i => i.type === 'episode' && i.episodeId === episode.id)
-		if (!it || !it.duration) return 0
+		if (!it) return 0
 		const pct = (it.position / it.duration) * 100
 		return Math.max(0, Math.min(100, pct))
 	}, [ongoingMedia, episode?.id])

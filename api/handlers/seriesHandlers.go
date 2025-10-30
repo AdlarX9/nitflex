@@ -303,5 +303,44 @@ func GetEpisodeByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, episode)
+	// Build prev/next within same series (prefer same season, otherwise cross-season)
+	coll := utils.GetCollection("episodes")
+
+	var nextEp utils.Episode
+	nextFound := false
+	// 1) next in same season (min episodeNumber > current)
+	nextFilterSame := bson.M{
+		"seriesID":      episode.SeriesID,
+		"seasonNumber":  episode.SeasonNumber,
+		"episodeNumber": bson.M{"$gt": episode.EpisodeNumber},
+	}
+	if err := coll.FindOne(ctx, nextFilterSame, options.FindOne().SetSort(bson.D{{Key: "episodeNumber", Value: 1}})).Decode(&nextEp); err == nil {
+		nextFound = true
+	} else if err != mongo.ErrNoDocuments {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	} else {
+		// 2) next season: take the first episode of the nearest higher season
+		nextFilterCross := bson.M{"seriesID": episode.SeriesID, "seasonNumber": bson.M{"$gt": episode.SeasonNumber}}
+		if err2 := coll.FindOne(ctx, nextFilterCross, options.FindOne().SetSort(bson.D{{Key: "seasonNumber", Value: 1}, {Key: "episodeNumber", Value: 1}})).Decode(&nextEp); err2 == nil {
+			nextFound = true
+		} else if err2 != mongo.ErrNoDocuments {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			return
+		}
+	}
+
+    // Compose response: flatten episode fields and attach prev/next
+    var resp map[string]interface{}
+    // marshal then unmarshal to map
+    if b, err := json.Marshal(episode); err == nil {
+        _ = json.Unmarshal(b, &resp)
+    }
+    if resp == nil {
+        resp = map[string]interface{}{}
+    }
+    if nextFound {
+        resp["nextEpisode"] = nextEp
+    }
+    c.JSON(http.StatusOK, resp)
 }

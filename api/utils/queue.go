@@ -110,11 +110,29 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
 
 func sanitizeFileName(name string) string {
 	n := strings.TrimSpace(name)
-	// Replace common invalid path characters
-	replacers := []string{"/", "_", "\\", "_", ":", " - ", "*", "-", "?", "", "\"", "'", "", "<", "", ">", "", "|", "-"}
-	for i := 0; i+1 < len(replacers); i += 2 {
-		n = strings.ReplaceAll(n, replacers[i], replacers[i+1])
+	if n == "" {
+		return "untitled"
 	}
+
+	// Remplace les caractères invalides (Windows: <>:"/\|?*)
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		":", " - ",
+		"*", "-",
+		"?", "",
+		"\"", "",
+		"<", "",
+		">", "",
+		"|", "-",
+	)
+	n = replacer.Replace(n)
+
+	// Nettoyage léger
+	n = strings.TrimSpace(n)
+	n = strings.Trim(n, " .")                  // évite noms qui finissent par espace/point (Windows)
+	n = strings.Join(strings.Fields(n), " ")   // compresse les espaces multiples
+
 	if n == "" {
 		n = "untitled"
 	}

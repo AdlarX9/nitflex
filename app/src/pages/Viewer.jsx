@@ -1,4 +1,4 @@
-	import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Hls from 'hls.js'
 import { AnimatePresence } from 'framer-motion'
@@ -17,8 +17,10 @@ import {
 	useAPIAfter,
 	useGetEpisodeDetails,
 	useGetFullMovie,
+	useGoBackToNonVideo,
 	useMainContext
 } from '../app/hooks'
+import { IoCloseCircleOutline } from 'react-icons/io5'
 
 const SEEK_INTERVAL = 10
 const AUTO_HIDE_DELAY = 3000
@@ -54,10 +56,14 @@ const Viewer = () => {
 
 	const { user, refetchUser } = useMainContext()
 	const navigate = useNavigate()
+	const goBack = useGoBackToNonVideo()
 
-	// Extract data based on type (placed early to avoid TDZ in hooks that depend on them)
-	const prevEpisode = episodeData?.prevEpisode
-	const nextEpisode = episodeData?.nextEpisode
+	// Extract data based on type
+	const nextEpisode = episodeFewData?.nextEpisode
+	const nextEpisodeId = useMemo(
+		() => nextEpisode?.id ?? nextEpisode?._id ?? nextEpisode?.episodeId ?? null,
+		[nextEpisode]
+	)
 	const isPending = isEpisode ? episodePending : moviePending
 	const isError = isEpisode ? episodeError : movieError
 	const error = movieFetchError
@@ -89,41 +95,84 @@ const Viewer = () => {
 	const [autoNextVisible, setAutoNextVisible] = useState(false)
 	const [autoNextCountdown, setAutoNextCountdown] = useState(AUTONEXT_SECONDS)
 	const autoNextTimerRef = useRef(null)
+	const autoNextStartedRef = useRef(false)
+	const autoNextCancelledRef = useRef(false)
 
 	const performAutoAction = useCallback(() => {
-		if (isEpisode && nextEpisode?.id) {
-			navigate(`/viewer/episode/${nextEpisode.id}`)
-			return
+		if (isEpisode && nextEpisodeId) {
+			navigate(`/viewer/episode/${nextEpisodeId}`)
+			setAutoNextVisible(false)
+			setCurrentTime(0)
+			if (videoRef.current.paused)
+				console.log('coucou pausing')
+				videoRef.current
+					.play()
+					.then(() => setPaused(false))
+					.catch(() => {})
+			autoNextStartedRef.current = false
+			autoNextCancelledRef.current = false
+		} else {
+			goBack()
 		}
-		navigate(-1)
-	}, [isEpisode, nextEpisode, navigate])
+		// eslint-disable-next-line
+	}, [isEpisode, nextEpisodeId, navigate])
+
+	const clearAutoNextTimer = useCallback(() => {
+		if (autoNextTimerRef.current) {
+			clearInterval(autoNextTimerRef.current)
+			autoNextTimerRef.current = null
+		}
+	}, [])
 
 	const startAutoNext = useCallback(() => {
-		if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current)
+		if (autoNextStartedRef.current || autoNextCancelledRef.current) return
+		autoNextStartedRef.current = true
+		clearAutoNextTimer()
 		setAutoNextVisible(true)
 		setAutoNextCountdown(AUTONEXT_SECONDS)
 		autoNextTimerRef.current = setInterval(() => {
 			setAutoNextCountdown(prev => {
 				if (prev <= 1) {
-					clearInterval(autoNextTimerRef.current)
-					autoNextTimerRef.current = null
+					clearAutoNextTimer()
 					performAutoAction()
 					return 0
 				}
 				return prev - 1
 			})
 		}, 1000)
-	}, [performAutoAction])
+	}, [performAutoAction, clearAutoNextTimer])
+
+	const cancelAutoNext = useCallback(() => {
+		autoNextCancelledRef.current = true
+		autoNextStartedRef.current = false
+		clearAutoNextTimer()
+		setAutoNextVisible(false)
+	}, [clearAutoNextTimer])
+
+	const [currentTime, setCurrentTime] = useState(0)
+
+	// Reset cancel/start flags if l'utilisateur revient avant les crédits
+	useEffect(() => {
+		if (creditsStart == null) return
+		if (autoNextCancelledRef.current || autoNextStartedRef.current) {
+			// si on revient suffisamment avant les crédits, on réarme l'autonext
+			if (currentTime < creditsStart - 2) {
+				autoNextCancelledRef.current = false
+				autoNextStartedRef.current = false
+				clearAutoNextTimer()
+				setAutoNextVisible(false)
+			}
+		}
+	}, [currentTime, creditsStart, clearAutoNextTimer])
 
 	// Clear countdown on unmount
 	useEffect(() => {
 		return () => {
-			if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current)
+			clearAutoNextTimer()
 		}
-	}, [])
+	}, [clearAutoNextTimer])
 
 	const { data: onGoingMedias } = useAPI('GET', `/ongoing_media/${user.id}`)
-
 
 	const videoRef = useRef(null)
 	const wrapperRef = useRef(null)
@@ -131,7 +180,6 @@ const Viewer = () => {
 
 	const [controlsVisible, setControlsVisible] = useState(true)
 	const [paused, setPaused] = useState(true)
-	const [currentTime, setCurrentTime] = useState(0)
 	const [duration, setDuration] = useState(0)
 	const [isSeeking, setIsSeeking] = useState(false)
 	const [bufferedEnd, setBufferedEnd] = useState(0)
@@ -139,6 +187,10 @@ const Viewer = () => {
 	const [videoError, setVideoError] = useState(null)
 	const [timeHover, setTimeHover] = useState(null)
 	const [seekToast, setSeekToast] = useState(null)
+
+	useEffect(() => {
+		console.log(paused)
+	}, [paused])
 
 	// Advanced playback state
 	const [playbackRate, setPlaybackRate] = useState(1)
@@ -150,75 +202,64 @@ const Viewer = () => {
 	const [subtitleTracks, setSubtitleTracks] = useState([]) // [{name, lang}]
 	const [subtitleTrack, setSubtitleTrack] = useState(-1) // -1 => off
 
-	useEffect(() => {
-		if (!creditsStart || autoNextVisible || !duration) return
-		if (currentTime >= creditsStart) startAutoNext()
-	}, [currentTime, creditsStart, duration, autoNextVisible, startAutoNext])
+	// Fullscreen state + toggle (ne force plus le plein écran au montage)
+	const [isFullscreen, setIsFullscreen] = useState(false)
+	const getFullscreenElement = () =>
+		document.fullscreenElement ||
+		document.webkitFullscreenElement ||
+		document.mozFullScreenElement ||
+		document.msFullscreenElement
 
-	const { triggerAsync: updateOnGoingMedia } = useAPIAfter('POST', '/ongoing_media')
-	const saveTimeoutRef = useRef(null)
-	const lastSavedTimeRef = useRef(0)
-	const savingRef = useRef(false)
-	const hideTimerRef = useRef(null)
-	const seekToastTimerRef = useRef(null)
-	const lastTapRef = useRef(0)
-
-	// Try HLS first (fallback to progressive MP4 endpoints used previously)
-	const progressiveSrc = useMemo(() => {
-		if (isEpisode) {
-			return `${import.meta.env.VITE_API}/video/episode/${episodeID}`
-		}
-		return `${import.meta.env.VITE_API}/video/${tmdbID}`
-	}, [isEpisode, episodeID, tmdbID])
-
-	const hlsSrc = useMemo(() => {
-		if (isEpisode) {
-			// essaye des chemins courants d'HLS
-			return `${import.meta.env.VITE_API}/hls/episode/${episodeID}/master.m3u8`
-		}
-		return `${import.meta.env.VITE_API}/hls/movie/${tmdbID}/master.m3u8`
-	}, [isEpisode, episodeID, tmdbID])
-
-	const formatTime = useCallback(t => {
-		if (isNaN(t)) return '0:00'
-		const h = Math.floor(t / 3600)
-		const m = Math.floor((t % 3600) / 60)
-		const s = Math.floor(t % 60)
-		return h > 0
-			? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-			: `${m}:${s.toString().padStart(2, '0')}`
-	}, [])
-
-	const remaining = duration - currentTime
-
-	useEffect(() => {
-		const it = onGoingMedias?.find(og => og?.episodeId === episodeID || og?.tmdbID === tmdbID)
-		if (it) {
-			setCurrentTime(it?.position)
-			videoRef.current.currentTime = it?.position
-		}
-		// eslint-disable-next-line
-	}, [])
-
-	// Fullscreen enforce (safe)
-	useEffect(() => {
+	const requestFs = el => {
+		if (el.requestFullscreen) return el.requestFullscreen()
+		if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen()
+		if (el.mozRequestFullScreen) return el.mozRequestFullScreen()
+		if (el.msRequestFullscreen) return el.msRequestFullscreen()
+	}
+	const exitFs = () => {
+		if (document.exitFullscreen) return document.exitFullscreen()
+		if (document.webkitExitFullscreen) return document.webkitExitFullscreen()
+		if (document.mozCancelFullScreen) return document.mozCancelFullScreen()
+		if (document.msExitFullscreen) return document.msExitFullscreen()
+	}
+	const toggleFullscreen = useCallback(() => {
+		const fsEl = getFullscreenElement()
 		const el = wrapperRef.current
 		if (!el) return
-		const fsEl =
-			document.fullscreenElement ||
-			document.webkitFullscreenElement ||
-			document.mozFullScreenElement ||
-			document.msFullscreenElement
-		if (!fsEl) {
-			try {
-				if (el.requestFullscreen) el.requestFullscreen().catch(() => {})
-				else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
-				else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
-				else if (el.msRequestFullscreen) el.msRequestFullscreen()
-				// eslint-disable-next-line
-			} catch {}
+		if (fsEl) {
+			exitFs()?.catch?.(() => {})
+		} else {
+			requestFs(el)?.catch?.(() => {})
 		}
 	}, [])
+
+	useEffect(() => {
+		const onFsChange = () => setIsFullscreen(!!getFullscreenElement())
+		document.addEventListener('fullscreenchange', onFsChange)
+		document.addEventListener('webkitfullscreenchange', onFsChange)
+		document.addEventListener('mozfullscreenchange', onFsChange)
+		document.addEventListener('MSFullscreenChange', onFsChange)
+		return () => {
+			document.removeEventListener('fullscreenchange', onFsChange)
+			document.removeEventListener('webkitfullscreenchange', onFsChange)
+			document.removeEventListener('mozfullscreenchange', onFsChange)
+			document.removeEventListener('MSFullscreenChange', onFsChange)
+		}
+	}, [])
+
+	// Déclenchement de l'autonext au début des crédits
+	useEffect(() => {
+		if (!duration || autoNextVisible) return
+		// si on a un timecode de crédits: déclencher quand on y arrive
+		if (creditsStart && currentTime >= creditsStart) {
+			startAutoNext()
+			return
+		}
+		// fallback: si pas de chapitres, déclenche juste avant la fin
+		if (!creditsStart && duration > 0 && currentTime >= duration - 0.2) {
+			startAutoNext()
+		}
+	}, [currentTime, creditsStart, duration, autoNextVisible, startAutoNext])
 
 	const surfaceClick = e => {
 		if (
@@ -256,10 +297,59 @@ const Viewer = () => {
 		}
 	}, [showControls])
 
+	const saveTimeoutRef = useRef(null)
+	const lastSavedTimeRef = useRef(0)
+	const savingRef = useRef(false)
+	const hideTimerRef = useRef(null)
+	const seekToastTimerRef = useRef(null)
+	const lastTapRef = useRef(0)
+
+	// Try HLS first (fallback progressive)
+	const progressiveSrc = useMemo(() => {
+		if (isEpisode) {
+			return `${import.meta.env.VITE_API}/video/episode/${episodeID}`
+		}
+		return `${import.meta.env.VITE_API}/video/${tmdbID}`
+	}, [isEpisode, episodeID, tmdbID])
+
+	const hlsSrc = useMemo(() => {
+		if (isEpisode) {
+			return `${import.meta.env.VITE_API}/hls/episode/${episodeID}/master.m3u8`
+		}
+		return `${import.meta.env.VITE_API}/hls/movie/${tmdbID}/master.m3u8`
+	}, [isEpisode, episodeID, tmdbID])
+
+	const formatTime = useCallback(t => {
+		if (isNaN(t)) return '0:00'
+		const h = Math.floor(t / 3600)
+		const m = Math.floor((t % 3600) / 60)
+		const s = Math.floor(t % 60)
+		return h > 0
+			? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+			: `${m}:${s.toString().padStart(2, '0')}`
+	}, [])
+
+	const remaining = duration - currentTime
+
+	useEffect(() => {
+		const it = onGoingMedias?.find(og => og?.episodeId === episodeID || og?.tmdbID === tmdbID)
+		if (it) {
+			setCurrentTime(it?.position)
+			if (videoRef.current) videoRef.current.currentTime = it?.position
+		}
+		// eslint-disable-next-line
+	}, [])
+
+	// SUPPRIMÉ: l'effet qui forçait le plein écran au montage
+	// -> On laisse l'utilisateur choisir via le bouton toggle.
+
 	// Setup video events + HLS
 	useEffect(() => {
 		const video = videoRef.current
 		if (!video) return
+
+		// Toujours s'assurer que la vidéo ne boucle pas
+		video.loop = false
 
 		// Cleanup previous HLS if any
 		if (hlsRef.current) {
@@ -312,6 +402,12 @@ const Viewer = () => {
 		const onWaiting = () => setIsBuffering(true)
 		const onPlaying = () => setIsBuffering(false)
 		const onEnded = () => {
+			try {
+				video.autoplay = false
+				video.pause()
+			} catch (e) {
+				console.error('Error pausing video:', e)
+			}
 			if (!autoNextVisible) startAutoNext()
 		}
 		const onError = e => {
@@ -444,12 +540,14 @@ const Viewer = () => {
 			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [hlsSrc, progressiveSrc, isSeeking, isError, startAutoNext, autoNextVisible])
+	}, [hlsSrc, progressiveSrc, isSeeking, isError, startAutoNext])
 
 	// Apply playback rate to video element on change
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.playbackRate = playbackRate
 	}, [playbackRate])
+
+	const { triggerAsync: updateOnGoingMedia } = useAPIAfter('POST', '/ongoing_media')
 
 	const maybeScheduleSave = t => {
 		if (!user?.id) return
@@ -472,8 +570,10 @@ const Viewer = () => {
 	}
 
 	const saveProgress = (t, force = false) => {
+		if (t <= 1) return
 		if (!user?.id) return
 		if (!force && Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
+		console.log('saving progress', t, force)
 
 		if (isEpisode && episodeFewData?.id) {
 			// Save episode progress
@@ -516,15 +616,10 @@ const Viewer = () => {
 	}
 
 	useEffect(() => {
-		const beforeUnload = () => {
-			if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
-		}
-		window.addEventListener('beforeunload', beforeUnload)
 		return () => {
-			window.removeEventListener('beforeunload', beforeUnload)
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 			// eslint-disable-next-line
-			if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
+			if (videoRef.current && videoRef.current.currentTime > 1) saveProgressImmediate(videoRef.current.currentTime)
 		}
 		// eslint-disable-next-line
 	}, [movie, user?.id, storedMovie?.id, isEpisode, episodeFewData])
@@ -643,7 +738,7 @@ const Viewer = () => {
 	const exitViewer = () => {
 		if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 		if (videoRef.current) saveProgressImmediate(videoRef.current.currentTime)
-		navigate(-1)
+		goBack()
 	}
 
 	// Display info
@@ -660,19 +755,6 @@ const Viewer = () => {
 		description = movie.overview || ''
 		poster = movie.poster || ''
 	}
-
-	// Navigation to prev/next episode
-	const goToPrevEpisode = useCallback(() => {
-		if (prevEpisode?.id) {
-			navigate(`/viewer/episode/${prevEpisode.id}`)
-		}
-	}, [prevEpisode, navigate])
-
-	const goToNextEpisode = useCallback(() => {
-		if (nextEpisode?.id) {
-			navigate(`/viewer/episode/${nextEpisode.id}`)
-		}
-	}, [nextEpisode, navigate])
 
 	// Quality selection
 	const handleSelectLevel = useCallback(
@@ -710,10 +792,14 @@ const Viewer = () => {
 	// Video element only when no metadata error and no fatal video error
 	const canShowVideo = !isError && !videoError
 
+	// Déterminer l'action principale et le libellé de l'overlay de fin
+	const hasNext = !!(isEpisode && nextEpisodeId)
+	const autoActionLabel = hasNext ? 'Épisode suivant' : 'Retourner au menu'
+
 	return (
 		<div
 			ref={wrapperRef}
-			className='fixed inset-0 bg-black select-none overflow-hidden'
+			className='fixed top-0 left-0 w-screen h-screen bg-black select-none overflow-hidden'
 			style={{ WebkitTapHighlightColor: 'transparent' }}
 			onClick={surfaceClick}
 		>
@@ -724,7 +810,7 @@ const Viewer = () => {
 					autoPlay
 					playsInline
 					controls={false}
-					className='absolute inset-0 w-full h-full object-contain bg-black'
+					className='absolute top-0 left-0 w-full h-full object-contain bg-black'
 					tabIndex={-1}
 				/>
 			)}
@@ -766,12 +852,6 @@ const Viewer = () => {
 						onTouchEnd={handleTouchEnd}
 						remaining={remaining}
 						isBuffering={isBuffering}
-						// Episodes nav
-						isEpisode={isEpisode}
-						prevEpisode={prevEpisode}
-						nextEpisode={nextEpisode}
-						goToPrevEpisode={goToPrevEpisode}
-						goToNextEpisode={goToNextEpisode}
 						// Advanced controls
 						playbackRate={playbackRate}
 						setPlaybackRate={setPlaybackRate}
@@ -789,6 +869,17 @@ const Viewer = () => {
 				)}
 			</AnimatePresence>
 
+			{/* Bouton plein écran / fenêtre (style YouTube, en bas à droite) */}
+			{controlsVisible && canShowVideo && (
+				<button
+					onClick={toggleFullscreen}
+					className='absolute bottom-4 right-4 z-60 bg-black/50 hover:bg-black/60 text-white rounded px-3 py-2 text-sm'
+					title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+				>
+					{isFullscreen ? 'Fenêtre' : 'Plein écran'}
+				</button>
+			)}
+
 			{/* Toast seek */}
 			<AnimatePresence>{seekToast && <SeekToastOverlay text={seekToast} />}</AnimatePresence>
 
@@ -805,7 +896,10 @@ const Viewer = () => {
 			{/* Erreur chargement métadonnées */}
 			<AnimatePresence>
 				{!isPending && isError && (
-					<MetadataErrorOverlay message={error?.message} onBack={() => navigate(-1)} />
+					<MetadataErrorOverlay
+						message={error?.message}
+						onBack={() => goBack()}
+					/>
 				)}
 			</AnimatePresence>
 
@@ -820,18 +914,41 @@ const Viewer = () => {
 				)}
 			</AnimatePresence>
 
-			{/* Auto-next / Return overlay */}
+			{/* Auto-next / Return overlay amélioré */}
 			{autoNextVisible && (
-				<div className='absolute bottom-6 right-6 z-60'>
-					<button
-						onClick={performAutoAction}
-						className='px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white shadow-lg flex items-center gap-3'
-					>
-						<span className='font-semibold text-sm'>
-							{isEpisode && nextEpisode?.id ? 'Épisode suivant' : 'Retourner au menu'}
-						</span>
-						<span className='text-xs bg-black/40 px-2 py-0.5 rounded'>{autoNextCountdown}s</span>
-					</button>
+				<div className='absolute bottom-6 right-6 z-60 flex flex-col items-end gap-2'>
+					<div className='bg-black/75 text-white rounded-lg shadow-lg p-4 max-w-sm'>
+						<div className='flex items-start gap-3'>
+							<div className='flex-1'>
+								<p className='text-sm opacity-80'>
+									{hasNext
+										? 'Lecture de l’épisode suivant dans'
+										: 'Retour au menu dans'}{' '}
+									{autoNextCountdown}s…
+								</p>
+								<p className='font-semibold mt-1'>
+									{hasNext
+										? nextEpisode?.name || 'Épisode suivant'
+										: 'Retourner au menu'}
+								</p>
+							</div>
+							<button
+								onClick={cancelAutoNext}
+								title='Rester sur la vidéo'
+								className='text-white/80 hover:text-white text-lg leading-none'
+							>
+								<IoCloseCircleOutline />
+							</button>
+						</div>
+						<div className='mt-3 flex justify-end gap-2'>
+							<button
+								onClick={performAutoAction}
+								className='px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-sm'
+							>
+								{autoActionLabel}
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 		</div>

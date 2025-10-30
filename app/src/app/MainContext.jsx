@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MainContext, useAPI, useAPIAfter } from './hooks'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { pickRandom } from './utils'
 
 const interactStorage = (key, value = null) => {
@@ -15,6 +15,51 @@ export const MainProvider = ({ children }) => {
 	const [bodyBlur, setBodyBlur] = useState(false)
 	const navigate = useNavigate()
 	const { triggerAsync: fetchUser } = useAPIAfter('GET', '/users/' + user?.id)
+
+	const location = useLocation()
+	const stackRef = useRef([])
+
+	useEffect(() => {
+		const loc = {
+			pathname: location.pathname,
+			search: location.search,
+			hash: location.hash,
+			key: location.key
+		}
+		const arr = stackRef.current
+		const last = arr[arr.length - 1]
+		if (
+			!last ||
+			last.pathname !== loc.pathname ||
+			last.search !== loc.search ||
+			last.hash !== loc.hash
+		) {
+			arr.push(loc)
+			if (arr.length > 30) arr.shift()
+		}
+	}, [location])
+
+	const api = useMemo(() => {
+		function findDeltaToLastNonPrefix(prefix = '/viewer') {
+			const arr = stackRef.current
+			if (arr.length === 0) return { delta: null, path: null }
+
+			const prefixes = Array.isArray(prefix) ? prefix : [prefix]
+			const isPrefixed = p => prefixes.some(pref => p.startsWith(pref))
+
+			const currentIndex = arr.length - 1
+			for (let i = currentIndex - 1; i >= 0; i--) {
+				if (!isPrefixed(arr[i].pathname)) {
+					return {
+						delta: i - currentIndex,
+						path: arr[i].pathname + (arr[i].search || '') + (arr[i].hash || '')
+					}
+				}
+			}
+			return { delta: null, path: '/explorer' } // fallback
+		}
+		return { stackRef, findDeltaToLastNonPrefix }
+	}, [])
 
 	useEffect(() => {
 		if ((!user || JSON.stringify(user) === '{}') && window.location.pathname !== '/') {
@@ -36,7 +81,11 @@ export const MainProvider = ({ children }) => {
 		}
 	}, [bodyBlur])
 
-	const { data: newMovies, isPending: newMoviesPending, refetch } = useAPI('GET', '/movies', {}, { limit: 20 })
+	const {
+		data: newMovies,
+		isPending: newMoviesPending,
+		refetch
+	} = useAPI('GET', '/movies', {}, { limit: 20 })
 	const {
 		data: newSeries,
 		isPending: newSeriesPending,
@@ -80,7 +129,8 @@ export const MainProvider = ({ children }) => {
 				newSeries,
 				newSeriesPending,
 				refetchNewSeries: refetchSeries,
-				refetchUser
+				refetchUser,
+				...api
 			}}
 		>
 			{children}

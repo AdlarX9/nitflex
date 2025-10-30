@@ -183,12 +183,6 @@ export const ControlsOverlay = ({
 	onTouchEnd,
 	remaining,
 	isBuffering,
-	// episode nav
-	isEpisode,
-	prevEpisode,
-	nextEpisode,
-	goToPrevEpisode,
-	goToNextEpisode,
 	// advanced
 	playbackRate,
 	setPlaybackRate,
@@ -351,28 +345,6 @@ export const ControlsOverlay = ({
 							<span className='text-amber-300 animate-pulse font-semibold'>
 								Buffering…
 							</span>
-						)}
-
-						{/* Episode nav */}
-						{isEpisode && (prevEpisode || nextEpisode) && (
-							<div className='flex items-center gap-3'>
-								{prevEpisode && (
-									<button
-										onClick={goToPrevEpisode}
-										className='px-4 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 text-white text-sm font-medium transition'
-									>
-										← Épisode précédent
-									</button>
-								)}
-								{nextEpisode && (
-									<button
-										onClick={goToNextEpisode}
-										className='px-4 py-2 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-sm font-medium transition'
-									>
-										Épisode suivant →
-									</button>
-								)}
-							</div>
 						)}
 					</div>
 
