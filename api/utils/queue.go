@@ -36,7 +36,7 @@ type JobUpdate struct {
 
 // moveToFinal moves the processed file to production storage and updates media FilePath
 func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (string, error) {
-	storage := NewLocalStorage([]string{TEMP_DIR, MOVIES_DIR, SERIES_DIR})
+	storage := NewLocalStorage([]string{TEMP_DIR, MOVIES_DIR, MOVIES_DOCU_DIR, SERIES_DIR, SERIES_DOCU_DIR, SERIES_KID_DIR})
 
 	// Extract job fields
 	jtype, _ := job["type"].(string)
@@ -64,8 +64,22 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
 		if title == "" {
 			title = mv.Title
 		}
-		fileName := fmt.Sprintf("%s_%d%s", sanitizeFileName(title), mv.TmdbID, ext)
-		dst := filepath.Join(MOVIES_DIR, fileName)
+		fileName := fmt.Sprintf("%s%s", sanitizeFileName(title), ext)
+		// Category selection
+		targetDir := MOVIES_DIR
+		if optsRaw, ok := job["transcodeOptions"]; ok {
+			switch opts := optsRaw.(type) {
+			case map[string]interface{}:
+				if v, ok := opts["isDocumentary"].(bool); ok && v {
+					targetDir = MOVIES_DOCU_DIR
+				}
+			case bson.M:
+				if v, ok := opts["isDocumentary"].(bool); ok && v {
+					targetDir = MOVIES_DOCU_DIR
+				}
+			}
+		}
+		dst := filepath.Join(targetDir, fileName)
 		if err := storage.MoveFile(inputPath, dst); err != nil {
 			return "", fmt.Errorf("move failed: %w", err)
 		}
@@ -86,14 +100,36 @@ func (q *Queue) moveToFinal(ctx context.Context, job map[string]interface{}) (st
 			return "", fmt.Errorf("series not found: %w", err)
 		}
 
-		seriesFolder := fmt.Sprintf("%s_%d", sanitizeFileName(series.Title), series.TmdbID)
-		// optional custom subfolder for filesystem-only naming
-		base := filepath.Join(SERIES_DIR, seriesFolder)
+		seriesFolder := sanitizeFileName(series.Title)
 		if strings.TrimSpace(series.CustomTitle) != "" {
-			base = filepath.Join(base, sanitizeFileName(series.CustomTitle))
+			seriesFolder = sanitizeFileName(series.CustomTitle)
 		}
-		seasonFolder := fmt.Sprintf("Season %d", ep.SeasonNumber)
-		fileName := fmt.Sprintf("%s%s", sanitizeFileName(ep.Title), ext)
+		// Category selection for series
+		baseRoot := SERIES_DIR
+		if optsRaw, ok := job["transcodeOptions"]; ok {
+			switch opts := optsRaw.(type) {
+			case map[string]interface{}:
+				if v, ok := opts["isDocu"].(bool); ok && v {
+					baseRoot = SERIES_DOCU_DIR
+				}
+				if v, ok := opts["isKids"].(bool); ok && v {
+					baseRoot = SERIES_KID_DIR
+				}
+			case bson.M:
+				if v, ok := opts["isDocu"].(bool); ok && v {
+					baseRoot = SERIES_DOCU_DIR
+				}
+				if v, ok := opts["isKids"].(bool); ok && v {
+					baseRoot = SERIES_KID_DIR
+				}
+			}
+		}
+
+		base := filepath.Join(baseRoot, seriesFolder)
+		seasonFolder := fmt.Sprintf("Saison %d", ep.SeasonNumber)
+		// Build filename: SS EE title.ext => e.g., 0106 Mon titre.mp4
+		titleStr := strings.TrimSpace(ep.Title)
+		fileName := fmt.Sprintf("%02d%02d %s%s", ep.SeasonNumber, ep.EpisodeNumber, sanitizeFileName(titleStr), ext)
 		dst := filepath.Join(base, seasonFolder, fileName)
 		if err := storage.MoveFile(inputPath, dst); err != nil {
 			return "", fmt.Errorf("move failed: %w", err)
@@ -315,23 +351,99 @@ func (q *Queue) processJob(jobID primitive.ObjectID) {
 	transcodeMode, _ := job["transcodeMode"].(string)
 
 	if transcodeMode == "none" {
+		// No transcoding: directly move to final destination
+		q.updateJobStage(ctx, jobID, StageMoving, 90)
+		if _, err := q.moveToFinal(ctx, job); err != nil {
+			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
 		q.updateJobStage(ctx, jobID, StageCompleted, 100)
 	} else if transcodeMode == "server" {
-		// Server-side transcoding (placeholder)
-		for i := 0; i <= 100; i += 10 {
-			select {
-			case <-ctx.Done():
-				log.Printf("Job %s canceled", jobID.Hex())
+		// Real server-side transcoding with ffmpeg and tagging
+		inPath, _ := job["inputPath"].(string)
+		if strings.TrimSpace(inPath) == "" {
+			log.Printf("Job %s missing inputPath", jobID.Hex())
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
+
+		base := strings.TrimSuffix(filepath.Base(inPath), filepath.Ext(inPath))
+		outPath := filepath.Join(TEMP_DIR, base+"_transcoded.mp4")
+
+		progressChan := make(chan float64, 10)
+		opts := DefaultOptions()
+		opts.InputPath = inPath
+		opts.OutputPath = outPath
+		opts.ProgressChan = progressChan
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for p := range progressChan {
+				// Cap transcoding progress at 75%
+				prog := p * 0.75
+				if prog > 75 {
+					prog = 75
+				}
+				q.updateJobStage(ctx, jobID, StageTranscoding, prog)
+			}
+		}()
+
+		if err := Transcode(ctx, opts); err != nil {
+			if ctx.Err() == context.Canceled {
+				q.updateJobStage(ctx, jobID, StageCanceled, 0)
 				return
-			default:
-				q.updateJobStage(ctx, jobID, StageTranscoding, float64(i)*0.7)
-				time.Sleep(500 * time.Millisecond)
+			}
+			log.Printf("Job %s transcoding failed: %v", jobID.Hex(), err)
+			q.updateJobStage(ctx, jobID, StageFailed, 0)
+			return
+		}
+		<-done
+
+		// Tagging (embed poster and metadata)
+		q.updateJobStage(ctx, jobID, StageTagging, 85)
+
+		// Determine metadata (title/poster)
+		jtype, _ := job["type"].(string)
+		mediaID, _ := job["mediaID"].(primitive.ObjectID)
+		title := ""
+		posterURL := ""
+		switch jtype {
+		case "movie":
+			var mv Movie
+			if err := q.db.Collection("movies").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&mv); err == nil {
+				if strings.TrimSpace(mv.CustomTitle) != "" {
+					title = mv.CustomTitle
+				} else {
+					title = mv.Title
+				}
+				posterURL = strings.TrimSpace(mv.Poster)
+			}
+		case "episode":
+			var ep Episode
+			var series Series
+			if err := q.db.Collection("episodes").FindOne(ctx, bson.M{"_id": mediaID}).Decode(&ep); err == nil {
+				if err2 := q.db.Collection("series").FindOne(ctx, bson.M{"_id": ep.SeriesID}).Decode(&series); err2 == nil {
+					title = strings.TrimSpace(ep.Title)
+					posterURL = strings.TrimSpace(series.Poster)
+				}
+			}
+		}
+		if strings.HasPrefix(posterURL, "/") {
+			posterURL = "https://image.tmdb.org/t/p/w500" + posterURL
+		}
+
+		if posterURL != "" && title != "" {
+			if err := DownloadAndEmbedPoster(outPath, posterURL, title, "", ""); err != nil {
+				log.Printf("Job %s tagging failed (poster embed): %v", jobID.Hex(), err)
+				// do not fail the whole job if tagging fails; continue to move
 			}
 		}
 
-		q.updateJobStage(ctx, jobID, StageTagging, 80)
-		time.Sleep(500 * time.Millisecond)
-		q.updateJobStage(ctx, jobID, StageMoving, 90)
+		// Move to final destination
+		q.updateJobStage(ctx, jobID, StageMoving, 95)
+		job["inputPath"] = outPath
 		if _, err := q.moveToFinal(ctx, job); err != nil {
 			log.Printf("Job %s move failed: %v", jobID.Hex(), err)
 			q.updateJobStage(ctx, jobID, StageFailed, 0)

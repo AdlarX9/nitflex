@@ -33,9 +33,11 @@ services:
         ports:
             - "8080:8080"
         volumes:
-            - ${TEMP_DIR:-./uploads}:/app/uploads:rw
             - ${MOVIES_DIR:-./movies}:/app/movies:rw
             - ${SERIES_DIR:-./series}:/app/series:rw
+            - ${MOVIES_DOCU_DIR:-./movies_docu}:/app/movies_docu:rw
+            - ${SERIES_DOCU_DIR:-./series_docu}:/app/series_docu:rw
+            - ${SERIES_KID_DIR:-./series_kid}:/app/series_kid:rw
         networks:
             - nitflex-network
         healthcheck:

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import { IoTrash } from 'react-icons/io5'
-import { useAPI, useAPIAfter, useGetEpisodeDetails, useGetFullSerie } from '../app/hooks'
+import { useAPI, useAPIAfter, useGetEpisodeDetails, useGetFullMovie, useGetFullSerie } from '../app/hooks'
 import { useState } from 'react'
 
 const ProgressBar = ({ percent }) => (
@@ -22,15 +22,9 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 		item?.episodeNumber
 	)
 	const { data: series } = useGetFullSerie(item?.tmdbID)
-
+	
 	// Always call hooks in same order; enable based on type
-	const { data: movie, isLoading: movieLoading } = useAPI(
-		'GET',
-		`/movie/${item.tmdbID}`,
-		{},
-		{},
-		item.type === 'movie'
-	)
+	const { data: movie, isLoading: movieLoading } = useGetFullMovie(item?.tmdbID)
 	const { data: episode, isLoading: epLoading } = useAPI(
 		'GET',
 		`/episode/${item.episodeId}`,
@@ -38,11 +32,11 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 		{},
 		item.type === 'episode'
 	)
-
+	
 	// Delete hook (unified)
 	const ogId = item?.ogId || item?.id
 	const { triggerAsync: deleteOnGoingMedia } = useAPIAfter('DELETE', `/ongoing_media/${ogId}`)
-
+	
 	const onDelete = e => {
 		e?.preventDefault?.()
 		e?.stopPropagation?.()
@@ -59,7 +53,7 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 			)
 		}
 
-		const posterExists = movie?.poster && movie.poster !== 'N/A'
+		const posterExists = Boolean(movie?.backdrop_path || movie?.poster_path)
 
 		return (
 			<Motion.div
@@ -68,7 +62,7 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 				transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4) }}
 				className='relative w-60 h-36 rounded-lg overflow-hidden bg-gray-800 shrink-0 group'
 			>
-				<Link to={`/viewer/movie/${movie.tmdbID}`} className='absolute inset-0 block'>
+				<Link to={`/viewer/movie/${item.tmdbID}`} className='absolute inset-0 block'>
 					{posterExists ? (
 						<>
 							{!imgLoaded && (
@@ -79,8 +73,8 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 								</div>
 							)}
 							<img
-								src={`https://image.tmdb.org/t/p/w500${movie.poster}`}
-								alt={movie.title}
+								src={`https://image.tmdb.org/t/p/w500${movie?.backdrop_path || movie?.poster_path}`}
+								alt={movie?.title}
 								className='absolute inset-0 w-full h-full object-cover'
 								onLoad={() => setImgLoaded(true)}
 							/>

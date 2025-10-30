@@ -56,11 +56,17 @@ func CreateSeries(c *gin.Context) {
 	folderName := get("folderName")
 	transcodeMode := get("transcodeMode")
 	episodesJSON := get("episodes")
+	// classification flags provided by frontend
+	isDocuStr := get("isDocu")
+	isKidsStr := get("isKids")
+	isDocu := strings.EqualFold(isDocuStr, "true") || isDocuStr == "1"
+	isKids := strings.EqualFold(isKidsStr, "true") || isKidsStr == "1"
 
 	type EpMeta struct {
-		Index         int `json:"index"`
-		SeasonNumber  int `json:"seasonNumber"`
-		EpisodeNumber int `json:"episodeNumber"`
+		Index         int    `json:"index"`
+		SeasonNumber  int    `json:"seasonNumber"`
+		EpisodeNumber int    `json:"episodeNumber"`
+		Title         string `json:"title"`
 	}
 	var epMetas []EpMeta
 	if episodesJSON != "" {
@@ -71,7 +77,7 @@ func CreateSeries(c *gin.Context) {
 	}
 
 	files := form.File["files[]"]
-	if len(files) == 0 {
+	if len(files) == 1 {
 		files = form.File["files"]
 	}
 	if len(files) == 0 {
@@ -169,8 +175,10 @@ func CreateSeries(c *gin.Context) {
 		}
 		out.Close()
 
-		// Create episode doc
-		epTitle := fmt.Sprintf("S%02dE%02d", meta.SeasonNumber, meta.EpisodeNumber)
+		epTitle := strings.TrimSpace(meta.Title)
+		if len(epTitle) == 0 {
+			epTitle = fmt.Sprintf("Episode %d", meta.EpisodeNumber)
+		}
 		ep := utils.Episode{
 			ID:            primitive.NewObjectID(),
 			TmdbID:        tmdbID,
@@ -188,10 +196,11 @@ func CreateSeries(c *gin.Context) {
 		}
 		created = append(created, ep)
 
-		// Start pipeline (async)
-		go func(ep utils.Episode) {
-			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, transcodeMode, nil)
-		}(ep)
+		// Start pipeline (async) with classification options
+		go func(ep utils.Episode, docu, kids bool) {
+			opts := map[string]interface{}{"isDocu": docu, "isKids": kids}
+			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, transcodeMode, opts)
+		}(ep, isDocu, isKids)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"series": series, "episodes": created})

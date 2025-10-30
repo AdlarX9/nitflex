@@ -111,6 +111,9 @@ const MovieUploader = ({
 			const title = newMovie?.title || ''
 			const imdbID = newMovie?.imdb_id || ''
 			const rating = newMovie?.vote_average ?? newMovie?.rating ?? ''
+			const isDocumentary = Array.isArray(newMovie?.genre_ids)
+				? newMovie.genre_ids.includes(99)
+				: false
 			uppy.setFileMeta(file.id, {
 				customTitle,
 				tmdbID,
@@ -120,6 +123,7 @@ const MovieUploader = ({
 				title,
 				imdbID,
 				rating,
+				isDocumentary,
 				type: 'movie'
 			})
 		}

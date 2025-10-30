@@ -14,6 +14,58 @@ const logAPIError = error => {
 	console.error('API Error:', error)
 }
 
+// Fetch episode titles for a set of selected seasons derived from a map {fileId: {season, episode}}
+// Returns: { [seasonNumber]: { [episodeNumber]: title } }
+export function useEpisodeTitles(tvId, seriesFilesMap) {
+	const [titles, setTitles] = useState({})
+
+	useEffect(() => {
+		if (!tvId) {
+			setTitles({})
+			return
+		}
+		const seasons = Array.from(
+			new Set(
+				Object.values(seriesFilesMap || {})
+					.map(m => parseInt(m?.season) || 0)
+					.filter(s => s > 0)
+			)
+		)
+		if (seasons.length === 0) {
+			setTitles({})
+			return
+		}
+		let cancelled = false
+		;(async () => {
+			const next = {}
+			for (const s of seasons) {
+				try {
+					const url = `https://api.themoviedb.org/3/tv/${tvId}/season/${s}?api_key=${TMDB_API_KEY}&language=${LANG}`
+					const res = await fetch(url)
+					if (!res.ok) continue
+					const data = await res.json()
+					const map = {}
+					if (Array.isArray(data?.episodes)) {
+						for (const ep of data.episodes) {
+							const num = parseInt(ep?.episode_number)
+							if (Number.isInteger(num)) map[num] = ep?.name || ''
+						}
+					}
+					next[s] = map
+				} catch {
+					// ignore
+				}
+			}
+			if (!cancelled) setTitles(next)
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [tvId, seriesFilesMap])
+
+	return titles
+}
+
 const axiosGET = async (endpoint, params) => {
 	return axios
 		.get(import.meta.env.VITE_API + endpoint, { params })

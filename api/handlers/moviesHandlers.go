@@ -114,7 +114,7 @@ func UploadMovie(c *gin.Context) {
 		if base == "" {
 			base = customTitle
 		}
-		unique := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
+		unique := fmt.Sprintf("%s%s", sanitizeName(base), ext)
 		dst = filepath.Join(".", "uploads", unique)
 	}
 
@@ -182,16 +182,22 @@ func UploadMovie(c *gin.Context) {
 		return
 	}
 
-	// Respond immediately
-	c.JSON(http.StatusOK, gin.H{
-		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-		"movie": movie,
-	})
+    // Extract flags BEFORE responding (safe for goroutine)
+    isDocStr := c.PostForm("isDocumentary")
+    isDoc := strings.EqualFold(isDocStr, "true") || isDocStr == "1"
+
+    // Respond immediately
+    c.JSON(http.StatusOK, gin.H{
+        "url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+        "movie": movie,
+    })
 
 	// Trigger pipeline AFTER response
-	go func(m utils.Movie) {
-		_ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, nil)
-	}(movie)
+    go func(m utils.Movie, isDoc bool) {
+        // classification: documentaries
+        opts := map[string]interface{}{"isDocumentary": isDoc}
+        _ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, opts)
+    }(movie, isDoc)
 }
 
 // GET /all_movies

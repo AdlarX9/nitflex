@@ -73,7 +73,6 @@ type Episode struct {
 	Title         string             `json:"title" bson:"title"`
 	Runtime       int                `json:"runtime,omitempty" bson:"runtime,omitempty"` // Minutes
 	FilePath      string             `json:"filePath" bson:"filePath"`                   // Actual video file location
-	CustomTitle   string             `json:"customTitle,omitempty" bson:"customTitle,omitempty"`
 	Date          primitive.DateTime `json:"date" bson:"date"` // When added to library
 }
 

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import '../../node_modules/@uppy/core/dist/style.css'
 import '../../node_modules/@uppy/dashboard/dist/style.css'
 import SeriesSearch from '../components/SeriesSearch'
-import { useMainContext } from '../app/hooks'
+import { useMainContext, useEpisodeTitles } from '../app/hooks'
 
 const afterSelectVariants = {
 	hidden: { opacity: 0, y: 24 },
@@ -56,7 +56,8 @@ const SerieUploader = ({
 	const [seriesFolderName, setSeriesFolderName] = useState('')
 	const [uppyFiles, setUppyFiles] = useState([])
 	const [seriesFilesMap, setSeriesFilesMap] = useState({}) // {fileId: {season:'', episode:''}}
-	// ordering and episode TMDB info removed
+	// Episode titles from TMDB based on selected seasons
+	const epTitles = useEpisodeTitles(selectedSeries?.id, seriesFilesMap)
 
 	// Uppy instance
 	const uppy = useMemo(
@@ -145,13 +146,21 @@ const SerieUploader = ({
 		if (!selectedSeries) return
 		const episodes = uppyFiles.map((f, i) => {
 			const m = seriesFilesMap[f.id] || { season: '', episode: '' }
+			const s = parseInt(m.season) || 0
+			const e = parseInt(m.episode) || 0
+			const title = epTitles[s]?.[e] || ''
+			console.log(epTitles, s, e, title)
 			return {
 				index: i,
 				fileName: f.name,
-				seasonNumber: parseInt(m.season) || 0,
-				episodeNumber: parseInt(m.episode) || 0
+				seasonNumber: s,
+				episodeNumber: e,
+				title
 			}
 		})
+		const genreIds = Array.isArray(selectedSeries?.genre_ids) ? selectedSeries.genre_ids : []
+		const isDocu = genreIds.includes(99)
+		const isKids = genreIds.includes(16) || genreIds.includes(10762)
 		uppy.setMeta({
 			tmdbID: selectedSeries.id,
 			title: selectedSeries.name || '',
@@ -159,9 +168,11 @@ const SerieUploader = ({
 			poster: selectedSeries?.poster_path || '',
 			folderName: seriesFolderName || '',
 			transcodeMode,
-			episodes: JSON.stringify(episodes)
+			episodes: JSON.stringify(episodes),
+			isDocu,
+			isKids
 		})
-	}, [uppy, selectedSeries, seriesFolderName, transcodeMode, uppyFiles, seriesFilesMap])
+	}, [uppy, selectedSeries, seriesFolderName, transcodeMode, uppyFiles, seriesFilesMap, epTitles])
 
 	const filesCount = uppyFiles?.length || 0
 
@@ -202,7 +213,9 @@ const SerieUploader = ({
 												<div className='pl-3 w-8 text-lg text-gray-400'>
 													{idx + 1}
 												</div>
-												<div className='flex-1 truncate text-xl'>{f.name}</div>
+												<div className='flex-1 truncate text-xl'>
+													{f.name}
+												</div>
 												<div className='flex items-center gap-2'>
 													<input
 														type='number'

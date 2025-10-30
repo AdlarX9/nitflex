@@ -30,7 +30,7 @@ func main() {
 	log.Println("Storage configuration validated successfully")
 
 	// Initialize storage backend
-	storageBackend = utils.NewLocalStorage([]string{utils.TEMP_DIR, utils.MOVIES_DIR, utils.SERIES_DIR})
+	storageBackend = utils.NewLocalStorage([]string{utils.TEMP_DIR, utils.MOVIES_DIR, utils.MOVIES_DOCU_DIR, utils.SERIES_DIR, utils.SERIES_DOCU_DIR, utils.SERIES_KID_DIR})
 
 	// Initialize job queue (2 workers by default)
 	workers := 2

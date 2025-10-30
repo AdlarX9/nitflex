@@ -131,9 +131,12 @@ func (ls *LocalStorage) DeleteFile(path string) error {
 // ValidateStorageConfig checks that all storage paths are accessible and writable
 func ValidateStorageConfig() error {
 	dirs := map[string]string{
-		"TEMP_DIR":   TEMP_DIR,
-		"MOVIES_DIR": MOVIES_DIR,
-		"SERIES_DIR": SERIES_DIR,
+		"TEMP_DIR":        TEMP_DIR,
+		"MOVIES_DIR":      MOVIES_DIR,
+		"MOVIES_DOCU_DIR": MOVIES_DOCU_DIR,
+		"SERIES_DIR":      SERIES_DIR,
+		"SERIES_DOCU_DIR": SERIES_DOCU_DIR,
+		"SERIES_KID_DIR":  SERIES_KID_DIR,
 	}
 
 	for name, dir := range dirs {

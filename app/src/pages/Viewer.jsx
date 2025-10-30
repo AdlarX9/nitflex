@@ -104,7 +104,6 @@ const Viewer = () => {
 			setAutoNextVisible(false)
 			setCurrentTime(0)
 			if (videoRef.current.paused)
-				console.log('coucou pausing')
 				videoRef.current
 					.play()
 					.then(() => setPaused(false))
@@ -187,10 +186,6 @@ const Viewer = () => {
 	const [videoError, setVideoError] = useState(null)
 	const [timeHover, setTimeHover] = useState(null)
 	const [seekToast, setSeekToast] = useState(null)
-
-	useEffect(() => {
-		console.log(paused)
-	}, [paused])
 
 	// Advanced playback state
 	const [playbackRate, setPlaybackRate] = useState(1)
@@ -573,7 +568,6 @@ const Viewer = () => {
 		if (t <= 1) return
 		if (!user?.id) return
 		if (!force && Math.abs(t - lastSavedTimeRef.current) < MIN_SAVE_DELTA) return
-		console.log('saving progress', t, force)
 
 		if (isEpisode && episodeFewData?.id) {
 			// Save episode progress
