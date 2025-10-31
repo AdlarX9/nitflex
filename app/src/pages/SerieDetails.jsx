@@ -62,7 +62,7 @@ const SerieDetails = () => {
 	}, [s, pickRandom])
 
 	const backdropUrl = randomBackdrop
-		? `https://image.tmdb.org/t/p/original${randomBackdrop}`
+		? `https://image.tmdb.org/t/p/w1280${randomBackdrop}`
 		: null
 
 	// Poster (préférence FR)
@@ -420,15 +420,8 @@ const SerieDetails = () => {
 							Séries similaires
 						</h2>
 						<div className='flex gap-5 overflow-x-auto pb-4 pr-3 snap-x snap-mandatory scrollable scrollable-horizontal'>
-							{s.similar.results.slice(0, 14).map((tv, i) => (
-								<motion.div
-									key={tv.id}
-									initial={{ opacity: 0, y: 30 }}
-									whileInView={{ opacity: 1, y: 0 }}
-									viewport={{ once: true }}
-									transition={{ delay: i * 0.05, duration: 0.5 }}
-									className='snap-start shrink-0 w-40 group'
-								>
+							{s.similar.results.slice(0, 14).map(tv => (
+								<div key={tv.id} className='snap-start shrink-0 w-40 group'>
 									<Link
 										to={`/series/${tv.id}`}
 										className='block rounded-xl overflow-hidden bg-linear-to-t from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
@@ -452,7 +445,7 @@ const SerieDetails = () => {
 											</p>
 										</div>
 									</Link>
-								</motion.div>
+								</div>
 							))}
 						</div>
 					</motion.section>
@@ -463,17 +456,13 @@ const SerieDetails = () => {
 					<motion.section {...sectionReveal} className='mt-16'>
 						<h2 className='text-2xl font-semibold mb-4'>Mots-clés</h2>
 						<div className='flex flex-wrap gap-2'>
-							{s.keywords.results.slice(0, 24).map((k, i) => (
-								<motion.span
+							{s.keywords.results.slice(0, 24).map(k => (
+								<span
 									key={k.id || k.name}
-									initial={{ opacity: 0, y: 12 }}
-									whileInView={{ opacity: 1, y: 0 }}
-									viewport={{ once: true }}
-									transition={{ delay: i * 0.02, duration: 0.4 }}
 									className='px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm tracking-wide uppercase text-gray-300 hover:bg-white/10 transition'
 								>
 									{k.name}
-								</motion.span>
+								</span>
 							))}
 						</div>
 					</motion.section>

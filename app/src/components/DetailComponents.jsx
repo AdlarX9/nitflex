@@ -20,13 +20,20 @@ export const BackButton = () => (
 // Backdrop with parallax + overlays
 export const ParallaxBackdrop = ({ src }) => {
 	const imgRef = useRef(null)
+	const tickingRef = useRef(false)
+	const lastYRef = useRef(0)
 
 	useEffect(() => {
 		const handleScroll = () => {
-			const scrollY = window.scrollY
-			if (imgRef.current) {
-				imgRef.current.style.transform = `translateY(${scrollY / 4}px) scale(1.05)`
-			}
+			lastYRef.current = window.scrollY
+			if (tickingRef.current) return
+			tickingRef.current = true
+			requestAnimationFrame(() => {
+				if (imgRef.current) {
+					imgRef.current.style.transform = `translateY(${lastYRef.current / 4}px) scale(1.04)`
+				}
+				tickingRef.current = false
+			})
 		}
 		window.addEventListener('scroll', handleScroll, { passive: true })
 		return () => window.removeEventListener('scroll', handleScroll)
@@ -40,10 +47,13 @@ export const ParallaxBackdrop = ({ src }) => {
 				key={src}
 				src={src}
 				alt='Arrière-plan'
-				initial={{ opacity: 0, scale: 1.08 }}
-				animate={{ opacity: 0.5, scale: 1.05 }}
-				transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+				initial={{ opacity: 0, scale: 1.04 }}
+				animate={{ opacity: 0.45, scale: 1.04 }}
+				transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
 				className='absolute inset-0 w-full h-auto object-cover pointer-events-none select-none z-0 will-change-transform'
+				loading='lazy'
+				decoding='async'
+				draggable={false}
 			/>
 			<motion.div
 				aria-hidden

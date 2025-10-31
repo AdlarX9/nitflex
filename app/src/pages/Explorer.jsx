@@ -64,16 +64,19 @@ const Explorer = () => {
 
 				{/* Layered cinematic background */}
 				<div className='pointer-events-none absolute inset-0 -z-20 overflow-hidden'>
-					{/* Blurred backdrop image */}
+					{/* Blurred backdrop */}
 					{mainBackdrop?.file_path && (
 						<motion.img
 							key={mainBackdrop.file_path}
-							src={'https://image.tmdb.org/t/p/original' + mainBackdrop.file_path}
+							src={'https://image.tmdb.org/t/p/w1280' + mainBackdrop.file_path}
 							alt='Décor'
-							className='absolute inset-0 w-full h-auto max-h-2/3 object-cover opacity-60 blur-[140rem]'
+							className='absolute inset-0 w-full h-auto object-cover opacity-50 blur-3xl'
 							initial={{ opacity: 0 }}
-							animate={{ opacity: 0.7 }}
-							transition={{ duration: 1.2, ease: 'easeOut' }}
+							animate={{ opacity: 0.6 }}
+							transition={{ duration: 0.8, ease: 'easeOut' }}
+							loading='lazy'
+							decoding='async'
+							draggable={false}
 						/>
 					)}
 					{/* Top gradient fade */}
@@ -159,19 +162,9 @@ const Explorer = () => {
 					) : recentList.length > 0 ? (
 						<div className='flex flex-wrap gap-5 w-full px-10 pt-2'>
 							{recentList.map((movie, idx) => (
-								<motion.div
-									key={(movie.tmdbID || movie.id || 'm') + '_' + idx}
-									initial={{ opacity: 0, scale: 0.9, y: 20 }}
-									whileInView={{ opacity: 1, scale: 1, y: 0 }}
-									viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-									transition={{
-										duration: 0.45,
-										delay: Math.min(idx * 0.03, 0.4),
-										ease: [0.22, 1, 0.36, 1]
-									}}
-								>
+								<div key={(movie.tmdbID || movie.id || 'm') + '_' + idx}>
 									<Movie movie={movie} />
-								</motion.div>
+								</div>
 							))}
 						</div>
 					) : (
@@ -194,19 +187,9 @@ const Explorer = () => {
 					) : recentSeries.length > 0 ? (
 						<div className='flex flex-wrap gap-5 w-full px-10 pt-2'>
 							{recentSeries.map((series, idx) => (
-								<motion.div
-									key={(series.tmdbID || series.id || 's') + '_' + idx}
-									initial={{ opacity: 0, scale: 0.9, y: 20 }}
-									whileInView={{ opacity: 1, scale: 1, y: 0 }}
-									viewport={{ once: true, margin: '0px 0px -60px 0px' }}
-									transition={{
-										duration: 0.45,
-										delay: Math.min(idx * 0.03, 0.4),
-										ease: [0.22, 1, 0.36, 1]
-									}}
-								>
+								<div key={(series.tmdbID || series.id || 's') + '_' + idx}>
 									<Serie series={series} />
-								</motion.div>
+								</div>
 							))}
 						</div>
 					) : (

@@ -98,7 +98,7 @@ const MovieDetails = () => {
 		posterFR || (poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : null)
 
 	const backdropUrl = randomBackdrop
-		? `https://image.tmdb.org/t/p/original${randomBackdrop}`
+		? `https://image.tmdb.org/t/p/w1280${randomBackdrop}`
 		: null
 
 	const cast = credits?.cast?.slice(0, 8) || []
@@ -310,17 +310,13 @@ const MovieDetails = () => {
 					<motion.section {...sectionReveal} className='mt-16'>
 						<h2 className='text-2xl font-semibold mb-4'>Mots-clés</h2>
 						<div className='flex flex-wrap gap-2'>
-							{keywords.keywords.slice(0, 24).map((k, i) => (
-								<motion.span
+							{keywords.keywords.slice(0, 24).map((k) => (
+								<span
 									key={k.id || k.name}
-									initial={{ opacity: 0, y: 12 }}
-									whileInView={{ opacity: 1, y: 0 }}
-									viewport={{ once: true }}
-									transition={{ delay: i * 0.02, duration: 0.4 }}
 									className='px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm tracking-wide uppercase text-gray-300 hover:bg-white/10 transition'
 								>
 									{k.name}
-								</motion.span>
+								</span>
 							))}
 						</div>
 					</motion.section>
@@ -331,68 +327,37 @@ const MovieDetails = () => {
 					<motion.section {...sectionReveal} className='mt-20'>
 						<h2 className='text-3xl font-bold mb-6 tracking-tight'>Avis spectateurs</h2>
 						<div className='grid gap-6 md:grid-cols-3'>
-							{reviews.results.slice(0, 3).map((review, i) => (
-								<motion.div
-									key={review.id}
-									initial={{ opacity: 0, y: 30 }}
-									whileInView={{ opacity: 1, y: 0 }}
-									viewport={{ once: true }}
-									transition={{
-										delay: i * 0.1,
-										duration: 0.55,
-										ease: [0.22, 1, 0.36, 1]
-									}}
-									className='relative p-5 rounded-xl bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow-lg'
-								>
+							{reviews.results.slice(0, 3).map((review) => (
+								<div key={review.id} className='relative p-5 rounded-xl bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow-lg'>
 									<div className='absolute -left-1 top-4 w-1 h-10 rounded-r-full bg-linear-to-b from-red-500 to-red-600 shadow-[0_0_8px_rgba(255,0,0,0.4)]' />
 									<div className='flex items-center justify-between mb-3'>
-										<p className='font-semibold text-gray-100 text-xl'>
-											{review.author}
-										</p>
+										<p className='font-semibold text-gray-100 text-xl'>{review.author}</p>
 										<span className='text-[10px] uppercase tracking-wide text-gray-400 font-medium'>
-											{new Date(review.created_at).toLocaleDateString(
-												'fr-FR'
-											)}
+											{new Date(review.created_at).toLocaleDateString('fr-FR')}
 										</span>
 									</div>
-									<p className='text-base leading-relaxed text-gray-300/90'>
-										{review.content.slice(0, 380)}
-										{review.content.length > 380 && '…'}
-									</p>
-								</motion.div>
-							))}
-						</div>
-					</motion.section>
-				)}
+								<p className='text-base leading-relaxed text-gray-300/90'>
+									{review.content.slice(0, 380)}
+									{review.content.length > 380 && '…'}
+								</p>
+							</div>
+						))}
+					</div>
+				</motion.section>
+			)}
 
 				{/* Similar & Recommendations */}
 				<div className='mt-24 space-y-24'>
 					{similar?.results?.length > 0 && (
 						<motion.section {...sectionReveal}>
-							<h2 className='text-3xl font-bold mb-6 tracking-tight'>
-								Films similaires
-							</h2>
-							<div className='flex gap-5 overflow-x-auto pb-4 pr-3 snap-x snap-mandatory scrollable scrollable-horizontal'>
-								{similar.results.slice(0, 14).map((mov, i) => (
-									<motion.div
-										key={mov.id}
-										initial={{ opacity: 0, y: 30 }}
-										whileInView={{ opacity: 1, y: 0 }}
-										viewport={{ once: true }}
-										transition={{ delay: i * 0.05, duration: 0.5 }}
-										className='snap-start shrink-0 w-40 group'
-									>
-										<Link
-											to={`/movie/${mov.id}`}
-											className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
-										>
+							<h2 className='text-3xl font-bold mb-6 tracking-tight'>Films similaires</h2>
+							<div className='flex gap-5 overflow-x-auto pb-4 pr-3 snap-x snap-mandatory scrollable'>
+								{similar.results.slice(0, 14).map((mov) => (
+									<div key={mov.id} className='snap-start shrink-0 w-40 group'>
+										<Link to={`/movie/${mov.id}`} className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'>
 											<div className='relative aspect-2/3 overflow-hidden'>
 												<img
-													src={
-														mov.poster_path
-															? `https://image.tmdb.org/t/p/w342${mov.poster_path}`
-															: 'https://via.placeholder.com/200x300?text=No+Image'
-													}
+													src={mov.poster_path ? `https://image.tmdb.org/t/p/w342${mov.poster_path}` : 'https://via.placeholder.com/200x300?text=No+Image'}
 													alt={mov.title}
 													className='w-full h-full object-cover transition duration-700 ease-out group-hover:scale-105 group-hover:brightness-90'
 													loading='lazy'
@@ -400,43 +365,24 @@ const MovieDetails = () => {
 												<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 											</div>
 											<div className='p-2'>
-												<p className='text-sm font-medium leading-tight text-gray-100 line-clamp-2'>
-													{mov.title}
-												</p>
+												<p className='text-sm font-medium leading-tight text-gray-100 line-clamp-2'>{mov.title}</p>
 											</div>
 										</Link>
-									</motion.div>
+									</div>
 								))}
 							</div>
 						</motion.section>
 					)}
-
 					{recommendations?.results?.length > 0 && (
 						<motion.section {...sectionReveal}>
-							<h2 className='text-3xl font-bold mb-6 tracking-tight'>
-								Recommandations
-							</h2>
-							<div className='flex gap-5 overflow-x-auto pb-4 pr-3 snap-x snap-mandatory scrollable scrollable-horizontal'>
-								{recommendations.results.slice(0, 14).map((mov, i) => (
-									<motion.div
-										key={mov.id}
-										initial={{ opacity: 0, y: 30 }}
-										whileInView={{ opacity: 1, y: 0 }}
-										viewport={{ once: true }}
-										transition={{ delay: i * 0.05, duration: 0.5 }}
-										className='snap-start shrink-0 w-40 group'
-									>
-										<Link
-											to={`/movie/${mov.id}`}
-											className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'
-										>
+							<h2 className='text-3xl font-bold mb-6 tracking-tight'>Recommandations</h2>
+							<div className='flex gap-5 overflow-x-auto pb-4 pr-3 snap-x snap-mandatory scrollable'>
+								{recommendations.results.slice(0, 14).map((mov) => (
+									<div key={mov.id} className='snap-start shrink-0 w-40 group'>
+										<Link to={`/movie/${mov.id}`} className='block rounded-xl overflow-hidden bg-linear-to-br from-gray-800/40 to-gray-900/40 border border-white/10 shadow hover:shadow-red-500/10 transition relative'>
 											<div className='relative aspect-2/3 overflow-hidden'>
 												<img
-													src={
-														mov.poster_path
-															? `https://image.tmdb.org/t/p/w342${mov.poster_path}`
-															: 'https://via.placeholder.com/200x300?text=No+Image'
-													}
+													src={mov.poster_path ? `https://image.tmdb.org/t/p/w342${mov.poster_path}` : 'https://via.placeholder.com/200x300?text=No+Image'}
 													alt={mov.title}
 													className='w-full h-full object-cover transition duration-700 ease-out group-hover:scale-105 group-hover:brightness-90'
 													loading='lazy'
@@ -444,12 +390,10 @@ const MovieDetails = () => {
 												<div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent opacity-90 group-hover:opacity-95 transition' />
 											</div>
 											<div className='p-2'>
-												<p className='text-sm font-medium leading-tight text-gray-100 line-clamp-2'>
-													{mov.title}
-												</p>
+												<p className='text-sm font-medium leading-tight text-gray-100 line-clamp-2'>{mov.title}</p>
 											</div>
 										</Link>
-									</motion.div>
+									</div>
 								))}
 							</div>
 						</motion.section>

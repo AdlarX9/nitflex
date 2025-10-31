@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import { IoTrash } from 'react-icons/io5'
 import { useAPI, useAPIAfter, useGetEpisodeDetails, useGetFullMovie, useGetFullSerie } from '../app/hooks'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 
 const ProgressBar = ({ percent }) => (
 	<div className='absolute bottom-0 left-0 right-0 h-1 bg-black'>
@@ -16,15 +16,17 @@ const ProgressBar = ({ percent }) => (
 const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 	const [imgLoaded, setImgLoaded] = useState(false)
 	const progressPercent = (item.position / (item.duration || 1)) * 100
+	const serieTmdb = item?.type === 'episode' ? item?.tmdbID : null
+	const movieTmdb = item?.type === 'movie' ? item?.tmdbID : null
 	const { data: episodeDetails } = useGetEpisodeDetails(
-		item?.tmdbID,
+		serieTmdb,
 		item?.seasonNumber,
 		item?.episodeNumber
 	)
-	const { data: series } = useGetFullSerie(item?.tmdbID)
+	const { data: series } = useGetFullSerie(serieTmdb)
 	
 	// Always call hooks in same order; enable based on type
-	const { data: movie, isLoading: movieLoading } = useGetFullMovie(item?.tmdbID)
+	const { data: movie, isLoading: movieLoading } = useGetFullMovie(movieTmdb)
 	const { data: episode, isLoading: epLoading } = useAPI(
 		'GET',
 		`/episode/${item.episodeId}`,
@@ -169,4 +171,4 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 	)
 }
 
-export default OnGoingItem
+export default memo(OnGoingItem)
