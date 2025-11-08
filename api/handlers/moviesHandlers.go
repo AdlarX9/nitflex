@@ -3,6 +3,7 @@ package handlers
 import (
 	"api/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -185,6 +186,20 @@ func UploadMovie(c *gin.Context) {
     // Extract flags BEFORE responding (safe for goroutine)
     isDocStr := c.PostForm("isDocumentary")
     isDoc := strings.EqualFold(isDocStr, "true") || isDocStr == "1"
+    // Optional track selections (JSON arrays of indices)
+    var aSel, sSel []int
+    if v := c.PostForm("audioStreams"); v != "" {
+        var arr []int
+        if err := json.Unmarshal([]byte(v), &arr); err == nil {
+            aSel = arr
+        }
+    }
+    if v := c.PostForm("subtitleStreams"); v != "" {
+        var arr []int
+        if err := json.Unmarshal([]byte(v), &arr); err == nil {
+            sSel = arr
+        }
+    }
 
     // Respond immediately
     c.JSON(http.StatusOK, gin.H{
@@ -193,11 +208,13 @@ func UploadMovie(c *gin.Context) {
     })
 
 	// Trigger pipeline AFTER response
-    go func(m utils.Movie, isDoc bool) {
-        // classification: documentaries
+    go func(m utils.Movie, isDoc bool, aStreams, sStreams []int) {
+        // classification + track selections
         opts := map[string]interface{}{"isDocumentary": isDoc}
+        if len(aStreams) > 0 { opts["audioStreams"] = aStreams }
+        if len(sStreams) > 0 { opts["subtitleStreams"] = sStreams }
         _ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, opts)
-    }(movie, isDoc)
+    }(movie, isDoc, aSel, sSel)
 }
 
 // GET /all_movies

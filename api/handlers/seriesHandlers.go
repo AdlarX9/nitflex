@@ -62,6 +62,21 @@ func CreateSeries(c *gin.Context) {
 	isDocu := strings.EqualFold(isDocuStr, "true") || isDocuStr == "1"
 	isKids := strings.EqualFold(isKidsStr, "true") || isKidsStr == "1"
 
+	// Optional track selections (apply to all files)
+	var aSel, sSel []int
+	if v := get("audioStreams"); v != "" {
+		var arr []int
+		if err := json.Unmarshal([]byte(v), &arr); err == nil {
+			aSel = arr
+		}
+	}
+	if v := get("subtitleStreams"); v != "" {
+		var arr []int
+		if err := json.Unmarshal([]byte(v), &arr); err == nil {
+			sSel = arr
+		}
+	}
+
 	type EpMeta struct {
 		Index         int    `json:"index"`
 		SeasonNumber  int    `json:"seasonNumber"`
@@ -197,10 +212,12 @@ func CreateSeries(c *gin.Context) {
 		created = append(created, ep)
 
 		// Start pipeline (async) with classification options
-		go func(ep utils.Episode, docu, kids bool) {
+		go func(ep utils.Episode, docu, kids bool, aStreams, sStreams []int) {
 			opts := map[string]interface{}{"isDocu": docu, "isKids": kids}
+			if len(aStreams) > 0 { opts["audioStreams"] = aStreams }
+			if len(sStreams) > 0 { opts["subtitleStreams"] = sStreams }
 			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, transcodeMode, opts)
-		}(ep, isDocu, isKids)
+		}(ep, isDocu, isKids, aSel, sSel)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"series": series, "episodes": created})

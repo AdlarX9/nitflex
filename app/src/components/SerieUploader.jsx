@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import '../../node_modules/@uppy/core/dist/style.css'
 import '../../node_modules/@uppy/dashboard/dist/style.css'
 import SeriesSearch from '../components/SeriesSearch'
+import TranscodeOptions from '../components/TranscodeOptions'
 import { useMainContext, useEpisodeTitles } from '../app/hooks'
 
 const afterSelectVariants = {
@@ -56,6 +57,7 @@ const SerieUploader = ({
 	const [seriesFolderName, setSeriesFolderName] = useState('')
 	const [uppyFiles, setUppyFiles] = useState([])
 	const [seriesFilesMap, setSeriesFilesMap] = useState({}) // {fileId: {season:'', episode:''}}
+    const [txSel, setTxSel] = useState({ audioStreams: [], subtitleStreams: [] })
 	// Episode titles from TMDB based on selected seasons
 	const epTitles = useEpisodeTitles(selectedSeries?.id, seriesFilesMap)
 
@@ -170,9 +172,11 @@ const SerieUploader = ({
 			transcodeMode,
 			episodes: JSON.stringify(episodes),
 			isDocu,
-			isKids
+			isKids,
+			audioStreams: JSON.stringify(txSel.audioStreams || []),
+			subtitleStreams: JSON.stringify(txSel.subtitleStreams || [])
 		})
-	}, [uppy, selectedSeries, seriesFolderName, transcodeMode, uppyFiles, seriesFilesMap, epTitles])
+	}, [uppy, selectedSeries, seriesFolderName, transcodeMode, uppyFiles, seriesFilesMap, epTitles, txSel])
 
 	const filesCount = uppyFiles?.length || 0
 
@@ -276,95 +280,23 @@ const SerieUploader = ({
 								value={seriesFolderName}
 								onChange={e => setSeriesFolderName(e.target.value)}
 								placeholder={selectedSeries?.name || 'Nom du dossier…'}
-								className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg md:text-xl font-medium placeholder:text-gray-500 transition'
 							/>
 						</motion.div>
 
-						{/* Transcoding options */}
-						<motion.div
-							className='flex flex-col pt-2 gap-4'
-							variants={afterSelectVariants}
-							custom={3}
-						>
-							<label className='text-lg md:text-xl font-semibold uppercase tracking-wide text-gray-200'>
-								Transcodage
-							</label>
-							<div className='flex flex-wrap gap-4'>
-								<motion.label
-									whileHover={{ scale: 1.03 }}
-									whileTap={{ scale: 0.97 }}
-									className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-								>
-									<input
-										type='radio'
-										name='transcodeMode'
-										value='none'
-										checked={transcodeMode === 'none'}
-										onChange={e => setTranscodeMode(e.target.value)}
-										className='accent-red-600 scale-125'
-									/>
-									<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-										Aucun
-									</span>
-								</motion.label>
-								<motion.label
-									whileHover={{ scale: 1.03 }}
-									whileTap={{ scale: 0.97 }}
-									className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-								>
-									<input
-										type='radio'
-										name='transcodeMode'
-										value='server'
-										checked={transcodeMode === 'server'}
-										onChange={e => setTranscodeMode(e.target.value)}
-										className='accent-red-600 scale-125'
-									/>
-									<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-										Serveur
-									</span>
-								</motion.label>
-								{isElectron && (
-									<motion.label
-										whileHover={{ scale: 1.03 }}
-										whileTap={{ scale: 0.97 }}
-										className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-									>
-										<input
-											type='radio'
-											name='transcodeMode'
-											value='local'
-											checked={transcodeMode === 'local'}
-											onChange={e => {
-												setTranscodeMode(e.target.value)
-												setProcessingLocation('local')
-											}}
-											className='accent-red-600 scale-125'
-										/>
-										<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-											Local
-										</span>
-									</motion.label>
-								)}
-							</div>
-							<motion.p
-								className='text-gray-400 text-sm md:text-base leading-snug'
-								variants={afterSelectVariants}
-								custom={4}
-							>
-								{transcodeMode === 'none' &&
-									'Le fichier sera utilisé tel quel sans transcodage.'}
-								{transcodeMode === 'server' &&
-									'Le transcodage sera effectué sur le serveur.'}
-								{transcodeMode === 'local' &&
-									'Le transcodage sera effectué localement sur votre ordinateur.'}
-							</motion.p>
-						</motion.div>
+						{/* Transcodage */}
+						<TranscodeOptions
+							files={uppyFiles}
+							transcodeMode={transcodeMode}
+							setTranscodeMode={v => {
+								setTranscodeMode(v)
+								if (v === 'local') setProcessingLocation('local')
+							}}
+							onChange={sel => setTxSel(sel)}
+							isElectron={isElectron}
+						/>
 					</motion.div>
 				)}
-			</AnimatePresence>
 
-			<AnimatePresence>
 				{selectedSeries && (
 					<motion.div
 						key='dashboard'

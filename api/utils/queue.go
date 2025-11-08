@@ -377,6 +377,83 @@ func (q *Queue) processJob(jobID primitive.ObjectID) {
 		opts.OutputPath = outPath
 		opts.ProgressChan = progressChan
 
+		// Apply track selections from job.transcodeOptions
+		if raw, ok := job["transcodeOptions"]; ok && raw != nil {
+			switch v := raw.(type) {
+			case map[string]interface{}:
+				if as, ok := v["audioStreams"]; ok {
+					// convert []any to []int
+					if arr, ok2 := as.([]interface{}); ok2 {
+						for _, it := range arr {
+							switch n := it.(type) {
+							case int:
+								opts.AudioStreams = append(opts.AudioStreams, n)
+							case int32:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							case int64:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							case float64:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							}
+						}
+					} else if arr2, ok2 := as.([]int); ok2 {
+						opts.AudioStreams = append(opts.AudioStreams, arr2...)
+					}
+				}
+				if ss, ok := v["subtitleStreams"]; ok {
+					if arr, ok2 := ss.([]interface{}); ok2 {
+						for _, it := range arr {
+							switch n := it.(type) {
+							case int:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, n)
+							case int32:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							case int64:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							case float64:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							}
+						}
+					} else if arr2, ok2 := ss.([]int); ok2 {
+						opts.SubtitleStreams = append(opts.SubtitleStreams, arr2...)
+					}
+				}
+			case bson.M:
+				if as, ok := v["audioStreams"]; ok {
+					if arr, ok2 := as.([]interface{}); ok2 {
+						for _, it := range arr {
+							switch n := it.(type) {
+							case int:
+								opts.AudioStreams = append(opts.AudioStreams, n)
+							case int32:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							case int64:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							case float64:
+								opts.AudioStreams = append(opts.AudioStreams, int(n))
+							}
+						}
+					}
+				}
+				if ss, ok := v["subtitleStreams"]; ok {
+					if arr, ok2 := ss.([]interface{}); ok2 {
+						for _, it := range arr {
+							switch n := it.(type) {
+							case int:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, n)
+							case int32:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							case int64:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							case float64:
+								opts.SubtitleStreams = append(opts.SubtitleStreams, int(n))
+							}
+						}
+					}
+				}
+			}
+		}
+
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
