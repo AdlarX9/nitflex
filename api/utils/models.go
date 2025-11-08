@@ -3,13 +3,13 @@ package utils
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type User struct {
-	ID                primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
-	Name              string               `json:"name" bson:"name"`
-	OnGoingMediasID   []primitive.ObjectID `json:"onGoingMedias" bson:"onGoingMedias"`
+	ID              primitive.ObjectID   `json:"id,omitempty" bson:"_id,omitempty"`
+	Name            string               `json:"name" bson:"name"`
+	OnGoingMediasID []primitive.ObjectID `json:"onGoingMedias" bson:"onGoingMedias"`
 }
 
 type OnGoingMedia struct {
-	Type string `json:"type" bson:"type"` // "movie" | "episode"
+	Type string             `json:"type" bson:"type"`       // "movie" | "episode"
 	ID   primitive.ObjectID `json:"id" bson:"id,omitempty"` // MovieID or EpisodeID
 }
 
@@ -73,7 +73,7 @@ type Episode struct {
 	Title         string             `json:"title" bson:"title"`
 	Runtime       int                `json:"runtime,omitempty" bson:"runtime,omitempty"` // Minutes
 	FilePath      string             `json:"filePath" bson:"filePath"`                   // Actual video file location
-	Date          primitive.DateTime `json:"date" bson:"date"` // When added to library
+	Date          primitive.DateTime `json:"date" bson:"date"`                           // When added to library
 }
 
 // OnGoingEpisode for episode progress tracking

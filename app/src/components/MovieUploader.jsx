@@ -123,8 +123,7 @@ const MovieUploader = ({
 				title,
 				imdbID,
 				rating,
-				isDocumentary,
-				type: 'movie'
+				isDocumentary
 			})
 		}
 		uppy.on('file-added', handleAdded)
@@ -184,7 +183,7 @@ const MovieUploader = ({
 							/>
 						</motion.div>
 
-						{/* Transcoding options */}
+						{/* Transcoding options
 						<motion.div
 							className='flex flex-col pt-2 gap-4'
 							variants={afterSelectVariants}
@@ -263,7 +262,7 @@ const MovieUploader = ({
 								{transcodeMode === 'local' &&
 									'Le transcodage sera effectué localement sur votre ordinateur.'}
 							</motion.p>
-						</motion.div>
+						</motion.div> */}
 					</motion.div>
 				)}
 			</AnimatePresence>

@@ -281,7 +281,7 @@ const SerieUploader = ({
 						</motion.div>
 
 						{/* Transcoding options */}
-						<motion.div
+						{/* <motion.div
 							className='flex flex-col pt-2 gap-4'
 							variants={afterSelectVariants}
 							custom={3}
@@ -359,7 +359,7 @@ const SerieUploader = ({
 								{transcodeMode === 'local' &&
 									'Le transcodage sera effectué localement sur votre ordinateur.'}
 							</motion.p>
-						</motion.div>
+						</motion.div> */}
 					</motion.div>
 				)}
 			</AnimatePresence>

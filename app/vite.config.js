@@ -13,7 +13,7 @@ export default defineConfig({
 			// Toutes les requêtes commençant par /api vont vers le backend
 			'/jobs': {
 				target: 'http://api:8080', // nom du service Docker (même réseau)
-				changeOrigin: true,
+				changeOrigin: true
 				// rewrite: path => path.replace(/^\/jobs/, '')
 			}
 		}

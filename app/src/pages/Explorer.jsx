@@ -24,7 +24,13 @@ const Explorer = () => {
 		useMainContext()
 	const [mainBackdrop, setMainBackdrop] = useState(null)
 
-	const { data: ongoingMedia, refetch } = useAPI('GET', `/ongoing_media/${user?.id}`, {}, {}, !!user?.id)
+	const { data: ongoingMedia, refetch } = useAPI(
+		'GET',
+		`/ongoing_media/${user?.id}`,
+		{},
+		{},
+		!!user?.id
+	)
 	const dedupedOngoing = useMemo(() => {
 		if (!Array.isArray(ongoingMedia)) return []
 		const seenSeries = new Set()
@@ -136,8 +142,15 @@ const Explorer = () => {
 									style={{ WebkitOverflowScrolling: 'touch' }}
 								>
 									{dedupedOngoing.map((item, idx) => (
-										<div key={(item.type || 'm') + '_' + (item.id || idx)} className='snap-start'>
-											<OnGoingItem item={item} index={idx} onDeleted={refetch} />
+										<div
+											key={(item.type || 'm') + '_' + (item.id || idx)}
+											className='snap-start'
+										>
+											<OnGoingItem
+												item={item}
+												index={idx}
+												onDeleted={refetch}
+											/>
 										</div>
 									))}
 								</div>

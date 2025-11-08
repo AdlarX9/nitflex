@@ -166,8 +166,8 @@ func sanitizeFileName(name string) string {
 
 	// Nettoyage léger
 	n = strings.TrimSpace(n)
-	n = strings.Trim(n, " .")                  // évite noms qui finissent par espace/point (Windows)
-	n = strings.Join(strings.Fields(n), " ")   // compresse les espaces multiples
+	n = strings.Trim(n, " .")                // évite noms qui finissent par espace/point (Windows)
+	n = strings.Join(strings.Fields(n), " ") // compresse les espaces multiples
 
 	if n == "" {
 		n = "untitled"
