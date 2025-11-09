@@ -9,15 +9,19 @@
 1. Clone the repository:
 ```bash
 git clone https://github.com/AdlarX9/nitflex.git
+```
+```bash
 cd nitflex
 ```
 
-2. Configure the environment:
+2. Configure rights:
 
-Install required dependencies and generate environment files:
+Give the correct rights to the script
 ```bash
 chmod +x ./nitflex.sh
-./nitflex.sh setup
+```
+```bash
+cp .env.example .env
 ```
 
 Then edit the `.env` file with your own settings.
@@ -110,24 +114,6 @@ The project includes an Nginx configuration optimized for:
 - Video streaming with Range Request support
 - Gzip compression
 - Static asset caching
-
-## Customization
-
-Modify available genres (`app/src/pages/Search.jsx`):
-```javascript
-const GENRES = {
-  '': 'All',
-  action: 'Action',
-  // Add your genres
-}
-```
-
-Change the primary color (`app/tailwind.config.js`):
-```javascript
-colors: {
-  'nitflex-red': '#E50914', // Your primary color
-}
-```
 
 # 🤝 Contributing
 
