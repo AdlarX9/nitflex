@@ -89,6 +89,9 @@ func main() {
 	r.GET("/video/:id/chapters", handlers.MovieChaptersHandler)
 	r.GET("/video/episode/:id/chapters", handlers.EpisodeChaptersHandler)
 
+	// Probe (ffprobe stream detection)
+	r.POST("/probe_streams", handlers.ProbeStreams)
+
 	// HLS endpoints (master + assets via wildcard handler)
 	r.GET("/hls/movie/:id/*asset", handlers.HLSMovieAsset)
 	r.GET("/hls/episode/:id/*asset", handlers.HLSEpisodeAsset)

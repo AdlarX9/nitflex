@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import '../../node_modules/@uppy/core/dist/style.css'
 import '../../node_modules/@uppy/dashboard/dist/style.css'
 import MovieSearch from '../components/MovieSearch'
+import TranscodeOptions from '../components/TranscodeOptions'
 import { useMainContext } from '../app/hooks'
 
 const afterSelectVariants = {
@@ -67,6 +68,9 @@ const MovieUploader = ({
 		[]
 	)
 
+	const [uppyFiles, setUppyFiles] = useState([])
+	const [txSel, setTxSel] = useState({ audioStreams: [], subtitleStreams: [] })
+
 	useEffect(() => {
 		uppy.use(XHRUpload, {
 			endpoint: import.meta.env.VITE_API + '/movies',
@@ -86,8 +90,13 @@ const MovieUploader = ({
 					result.successful[0].response?.body?.movie
 				) {
 					if (window.electronAPI?.processMovie) {
+						const movie = result.successful[0].response.body.movie
 						window.electronAPI
-							.processMovie(result.successful[0].response.body.movie)
+							.processMovie(movie, {
+								transcodeMode,
+								audioStreams: txSel?.audioStreams || [],
+								subtitleStreams: txSel?.subtitleStreams || []
+							})
 							.then(r => console.log('Local processing result:', r))
 							.catch(err => console.error('Local processing failed:', err))
 					}
@@ -103,7 +112,28 @@ const MovieUploader = ({
 		return () => {
 			uppy.off('complete', onComplete)
 		}
-	}, [uppy, refetchNewMovies, refetchNewSeries, isElectron, processingLocation])
+	}, [uppy, refetchNewMovies, refetchNewSeries, isElectron, processingLocation, transcodeMode, txSel])
+
+	// Track Uppy files and keep global meta in sync with selections
+	useEffect(() => {
+		const handleAdded = () => setUppyFiles(uppy.getFiles())
+		const handleRemoved = () => setUppyFiles(uppy.getFiles())
+		uppy.on('file-added', handleAdded)
+		uppy.on('file-removed', handleRemoved)
+		setUppyFiles(uppy.getFiles())
+		return () => {
+			uppy.off('file-added', handleAdded)
+			uppy.off('file-removed', handleRemoved)
+		}
+	}, [uppy])
+
+	useEffect(() => {
+		uppy.setMeta({
+			transcodeMode,
+			audioStreams: JSON.stringify(txSel.audioStreams || []),
+			subtitleStreams: JSON.stringify(txSel.subtitleStreams || [])
+		})
+	}, [uppy, transcodeMode, txSel])
 
 	useEffect(() => {
 		const handleAdded = file => {
@@ -183,86 +213,17 @@ const MovieUploader = ({
 							/>
 						</motion.div>
 
-						{/* Transcoding options
-						<motion.div
-							className='flex flex-col pt-2 gap-4'
-							variants={afterSelectVariants}
-							custom={1}
-						>
-							<label className='text-lg md:text-xl font-semibold uppercase tracking-wide text-gray-200'>
-								Transcodage
-							</label>
-							<div className='flex flex-wrap gap-4'>
-								<motion.label
-									whileHover={{ scale: 1.03 }}
-									whileTap={{ scale: 0.97 }}
-									className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-								>
-									<input
-										type='radio'
-										name='transcodeMode'
-										value='none'
-										checked={transcodeMode === 'none'}
-										onChange={e => setTranscodeMode(e.target.value)}
-										className='accent-red-600 scale-125'
-									/>
-									<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-										Aucun
-									</span>
-								</motion.label>
-								<motion.label
-									whileHover={{ scale: 1.03 }}
-									whileTap={{ scale: 0.97 }}
-									className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-								>
-									<input
-										type='radio'
-										name='transcodeMode'
-										value='server'
-										checked={transcodeMode === 'server'}
-										onChange={e => setTranscodeMode(e.target.value)}
-										className='accent-red-600 scale-125'
-									/>
-									<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-										Serveur
-									</span>
-								</motion.label>
-								{isElectron && (
-									<motion.label
-										whileHover={{ scale: 1.03 }}
-										whileTap={{ scale: 0.97 }}
-										className='flex items-center gap-3 text-base text-gray-100 cursor-pointer group'
-									>
-										<input
-											type='radio'
-											name='transcodeMode'
-											value='local'
-											checked={transcodeMode === 'local'}
-											onChange={e => {
-												setTranscodeMode(e.target.value)
-												setProcessingLocation('local')
-											}}
-											className='accent-red-600 scale-125'
-										/>
-										<span className='px-4 py-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 transition font-medium'>
-											Local
-										</span>
-									</motion.label>
-								)}
-							</div>
-							<motion.p
-								className='text-gray-400 text-sm md:text-base leading-snug'
-								variants={afterSelectVariants}
-								custom={2}
-							>
-								{transcodeMode === 'none' &&
-									'Le fichier sera utilisé tel quel sans transcodage.'}
-								{transcodeMode === 'server' &&
-									'Le transcodage sera effectué sur le serveur.'}
-								{transcodeMode === 'local' &&
-									'Le transcodage sera effectué localement sur votre ordinateur.'}
-							</motion.p>
-						</motion.div> */}
+						{/* Transcoding options */}
+						<TranscodeOptions
+							files={uppyFiles}
+							transcodeMode={transcodeMode}
+							setTranscodeMode={v => {
+								setTranscodeMode(v)
+								if (v === 'local') setProcessingLocation('local')
+							}}
+							onChange={sel => setTxSel(sel)}
+							isElectron={isElectron}
+						/>
 					</motion.div>
 				)}
 			</AnimatePresence>

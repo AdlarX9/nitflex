@@ -24,6 +24,8 @@ type TranscodeOptions struct {
 	Preset       string
 	Resolution   string
 	HWAccel      bool
+	AudioStreams []int
+	SubtitleStreams []int
 	ProgressChan chan float64
 }
 
@@ -86,6 +88,27 @@ func buildFFmpegArgs(opts TranscodeOptions) []string {
 	// Input
 	args = append(args, "-i", opts.InputPath)
 
+	// Stream selection
+	// Always map the first video
+	args = append(args, "-map", "0:v:0")
+
+	// Map audio tracks
+	if len(opts.AudioStreams) > 0 {
+		for _, ai := range opts.AudioStreams {
+			args = append(args, "-map", fmt.Sprintf("0:a:%d", ai))
+		}
+	} else {
+		// Default to first audio if none specified
+		args = append(args, "-map", "0:a:0")
+	}
+
+	// Map subtitle tracks
+	if len(opts.SubtitleStreams) > 0 {
+		for _, si := range opts.SubtitleStreams {
+			args = append(args, "-map", fmt.Sprintf("0:s:%d", si))
+		}
+	}
+
 	// Video codec
 	if opts.HWAccel {
 		args = append(args, "-c:v", getHWVideoCodec())
@@ -108,8 +131,13 @@ func buildFFmpegArgs(opts TranscodeOptions) []string {
 	args = append(args,
 		"-c:a", "aac",
 		"-b:a", "160k",
-		"-ac", "2", // Stereo
+		"-ac", "2",
 	)
+
+	// Subtitles: convert to mov_text for MP4 compatibility when present
+	if len(opts.SubtitleStreams) > 0 {
+		args = append(args, "-c:s", "mov_text")
+	}
 
 	// Container options
 	args = append(args,
