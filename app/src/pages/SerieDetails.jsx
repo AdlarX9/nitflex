@@ -61,9 +61,7 @@ const SerieDetails = () => {
 		}
 	}, [s, pickRandom])
 
-	const backdropUrl = randomBackdrop
-		? `https://image.tmdb.org/t/p/w1280${randomBackdrop}`
-		: null
+	const backdropUrl = randomBackdrop ? `https://image.tmdb.org/t/p/w1280${randomBackdrop}` : null
 
 	// Poster (préférence FR)
 	let posterUrl = null
@@ -145,7 +143,9 @@ const SerieDetails = () => {
 		return target?.season_number ?? null
 	}, [seasonsList])
 
-	const [selectedSeason, setSelectedSeason] = useState(localStorage.getItem(`${tmdbID}-selectedSeason`) || null)
+	const [selectedSeason, setSelectedSeason] = useState(
+		localStorage.getItem(`${tmdbID}-selectedSeason`) || null
+	)
 	useEffect(() => {
 		if (defaultSeason != null && selectedSeason == null) setSelectedSeason(defaultSeason)
 		localStorage.setItem(`${tmdbID}-selectedSeason`, selectedSeason)

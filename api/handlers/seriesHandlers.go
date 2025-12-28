@@ -356,17 +356,17 @@ func GetEpisodeByID(c *gin.Context) {
 		}
 	}
 
-    // Compose response: flatten episode fields and attach prev/next
-    var resp map[string]interface{}
-    // marshal then unmarshal to map
-    if b, err := json.Marshal(episode); err == nil {
-        _ = json.Unmarshal(b, &resp)
-    }
-    if resp == nil {
-        resp = map[string]interface{}{}
-    }
-    if nextFound {
-        resp["nextEpisode"] = nextEp
-    }
-    c.JSON(http.StatusOK, resp)
+	// Compose response: flatten episode fields and attach prev/next
+	var resp map[string]interface{}
+	// marshal then unmarshal to map
+	if b, err := json.Marshal(episode); err == nil {
+		_ = json.Unmarshal(b, &resp)
+	}
+	if resp == nil {
+		resp = map[string]interface{}{}
+	}
+	if nextFound {
+		resp["nextEpisode"] = nextEp
+	}
+	c.JSON(http.StatusOK, resp)
 }

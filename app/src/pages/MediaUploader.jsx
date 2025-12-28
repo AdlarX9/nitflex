@@ -51,7 +51,7 @@ const glowPulse = {
 const MediaUploader = () => {
 	const [mediaType, setMediaType] = useState('movie') // 'movie' | 'series'
 	const [processingLocation, setProcessingLocation] = useState('server') // 'server' | 'local'
-	const [transcodeMode, setTranscodeMode] = useState('server') // 'none' | 'server' | 'local'
+	const [transcodeMode, setTranscodeMode] = useState('none') // 'none' | 'server' | 'local'
 	const [isElectron, setIsElectron] = useState(false)
 	const [hasSelection, setHasSelection] = useState(false)
 

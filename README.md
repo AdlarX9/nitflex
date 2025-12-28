@@ -1,286 +1,161 @@
 # 🎬 Nitflex
 
-**Nitflex** est une plateforme de streaming privée pour gérer et visionner vos films stockés sur un serveur NAS. Ce projet est une application complète avec un frontend React moderne, une API backend en Go, et MongoDB pour la persistance des données.
-> ⚠️ **Disclaimer**: This software is not inspired by the well-known application known as Netflix. Any resemblance or similarity to the latter is purely and entirely coincidental.
+**Nitflex** is a private streaming platform for managing and watching films stored on a NAS server. This project is a complete application featuring a modern React frontend, a Go backend API, and MongoDB for data persistence.
 
-## ✨ Fonctionnalités principales
+> ⚠️ **Disclaimer**: This software is not inspired by the well-known application Netflix. Any resemblance or similarity is purely coincidental.
 
-### 🎬 Streaming & Lecture
-- **Streaming vidéo** optimisé avec support du range request
-- **Films & Séries** - Gestion complète de votre bibliothèque
-- **Navigation épisodes** - Suivant/Précédent automatique
-- **Films en cours** - Reprenez là où vous vous êtes arrêté
-- **Suivi de progression** - Pour films et épisodes
+# Installation
 
-### 🎨 Interface Utilisateur
-- **100% Responsive** - Interface adaptée mobile, tablette et desktop
-- **UI moderne** avec animations Framer Motion
-- **Multi-utilisateurs** avec gestion de profils
-- **Recherche avancée** de films avec filtres et tri
-- **Affichage en temps réel** des tâches de transcodage
-
-### 🔧 Transcoding & Processing
-- **Système de jobs** avec file d'attente et workers
-- **Transcodage serveur** - Processing sur le backend Go
-- **Transcodage local** - Via Electron avec accélération matérielle
-- **Support multi-plateforme**:
-  - macOS: VideoToolbox
-  - Windows: NVENC
-  - Linux: VAAPI
-- **Progression en temps réel** via Server-Sent Events
-- **Annulation de jobs** et retry automatique
-
-### 📚 Gestion de contenu
-- **Intégration TMDB** pour films et séries TV
-- **Upload intelligent** avec détection automatique
-- **Métadonnées enrichies** - Posters, descriptions, dates
-- **Tagging automatique** des fichiers vidéo
-- **Structure de stockage** organisée et scalable
-
-### 🏗️ Infrastructure
-- **Application Electron** - Version desktop avec traitement local
-- **Docker** - Déploiement simplifié avec Docker Compose
-- **Nginx reverse proxy** pour une architecture production-ready
-- **MongoDB** - Persistance robuste des données
-- **Migration automatique** des fichiers existants
-
-### Prérequis
-
-- Docker & Docker Compose
-- Clé API TMDB (gratuite sur [themoviedb.org](https://www.themoviedb.org/settings/api))
-- Un dossier contenant vos films
-
-### Installation en une commande
-
+1. Clone the repository:
 ```bash
-./setup.sh
+git clone https://github.com/AdlarX9/nitflex.git
 ```
-
-Le script vous guidera à travers la configuration.
-
-### Installation manuelle
-
-1. **Cloner le dépôt**
 ```bash
-git clone <votre-repo>
 cd nitflex
 ```
 
-2. **Configurer l'environnement**
+2. Configure rights:
 
-Créez `app/.env.local`:
-```env
-VITE_TMDB_KEY=votre_cle_api_tmdb
-VITE_API=http://localhost/api
-```
-
-Créez `api/.env`:
-```env
-MONGODB_URI=mongodb://mongodb:27017/nitflex
-TMDB_API_KEY=votre_cle_api_tmdb
-PORT=8080
-
-# Storage Configuration (Production)
-TEMP_DIR=./uploads
-MOVIES_DIR=./movies
-SERIES_DIR=./series
-```
-
-3. **Monter votre bibliothèque de films**
-
-Éditez `compose.yaml` et mettez à jour le volume des films:
-```yaml
-volumes:
-  - /chemin/vers/vos/films:/root/movies:ro
-```
-
-4. **Démarrer l'application**
+Give the correct rights to the script
 ```bash
-docker compose up -d --build
+chmod +x ./nitflex.sh
+```
+```bash
+cp .env.example .env
 ```
 
-5. **Accéder à l'application**
+Then edit the `.env` file with your own settings.
 
-Ouvrez votre navigateur sur `http://localhost`
+3. Start the application:
 
-## 📖 Architecture
+Production mode:
+```bash
+./nitflex.sh deploy
+```
+
+Development mode:
+```bash
+./nitflex.sh dev
+```
+
+4. Access the application:
+
+Open your browser at `http://localhost`.
+
+# ✨ Key Features
+
+## Streaming & Playback
+Optimized video streaming with Range Request support; full management of movies and TV series, including episode navigation and automatic next/previous handling; resume playback and progress tracking for both movies and episodes.
+
+## User Interface
+Modern, fully responsive UI (mobile/tablet/desktop) with Framer Motion animations; multi-profile support, advanced search with filters/sorting, and real-time transcoding status display.
+
+## Transcoding & Processing
+Job queue with workers for background processing; server-side transcoding (Go) and optional local transcoding via Electron with hardware acceleration (VideoToolbox, NVENC, VAAPI); real-time progress via SSE, with job cancellation and retries.
+
+## Content Management
+TMDB integration for metadata enrichment, smart upload and automatic tagging, organized and scalable storage for media files.
+
+## Infrastructure
+Desktop Electron app for local processing, Docker + Docker Compose for deployment, Nginx reverse proxy for production-ready routing/streaming, and MongoDB for reliable persistence; automatic migration of existing files.
+
+## Prerequisites
+Docker & Docker Compose, a TMDB API key, and a directory containing your movie files.
+
+# 📖 Architecture
 
 ```
 nitflex/
-├── app/              # Frontend React + Vite
+├── app/                # React + Vite frontend
 │   ├── src/
-│   │   ├── pages/    # Pages de l'application
-│   │   ├── components/ # Composants réutilisables
-│   │   └── app/      # Context, hooks, utils
+│   │   ├── pages/      # Application pages
+│   │   ├── components/ # Reusable components
+│   │   └── app/        # Context, hooks, utilities
 │   └── package.json
-├── api/              # Backend Go + Gin
+├── api/                # Go backend + Gin
 │   ├── main.go
-│   ├── models.go
-│   └── *Handlers.go
-├── nginx/            # Configuration Nginx
+│   ├── handlers/       # Route handlers
+│   └── utils.go        # Utilities
+├── nginx/              # Nginx configuration
 │   └── nginx.conf
-├── compose.yaml      # Docker Compose
-├── Dockerfile.api    # Image Docker API
-├── Dockerfile.frontend # Image Docker Frontend
-└── setup.sh          # Script d'installation
+├── compose.yaml        # Docker Compose
+├── Dockerfile.api      # API Docker image
+├── Dockerfile.frontend # Frontend Docker image
+└── nitflex.sh          # Application management script
 ```
 
-## 🛠️ Développement
+# 🎯 Usage
 
-### Frontend
-```bash
-cd app
-pnpm install
-pnpm run dev
-```
+## 1. Create a user profile
+- Click the “+” button on the home page
+- Enter a display name
 
-### Backend
-```bash
-cd api
-go run .
-```
+## 2. Upload a movie
+- Click “Upload movie” in the top-right corner
+- Select your video file
+- Search for the movie on TMDB
+- Confirm the upload
 
-### MongoDB
-```bash
-docker run -d -p 27017:27017 mongo:7.0-alpine
-```
+## 3. Watch a movie
+- Browse your library in the Explorer
+- Click a movie to view details
+- Click “Play” to start playback
 
-## 🎯 Utilisation
+## 4. Search for a movie
+- Use the Search page
+- Filter by genre, title, or sort order
 
-### 1. Créer un profil utilisateur
-- Cliquez sur le bouton "+" sur la page d'accueil
-- Entrez un pseudo
+# 🔧 Advanced Configuration
 
-### 2. Uploader un film
-- Cliquez sur "Uploader film" en haut à droite
-- Sélectionnez votre fichier vidéo
-- Recherchez le film sur TMDB
-- Confirmez l'upload
+## Nginx Reverse Proxy
 
-### 3. Regarder un film
-- Parcourez votre bibliothèque dans l'Explorer
-- Cliquez sur un film pour voir les détails
-- Cliquez sur "Lecture" pour commencer
+The project includes an Nginx configuration optimized for:
+- Proxying the backend API
+- Video streaming with Range Request support
+- Gzip compression
+- Static asset caching
 
-### 4. Rechercher un film
-- Utilisez la page Recherche
-- Filtrez par genre, titre ou ordre
+# 🤝 Contributing
 
-## 🔧 Configuration avancée
+Contributions are welcome. Please:
+1. Fork the project
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### Nginx Reverse Proxy
+# 📊 Technologies Used
 
-Le projet inclut une configuration Nginx optimisée pour:
-- Proxy de l'API backend
-- Streaming vidéo avec support des range requests
-- Compression Gzip
-- Cache des assets statiques
+## Frontend
+- React 19
+- Vite 7
+- TailwindCSS 4
+- Framer Motion
+- React Router
+- TanStack Query
+- Axios
 
-### Personnalisation
+## Backend
+- Go 1.24
+- Gin
+- MongoDB
+- CORS
 
-**Modifier les genres disponibles** (`app/src/pages/Search.jsx`):
-```javascript
-const GENRES = {
-  '': 'Tout',
-  action: 'Action',
-  // Ajoutez vos genres
-}
-```
+## Infrastructure
+- Docker & Docker Compose
+- Nginx
+- MongoDB 7
 
-**Changer la couleur principale** (`app/tailwind.config.js`):
-```javascript
-colors: {
-  'nitflex-red': '#E50914', // Votre couleur
-}
-```
+# 📄 License
 
-## 📱 Responsive Design
+GNU GPL 3.0 — see the [LICENSE](LICENSE) file.
 
-Nitflex est entièrement responsive:
-- 📱 **Mobile** (< 768px): Interface tactile optimisée
-- 💻 **Tablet** (768px - 1024px): Layout adaptatif
-- 🖥️ **Desktop** (> 1024px): Expérience complète
+# 🙏 Acknowledgements
 
-## 🐛 Dépannage
-
-### La vidéo ne se charge pas
-1. Vérifiez que le fichier existe dans le dossier monté
-2. Vérifiez les logs: `docker compose logs api`
-3. Vérifiez le format vidéo (H.264 recommandé)
-
-### Erreur de connexion MongoDB
-1. Attendez que MongoDB soit prêt (healthcheck)
-2. Vérifiez: `docker compose ps`
-3. Redémarrez: `docker compose restart mongodb`
-
-### Problèmes de build frontend
-1. Supprimez node_modules: `rm -rf app/node_modules`
-2. Rebuild: `docker compose up --build frontend`
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues! N'hésitez pas à:
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit vos changements (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
-
-## 📝 Commandes utiles
-
-```bash
-# Voir les logs
-docker compose logs -f
-
-# Redémarrer un service
-docker compose restart <service>
-
-# Arrêter tout
-docker compose down
-
-# Supprimer les volumes (⚠️ perte de données)
-docker compose down -v
-
-# Rebuild complet
-docker compose up -d --build --force-recreate
-
-# Accéder au shell d'un conteneur
-docker compose exec api sh
-docker compose exec frontend sh
-```
-
-## 📊 Technologies utilisées
-
-### Frontend
-- **React 19** - Framework UI
-- **Vite 7** - Build tool
-- **TailwindCSS 4** - Styling
-- **Framer Motion** - Animations
-- **React Router** - Navigation
-- **TanStack Query** - Data fetching
-- **Axios** - HTTP client
-
-### Backend
-- **Go 1.24** - Langage
-- **Gin** - Framework HTTP
-- **MongoDB** - Base de données
-- **CORS** - Cross-origin support
-
-### Infrastructure
-- **Docker & Docker Compose** - Containerisation
-- **Nginx** - Reverse proxy
-- **MongoDB 7** - Database
-
-## 📄 Licence
-
-GNU GPL 3.0 - Voir le fichier [LICENSE](LICENSE)
-
-## 🙏 Remerciements
-
-- [TMDB](https://www.themoviedb.org/) pour l'API de métadonnées
-- [React Icons](https://react-icons.github.io/react-icons/) pour les icônes
-- La communauté open-source
+- [TMDB](https://www.themoviedb.org/) for the metadata API
+- [React Icons](https://react-icons.github.io/react-icons/) for icons
+- The open-source community
 
 ---
 
-**Made with ❤️ for personal NAS movie streaming**
+Made with ❤️ for personal movie streaming

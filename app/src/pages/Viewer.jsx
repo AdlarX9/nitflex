@@ -613,7 +613,8 @@ const Viewer = () => {
 		return () => {
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 			// eslint-disable-next-line
-			if (videoRef.current && videoRef.current.currentTime > 1) saveProgressImmediate(videoRef.current.currentTime)
+			if (videoRef.current && videoRef.current.currentTime > 1)
+				saveProgressImmediate(videoRef.current.currentTime)
 		}
 		// eslint-disable-next-line
 	}, [movie, user?.id, storedMovie?.id, isEpisode, episodeFewData])
@@ -890,10 +891,7 @@ const Viewer = () => {
 			{/* Erreur chargement métadonnées */}
 			<AnimatePresence>
 				{!isPending && isError && (
-					<MetadataErrorOverlay
-						message={error?.message}
-						onBack={() => goBack()}
-					/>
+					<MetadataErrorOverlay message={error?.message} onBack={() => goBack()} />
 				)}
 			</AnimatePresence>
 

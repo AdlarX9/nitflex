@@ -4,6 +4,7 @@ import (
 	"api/utils"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -47,98 +47,98 @@ func VideoStreamHandler(c *gin.Context) {
 
 // GET /video/:id/chapters - chapters for a movie
 func MovieChaptersHandler(c *gin.Context) {
-    tmdbID := c.Param("id")
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    var movie utils.Movie
-    idInt, _ := strconv.Atoi(tmdbID)
-    if err := utils.GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&movie); err != nil {
-        status := http.StatusInternalServerError
-        if err == mongo.ErrNoDocuments {
-            status = http.StatusNotFound
-        }
-        c.JSON(status, gin.H{"error": "Movie not found"})
-        return
-    }
-    if movie.FilePath == "" {
-        c.JSON(http.StatusNotFound, gin.H{"error": "File path missing"})
-        return
-    }
-    chapters, err := ffprobeChapters(movie.FilePath)
-    if err != nil {
-        c.JSON(http.StatusOK, gin.H{"chapters": []any{}})
-        return
-    }
-    c.JSON(http.StatusOK, gin.H{"chapters": chapters})
+	tmdbID := c.Param("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var movie utils.Movie
+	idInt, _ := strconv.Atoi(tmdbID)
+	if err := utils.GetCollection("movies").FindOne(ctx, bson.M{"tmdbID": idInt}).Decode(&movie); err != nil {
+		status := http.StatusInternalServerError
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": "Movie not found"})
+		return
+	}
+	if movie.FilePath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File path missing"})
+		return
+	}
+	chapters, err := ffprobeChapters(movie.FilePath)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"chapters": []any{}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"chapters": chapters})
 }
 
 // GET /video/episode/:id/chapters - chapters for an episode
 func EpisodeChaptersHandler(c *gin.Context) {
-    id := c.Param("id")
-    objID, err := primitive.ObjectIDFromHex(id)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
-        return
-    }
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    var ep utils.Episode
-    if err := utils.GetCollection("episodes").FindOne(ctx, bson.M{"_id": objID}).Decode(&ep); err != nil {
-        status := http.StatusInternalServerError
-        if err == mongo.ErrNoDocuments {
-            status = http.StatusNotFound
-        }
-        c.JSON(status, gin.H{"error": "Episode not found"})
-        return
-    }
-    if ep.FilePath == "" {
-        c.JSON(http.StatusNotFound, gin.H{"error": "File path missing"})
-        return
-    }
-    chapters, err := ffprobeChapters(ep.FilePath)
-    if err != nil {
-        c.JSON(http.StatusOK, gin.H{"chapters": []any{}})
-        return
-    }
-    c.JSON(http.StatusOK, gin.H{"chapters": chapters})
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var ep utils.Episode
+	if err := utils.GetCollection("episodes").FindOne(ctx, bson.M{"_id": objID}).Decode(&ep); err != nil {
+		status := http.StatusInternalServerError
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": "Episode not found"})
+		return
+	}
+	if ep.FilePath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File path missing"})
+		return
+	}
+	chapters, err := ffprobeChapters(ep.FilePath)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"chapters": []any{}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"chapters": chapters})
 }
 
 // --- Chapters extraction using ffprobe ---
 
 // ffprobeChapters extracts chapters as [{start, end, title}] from a media file
 func ffprobeChapters(inputPath string) ([]map[string]interface{}, error) {
-    cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_chapters", inputPath)
-    out, err := cmd.Output()
-    if err != nil {
-        return nil, err
-    }
-    var parsed struct {
-        Chapters []struct {
-            StartTime string            `json:"start_time"`
-            EndTime   string            `json:"end_time"`
-            Tags      map[string]string `json:"tags"`
-        } `json:"chapters"`
-    }
-    if err := json.Unmarshal(out, &parsed); err != nil {
-        return nil, err
-    }
-    res := make([]map[string]interface{}, 0, len(parsed.Chapters))
-    for _, ch := range parsed.Chapters {
-        st, _ := strconv.ParseFloat(ch.StartTime, 64)
-        et, _ := strconv.ParseFloat(ch.EndTime, 64)
-        title := ""
-        if ch.Tags != nil {
-            if t, ok := ch.Tags["title"]; ok {
-                title = t
-            }
-        }
-        res = append(res, map[string]interface{}{
-            "start": st,
-            "end":   et,
-            "title": title,
-        })
-    }
-    return res, nil
+	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_chapters", inputPath)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var parsed struct {
+		Chapters []struct {
+			StartTime string            `json:"start_time"`
+			EndTime   string            `json:"end_time"`
+			Tags      map[string]string `json:"tags"`
+		} `json:"chapters"`
+	}
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		return nil, err
+	}
+	res := make([]map[string]interface{}, 0, len(parsed.Chapters))
+	for _, ch := range parsed.Chapters {
+		st, _ := strconv.ParseFloat(ch.StartTime, 64)
+		et, _ := strconv.ParseFloat(ch.EndTime, 64)
+		title := ""
+		if ch.Tags != nil {
+			if t, ok := ch.Tags["title"]; ok {
+				title = t
+			}
+		}
+		res = append(res, map[string]interface{}{
+			"start": st,
+			"end":   et,
+			"title": title,
+		})
+	}
+	return res, nil
 }
 
 // GET /video/episode/:id - Stream episode video

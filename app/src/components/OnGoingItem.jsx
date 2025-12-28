@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import { IoTrash } from 'react-icons/io5'
-import { useAPI, useAPIAfter, useGetEpisodeDetails, useGetFullMovie, useGetFullSerie } from '../app/hooks'
+import {
+	useAPI,
+	useAPIAfter,
+	useGetEpisodeDetails,
+	useGetFullMovie,
+	useGetFullSerie
+} from '../app/hooks'
 import { useState, memo } from 'react'
 
 const ProgressBar = ({ percent }) => (
@@ -24,7 +30,7 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 		item?.episodeNumber
 	)
 	const { data: series } = useGetFullSerie(serieTmdb)
-	
+
 	// Always call hooks in same order; enable based on type
 	const { data: movie, isLoading: movieLoading } = useGetFullMovie(movieTmdb)
 	const { data: episode, isLoading: epLoading } = useAPI(
@@ -34,11 +40,11 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 		{},
 		item.type === 'episode'
 	)
-	
+
 	// Delete hook (unified)
 	const ogId = item?.ogId || item?.id
 	const { triggerAsync: deleteOnGoingMedia } = useAPIAfter('DELETE', `/ongoing_media/${ogId}`)
-	
+
 	const onDelete = e => {
 		e?.preventDefault?.()
 		e?.stopPropagation?.()
@@ -151,7 +157,8 @@ const OnGoingItem = ({ item, index = 0, onDeleted }) => {
 
 				<div className='absolute bottom-0 left-0 right-0 p-2 bg-linear-to-t from-black/90 to-transparent'>
 					<h4 className='text-white text-xs font-medium truncate'>
-						{series?.name && series.name + ' - '}{episodeTitle}
+						{series?.name && series.name + ' - '}
+						{episodeTitle}
 					</h4>
 					<p className='text-gray-300 text-xs'>
 						{Math.round(item.position / 60)} min / {Math.round(item.duration / 60)} min

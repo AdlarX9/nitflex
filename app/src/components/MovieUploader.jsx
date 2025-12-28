@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 import fr_FR from '@uppy/locales/lib/fr_FR.js'
-import { Dashboard } from '@uppy/react'
+import Dashboard from '../../node_modules/@uppy/react/lib/Dashboard.js'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
 import '../../node_modules/@uppy/core/dist/style.css'
@@ -153,8 +153,7 @@ const MovieUploader = ({
 				title,
 				imdbID,
 				rating,
-				isDocumentary,
-				type: 'movie'
+				isDocumentary
 			})
 		}
 		uppy.on('file-added', handleAdded)

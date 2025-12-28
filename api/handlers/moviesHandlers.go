@@ -87,7 +87,6 @@ func UploadMovie(c *gin.Context) {
 	// metadata
 	customTitle := c.PostForm("customTitle")
 	tmdbIDStr := c.PostForm("tmdbID")
-	mediaType := c.PostForm("type")              // "movie" | "series"
 	transcodeMode := c.PostForm("transcodeMode") // may be empty => default in pipeline
 
 	if customTitle == "" {
@@ -105,19 +104,6 @@ func UploadMovie(c *gin.Context) {
 
 	// destination
 	dst := filepath.Join(".", "uploads", customTitle)
-	// For series uploads, ensure unique temp filename using source extension to avoid collisions
-	if mediaType == "series" {
-		ext := filepath.Ext(header.Filename)
-		if ext == "" {
-			ext = ".mp4"
-		}
-		base := strings.TrimSuffix(header.Filename, ext)
-		if base == "" {
-			base = customTitle
-		}
-		unique := fmt.Sprintf("%s%s", sanitizeName(base), ext)
-		dst = filepath.Join(".", "uploads", unique)
-	}
 
 	out, err := os.Create(dst)
 	if err != nil {
@@ -155,24 +141,13 @@ func UploadMovie(c *gin.Context) {
 		}
 	}
 
-	if mediaType != "series" {
-		// Parse tmdbID for movies
-		if tmdbIDStr == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required for movies"})
-			return
-		}
-		if id, err := strconv.Atoi(tmdbIDStr); err == nil {
-			movie.TmdbID = id
-		}
-	}
-
-	// If it's an episode upload, skip inserting into movies
-	if mediaType == "series" {
-		c.JSON(http.StatusOK, gin.H{
-			"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-			"movie": movie,
-		})
+	// Parse tmdbID for movies
+	if tmdbIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required for movies"})
 		return
+	}
+	if id, err := strconv.Atoi(tmdbIDStr); err == nil {
+		movie.TmdbID = id
 	}
 
 	// Insert movie into DB
@@ -201,11 +176,11 @@ func UploadMovie(c *gin.Context) {
         }
     }
 
-    // Respond immediately
-    c.JSON(http.StatusOK, gin.H{
-        "url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-        "movie": movie,
-    })
+	// Respond immediately
+	c.JSON(http.StatusOK, gin.H{
+		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"movie": movie,
+	})
 
 	// Trigger pipeline AFTER response
     go func(m utils.Movie, isDoc bool, aStreams, sStreams []int) {

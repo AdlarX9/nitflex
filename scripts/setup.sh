@@ -34,7 +34,7 @@ echo ""
 # Vérifie si le fichier ./.env n'existe pas
 if [ ! -f "./.env" ]; then
     # Duplication de ./.env.local en ./.env
-    cp ./.env.local ./.env
+    cp ./.env.example ./.env
 else
     # Sinon, copie ./.env dans ./app/.env et ./api/.env
     cp ./.env ./app/.env

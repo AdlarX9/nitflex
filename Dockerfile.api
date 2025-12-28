@@ -1,3 +1,4 @@
+# name=Dockerfile
 # Build stage for Go API
 FROM golang:1.24-alpine AS builder
 
@@ -11,20 +12,25 @@ RUN go mod download
 COPY api/ ./
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/main .
 
 # Final stage
 FROM alpine:latest
 
+# install runtime deps (ffmpeg + ca certs)
 RUN apk --no-cache add ca-certificates ffmpeg
 
 WORKDIR /app
 
-# Create directories
-RUN mkdir -p ./uploads
-RUN mkdir -p ./movies
-RUN mkdir -p ./series
+# create directories
+RUN mkdir -p /app/uploads /app/movies /app/series
+
+# copy the built binary from builder stage
+COPY --from=builder /app/main /app/main
+
+# ensure binary is executable (should be preserved, but safe)
+RUN chmod +x /app/main
 
 EXPOSE 8080
 
-CMD ["./main"]
+CMD ["/app/main"]
