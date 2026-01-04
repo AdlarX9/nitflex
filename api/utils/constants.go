@@ -1,10 +1,11 @@
 package utils
 
-const (
-	TEMP_DIR        = "./uploads"
-	MOVIES_DIR      = "./movies"
-	SERIES_DIR      = "./series"
-	MOVIES_DOCU_DIR = "./movies_docu"
-	SERIES_DOCU_DIR = "./series_docu"
-	SERIES_KID_DIR  = "./series_kid"
+import "path/filepath"
+
+var (
+	MOVIES_DIR      = filepath.Join(".", "movies")
+	SERIES_DIR      = filepath.Join(".", "series")
+	MOVIES_DOCU_DIR = filepath.Join(".", "movies_docu")
+	SERIES_DOCU_DIR = filepath.Join(".", "series_docu")
+	SERIES_KID_DIR  = filepath.Join(".", "series_kid")
 )

@@ -86,22 +86,3 @@ type OnGoingEpisode struct {
 	Position  int                `json:"position" bson:"position"` // Seconds
 	UserID    primitive.ObjectID `json:"user" bson:"user"`
 }
-
-// Job represents a transcoding/processing job
-type Job struct {
-	ID               primitive.ObjectID     `json:"id,omitempty" bson:"_id,omitempty"`
-	Type             string                 `json:"type" bson:"type"`                           // "movie" | "episode"
-	MediaID          primitive.ObjectID     `json:"mediaID,omitempty" bson:"mediaID,omitempty"` // MovieID or EpisodeID
-	TmdbID           int                    `json:"tmdbID" bson:"tmdbID"`
-	Stage            string                 `json:"stage" bson:"stage"`                 // queued, transcoding, tagging, moving, completed, failed, canceled
-	Progress         float64                `json:"progress" bson:"progress"`           // 0-100
-	ETA              int                    `json:"eta,omitempty" bson:"eta,omitempty"` // Seconds remaining
-	ErrorMessage     string                 `json:"errorMessage,omitempty" bson:"errorMessage,omitempty"`
-	InputPath        string                 `json:"inputPath" bson:"inputPath"`
-	OutputPath       string                 `json:"outputPath,omitempty" bson:"outputPath,omitempty"`
-	TranscodeMode    string                 `json:"transcodeMode" bson:"transcodeMode"` // "local" | "server" | "none"
-	TranscodeOptions map[string]interface{} `json:"transcodeOptions,omitempty" bson:"transcodeOptions,omitempty"`
-	CreatedAt        primitive.DateTime     `json:"createdAt" bson:"createdAt"`
-	UpdatedAt        primitive.DateTime     `json:"updatedAt" bson:"updatedAt"`
-	CompletedAt      primitive.DateTime     `json:"completedAt,omitempty" bson:"completedAt,omitempty"`
-}

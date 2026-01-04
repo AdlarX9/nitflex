@@ -20,165 +20,108 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// POST /series - Create series with minimal info
-func CreateSeries(c *gin.Context) {
-	// Expect a multipart form with:
-	// - files[]: multiple video files
-	// - tmdbID: series TMDB id (required)
-	// - title, imdbID, poster: optional (used only when creating a new series)
-	// - folderName: optional custom folder name (ignored if series already exists)
-	// - transcodeMode: optional (default handled in pipeline)
-	// - episodes: JSON array mapping each file to season/episode
-	//   e.g. [{"index":0,"seasonNumber":1,"episodeNumber":1}, ...]
+type EpisodeMeta struct {
+	FileName      string `json:"fileName" binding:"required"`
+	Index         int    `json:"index" binding:"required"`
+	Title         string `json:"title" binding:"required"`
+	SeasonNumber  int    `json:"seasonNumber" binding:"required"`
+	EpisodeNumber int    `json:"episodeNumber" binding:"required"`
+}
 
+type Metadata struct {
+	TmdbID      int           `json:"tmdbID" binding:"required"`
+	ImdbID      string        `json:"imdbID" binding:"required"`
+	Title       string        `json:"title" binding:"required"`
+	Poster      string        `json:"poster" binding:"required"`
+	IsDocu      bool          `json:"isDocu" binding:"required"`
+	IsKids      bool          `json:"isKids" binding:"required"`
+	CustomTitle string        `json:"customTitle" binding:"required"`
+	Episodes    []EpisodeMeta `json:"episodes"`
+}
+
+// POST /series
+func CreateSeries(c *gin.Context) {
+	// get metadata
+	var metadata Metadata
+	if err := c.ShouldBind(&metadata); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid metadata: " + err.Error()})
+		return
+	}
+
+	// get form
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form: " + err.Error()})
 		return
 	}
 
-	get := func(key string) string {
-		if v, ok := form.Value[key]; ok && len(v) > 0 {
-			return v[0]
-		}
-		return ""
-	}
-
-	tmdbStr := get("tmdbID")
-	if tmdbStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required"})
-		return
-	}
-	tmdbID, _ := strconv.Atoi(tmdbStr)
-	title := get("title")
-	imdbID := get("imdbID")
-	poster := get("poster")
-	folderName := get("folderName")
-	transcodeMode := get("transcodeMode")
-	episodesJSON := get("episodes")
-	// classification flags provided by frontend
-	isDocuStr := get("isDocu")
-	isKidsStr := get("isKids")
-	isDocu := strings.EqualFold(isDocuStr, "true") || isDocuStr == "1"
-	isKids := strings.EqualFold(isKidsStr, "true") || isKidsStr == "1"
-
-	// Optional track selections (apply to all files)
-	var aSel, sSel []int
-	if v := get("audioStreams"); v != "" {
-		var arr []int
-		if err := json.Unmarshal([]byte(v), &arr); err == nil {
-			aSel = arr
-		}
-	}
-	if v := get("subtitleStreams"); v != "" {
-		var arr []int
-		if err := json.Unmarshal([]byte(v), &arr); err == nil {
-			sSel = arr
-		}
-	}
-
-	type EpMeta struct {
-		Index         int    `json:"index"`
-		SeasonNumber  int    `json:"seasonNumber"`
-		EpisodeNumber int    `json:"episodeNumber"`
-		Title         string `json:"title"`
-	}
-	var epMetas []EpMeta
-	if episodesJSON != "" {
-		if err := json.Unmarshal([]byte(episodesJSON), &epMetas); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid episodes payload: " + err.Error()})
-			return
-		}
-	}
-
+	// get files
 	files := form.File["files[]"]
-	if len(files) == 1 {
-		files = form.File["files"]
-	}
 	if len(files) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no files provided"})
 		return
 	}
 
-	// Align epMetas length to files if needed
-	if len(epMetas) != len(files) {
-		// build default mapping by order if not provided
-		if len(epMetas) == 0 {
-			epMetas = make([]EpMeta, len(files))
-			for i := range files {
-				epMetas[i] = EpMeta{Index: i, SeasonNumber: 1, EpisodeNumber: i + 1}
-			}
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "episodes and files length mismatch"})
-			return
-		}
+	// security
+	if len(metadata.Episodes) != len(files) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "episodes and files length mismatch"})
+		return
 	}
 
+	// Find or create series by tmdbID
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Find or create series by tmdbID
 	var series utils.Series
-	findErr := utils.GetCollection("series").FindOne(ctx, bson.M{"tmdbID": tmdbID}).Decode(&series)
-	if findErr != nil {
+	if findErr := utils.GetCollection("series").FindOne(ctx, bson.M{"tmdbID": metadata.TmdbID}).Decode(&series); findErr != nil {
 		if findErr != mongo.ErrNoDocuments {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error: " + findErr.Error()})
 			return
 		}
+
 		// Create new series
 		series = utils.Series{
 			ID:          primitive.NewObjectID(),
-			Title:       firstNonEmpty(title, fmt.Sprintf("Series %d", tmdbID)),
-			CustomTitle: strings.TrimSpace(folderName),
-			TmdbID:      tmdbID,
-			ImdbID:      imdbID,
-			Poster:      poster,
+			Title:       firstNonEmpty(metadata.Title, fmt.Sprintf("Series %d", metadata.TmdbID)),
+			CustomTitle: strings.TrimSpace(metadata.CustomTitle),
+			TmdbID:      metadata.TmdbID,
+			ImdbID:      metadata.ImdbID,
+			Poster:      metadata.Poster,
 			Date:        primitive.NewDateTimeFromTime(time.Now()),
 		}
 		if _, err := utils.GetCollection("series").InsertOne(ctx, series); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create series: " + err.Error()})
 			return
 		}
-	} else {
-		// Existing series: ignore folderName and keep as is
 	}
-
-	// Ensure temp uploads dir exists
-	if err := os.MkdirAll("./uploads", 0o755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare temp dir: " + err.Error()})
-		return
-	}
-
-	created := make([]utils.Episode, 0, len(files))
 
 	// Iterate files in order, match with epMetas by index
-	for i, fh := range files {
-		meta := epMetas[i]
+	for index, fileheader := range files {
+		meta := metadata.Episodes[index]
+
+		// sanity check
 		if meta.SeasonNumber <= 0 || meta.EpisodeNumber <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid season/episode for file %d", i)})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid season/episode for file %d", index)})
 			return
 		}
 
 		// Save temp file
-		src, err := fh.Open()
+		src, err := fileheader.Open()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to open file %s: %v", fh.Filename, err)})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to open file %s: %v", fileheader.Filename, err)})
 			return
 		}
 		defer src.Close()
 
-		ext := strings.ToLower(filepath.Ext(fh.Filename))
-		if ext == "" {
-			ext = ".mp4"
+		// get dst
+		dst, err := getDstForEpisode(meta, metadata, series)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get destination path: %v", err)})
+			return
 		}
-		base := strings.TrimSuffix(fh.Filename, ext)
-		if base == "" {
-			base = fmt.Sprintf("S%02dE%02d", meta.SeasonNumber, meta.EpisodeNumber)
-		}
-		tempName := fmt.Sprintf("%s_%d%s", sanitizeName(base), time.Now().UnixNano(), ext)
-		dstPath := filepath.Join("./uploads", tempName)
 
-		out, err := os.Create(dstPath)
+		// save file
+		out, err := os.Create(dst)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create temp file: %v", err)})
 			return
@@ -190,18 +133,15 @@ func CreateSeries(c *gin.Context) {
 		}
 		out.Close()
 
-		epTitle := strings.TrimSpace(meta.Title)
-		if len(epTitle) == 0 {
-			epTitle = fmt.Sprintf("Episode %d", meta.EpisodeNumber)
-		}
+		// save episode in db
 		ep := utils.Episode{
 			ID:            primitive.NewObjectID(),
-			TmdbID:        tmdbID,
+			TmdbID:        series.TmdbID,
 			EpisodeNumber: meta.EpisodeNumber,
 			SeasonNumber:  meta.SeasonNumber,
 			SeriesID:      series.ID,
-			Title:         epTitle,
-			FilePath:      dstPath,
+			Title:         meta.Title,
+			FilePath:      dst,
 			Date:          primitive.NewDateTimeFromTime(time.Now()),
 		}
 
@@ -209,18 +149,82 @@ func CreateSeries(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create episode: " + err.Error()})
 			return
 		}
-		created = append(created, ep)
-
-		// Start pipeline (async) with classification options
-		go func(ep utils.Episode, docu, kids bool, aStreams, sStreams []int) {
-			opts := map[string]interface{}{"isDocu": docu, "isKids": kids}
-			if len(aStreams) > 0 { opts["audioStreams"] = aStreams }
-			if len(sStreams) > 0 { opts["subtitleStreams"] = sStreams }
-			_ = utils.StartEpisodePipeline(ep.ID, ep.TmdbID, ep.FilePath, transcodeMode, opts)
-		}(ep, isDocu, isKids, aSel, sSel)
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"series": series, "episodes": created})
+	c.JSON(http.StatusCreated, gin.H{"status": "ok"})
+}
+
+func getDstForEpisode(meta EpisodeMeta, metadata Metadata, series utils.Series) (string, error) {
+	// get ext
+	ext := strings.ToLower(filepath.Ext(meta.FileName))
+	if ext == "" {
+		ext = ".mp4"
+	}
+
+	// get destination folder
+	fileName := fmt.Sprintf("%02d%02d - %s%s", meta.SeasonNumber, meta.EpisodeNumber, sanitizeName(meta.Title), ext)
+	var serieFolder string
+	if metadata.IsDocu {
+		serieFolder = filepath.Join(utils.SERIES_DOCU_DIR, series.CustomTitle)
+	} else if metadata.IsKids {
+		serieFolder = filepath.Join(utils.SERIES_KID_DIR, series.CustomTitle)
+	} else {
+		serieFolder = filepath.Join(utils.SERIES_DIR, series.CustomTitle)
+	}
+
+	var dst string
+
+	// set hasExistingFiles
+	entries, err := os.ReadDir(serieFolder)
+	hasExistingFiles := err == nil && len(entries) > 0
+	fileCount := 0
+	if hasExistingFiles {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				fileCount++
+			}
+		}
+		hasExistingFiles = fileCount > 0
+	}
+
+	if hasExistingFiles {
+		if meta.SeasonNumber <= 1 {
+			// Saison 1 : fichier directement dans serieFolder
+			dst = filepath.Join(serieFolder, fileName)
+		} else {
+			season1Dir := filepath.Join(serieFolder, "Saison 1")
+			if err := os.MkdirAll(season1Dir, 0755); err != nil {
+				return "", err
+			}
+
+			// move everything into Saison 1
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					oldPath := filepath.Join(serieFolder, entry.Name())
+					newPath := filepath.Join(season1Dir, entry.Name())
+					if err := os.Rename(oldPath, newPath); err != nil {
+						return "", err
+					}
+				}
+			}
+
+			// copy new file into Saison [X]
+			seasonDir := filepath.Join(serieFolder, fmt.Sprintf("Saison %d", meta.SeasonNumber))
+			if err := os.MkdirAll(seasonDir, 0755); err != nil {
+				return "", err
+			}
+			dst = filepath.Join(seasonDir, fileName)
+		}
+	} else {
+		// Pas de fichiers existants :  directement dans Saison [X]
+		seasonDir := filepath.Join(serieFolder, fmt.Sprintf("Saison %d", meta.SeasonNumber))
+		if err := os.MkdirAll(seasonDir, 0755); err != nil {
+			return "", err
+		}
+		dst = filepath.Join(seasonDir, fileName)
+	}
+
+	return dst, nil
 }
 
 // sanitizeName performs minimal filename sanitization

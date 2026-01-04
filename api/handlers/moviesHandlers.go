@@ -3,7 +3,6 @@ package handlers
 import (
 	"api/utils"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +18,82 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// POST /movies
+func UploadMovie(c *gin.Context) {
+	type Metadata struct {
+		TmdbID      int     `json:"tmdbID" binding:"required"`
+		ImdbID      string  `json:"imdbID" binding:"required"`
+		Title       string  `json:"title" binding:"required"`
+		Poster      string  `json:"poster" binding:"required"`
+		Rating      float64 `json:"rating" binding:"required"`
+		CustomTitle string  `json:"customTitle" binding:"required"`
+		IsDocu      string  `json:"isDocu" binding:"required"`
+	}
+	
+	// get metadata
+	var metadata Metadata
+	if err := c.ShouldBind(&metadata); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to parse metadata: %s", err.Error())})
+		return
+	}
+
+	// get file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to get file: %s", err.Error())})
+		return
+	}
+	defer file.Close()
+
+	// destination
+	// dst := filepath.Join(metadata.IsDocu == "true" && utils.MOVIES_DOCU_DIR : utils.MOVIES_DIR, metadata.CustomTitle)
+	var dst string
+	if metadata.IsDocu == "true" {
+		dst = filepath.Join(utils.MOVIES_DOCU_DIR, metadata.CustomTitle)
+	} else {
+		dst = filepath.Join(utils.MOVIES_DIR, metadata.CustomTitle)
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create file: %s", err.Error())})
+		return
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to write file: %s", err.Error())})
+		return
+	}
+
+	// Build minimal movie object for client response and/or DB
+	movie := utils.Movie{
+		ID:          primitive.NewObjectID(),
+		FilePath:    dst,
+		Date:        primitive.NewDateTimeFromTime(time.Now()),
+		Format:      filepath.Ext(dst),
+		ImdbID:      metadata.ImdbID,
+		TmdbID:      metadata.TmdbID,
+		Title:       metadata.Title,
+		Poster:      metadata.Poster,
+		Rating:      metadata.Rating,
+		CustomTitle: metadata.CustomTitle,
+	}
+
+	// Insert movie into DB
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := utils.GetCollection("movies").InsertOne(ctx, movie); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Respond immediately
+	c.JSON(http.StatusOK, gin.H{
+		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
+		"movie": movie,
+	})
+}
 
 // GET /movies
 func GetMovies(c *gin.Context) {
@@ -79,117 +154,6 @@ func GetMovies(c *gin.Context) {
 	}
 
 	c.JSON(200, movies)
-}
-
-// POST /movies - multipart upload endpoint
-// Minimal DB maintenance then trigger pipeline
-func UploadMovie(c *gin.Context) {
-	// metadata
-	customTitle := c.PostForm("customTitle")
-	tmdbIDStr := c.PostForm("tmdbID")
-	transcodeMode := c.PostForm("transcodeMode") // may be empty => default in pipeline
-
-	if customTitle == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customTitle is required"})
-		return
-	}
-
-	// file
-	file, header, err := c.Request.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to get file: %s", err.Error())})
-		return
-	}
-	defer file.Close()
-
-	// destination
-	dst := filepath.Join(".", "uploads", customTitle)
-
-	out, err := os.Create(dst)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create file: %s", err.Error())})
-		return
-	}
-	defer out.Close()
-	if _, err := io.Copy(out, file); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to write file: %s", err.Error())})
-		return
-	}
-
-	// Build minimal movie object for client response and/or DB
-	movie := utils.Movie{
-		ID:          primitive.NewObjectID(),
-		CustomTitle: customTitle,
-		FilePath:    dst,
-		Date:        primitive.NewDateTimeFromTime(time.Now()),
-		Format:      filepath.Ext(dst),
-	}
-
-	// Bind extra metadata provided by the frontend (either as individual fields or JSON in 'metadata')
-	if v := c.PostForm("poster"); v != "" {
-		movie.Poster = v
-	}
-	if v := c.PostForm("title"); v != "" {
-		movie.Title = v
-	}
-	if v := c.PostForm("imdbID"); v != "" {
-		movie.ImdbID = v
-	}
-	if v := c.PostForm("rating"); v != "" {
-		if r, err := strconv.ParseFloat(v, 64); err == nil {
-			movie.Rating = r
-		}
-	}
-
-	// Parse tmdbID for movies
-	if tmdbIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tmdbID is required for movies"})
-		return
-	}
-	if id, err := strconv.Atoi(tmdbIDStr); err == nil {
-		movie.TmdbID = id
-	}
-
-	// Insert movie into DB
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if _, err := utils.GetCollection("movies").InsertOne(ctx, movie); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-    // Extract flags BEFORE responding (safe for goroutine)
-    isDocStr := c.PostForm("isDocumentary")
-    isDoc := strings.EqualFold(isDocStr, "true") || isDocStr == "1"
-    // Optional track selections (JSON arrays of indices)
-    var aSel, sSel []int
-    if v := c.PostForm("audioStreams"); v != "" {
-        var arr []int
-        if err := json.Unmarshal([]byte(v), &arr); err == nil {
-            aSel = arr
-        }
-    }
-    if v := c.PostForm("subtitleStreams"); v != "" {
-        var arr []int
-        if err := json.Unmarshal([]byte(v), &arr); err == nil {
-            sSel = arr
-        }
-    }
-
-	// Respond immediately
-	c.JSON(http.StatusOK, gin.H{
-		"url":   fmt.Sprintf("http://localhost:8080/uploads/%s", header.Filename),
-		"movie": movie,
-	})
-
-	// Trigger pipeline AFTER response
-    go func(m utils.Movie, isDoc bool, aStreams, sStreams []int) {
-        // classification + track selections
-        opts := map[string]interface{}{"isDocumentary": isDoc}
-        if len(aStreams) > 0 { opts["audioStreams"] = aStreams }
-        if len(sStreams) > 0 { opts["subtitleStreams"] = sStreams }
-        _ = utils.StartMoviePipeline(m.ID, m.TmdbID, m.FilePath, transcodeMode, opts)
-    }(movie, isDoc, aSel, sSel)
 }
 
 // GET /all_movies

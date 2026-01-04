@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useAPI, useAPIAfter } from '../app/hooks'
-import Movie from '../components/Movie.jsx'
-import Serie from '../components/Serie.jsx'
+import { useAPI, useAPIAfter } from '../utils/hooks'
+import Movie from '../features/preview/Movie.jsx'
+import Serie from '../features/preview/Serie.jsx'
 import {
 	IoSettingsOutline,
 	IoClose,

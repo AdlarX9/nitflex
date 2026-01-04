@@ -2,18 +2,12 @@ package main
 
 import (
 	"api/handlers"
-	"api/utils"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
-
-var storageBackend *utils.LocalStorage
 
 func main() {
 	// Load .env file if it exists (optional for Docker)
@@ -21,32 +15,6 @@ func main() {
 	if errEnv != nil {
 		log.Printf("Note: .env file not found, using environment variables from system")
 	}
-
-	// Validate storage configuration
-	log.Println("Validating storage configuration...")
-	if err := utils.ValidateStorageConfig(); err != nil {
-		log.Fatalf("Storage validation failed: %v", err)
-	}
-	log.Println("Storage configuration validated successfully")
-
-	// Initialize storage backend
-	storageBackend = utils.NewLocalStorage([]string{utils.TEMP_DIR, utils.MOVIES_DIR, utils.MOVIES_DOCU_DIR, utils.SERIES_DIR, utils.SERIES_DOCU_DIR, utils.SERIES_KID_DIR})
-
-	// Initialize job queue (2 workers by default)
-	workers := 2
-	log.Printf("Initializing job queue with %d workers", workers)
-	utils.InitJobQueue(workers)
-	defer utils.StopJobQueue()
-
-	// Setup graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		log.Println("Received shutdown signal, cleaning up...")
-		utils.StopJobQueue()
-		os.Exit(0)
-	}()
 
 	r := gin.Default()
 	corsCfg := cors.Config{
@@ -89,9 +57,6 @@ func main() {
 	r.GET("/video/:id/chapters", handlers.MovieChaptersHandler)
 	r.GET("/video/episode/:id/chapters", handlers.EpisodeChaptersHandler)
 
-	// Probe (ffprobe stream detection)
-	r.POST("/probe_streams", handlers.ProbeStreams)
-
 	// HLS endpoints (master + assets via wildcard handler)
 	r.GET("/hls/movie/:id/*asset", handlers.HLSMovieAsset)
 	r.GET("/hls/episode/:id/*asset", handlers.HLSEpisodeAsset)
@@ -100,13 +65,6 @@ func main() {
 	r.POST("/ongoing_media", handlers.UpdateOnGoingMedia)
 	r.GET("/ongoing_media/:id", handlers.GetOnGoingMediaByUserID)
 	r.DELETE("/ongoing_media/:id", handlers.DeleteOnGoingMedia)
-
-	// Jobs
-	r.GET("/jobs", handlers.GetJobs)
-	// SSE must be declared BEFORE the dynamic :id route to avoid conflicts
-	r.GET("/jobs/stream", handlers.StreamJobs)
-	r.GET("/jobs/:id", handlers.GetJobByID)
-	r.POST("/jobs/:id/cancel", handlers.CancelJob)
 
 	log.Println("Server starting on :8080")
 	r.Run(":8080")

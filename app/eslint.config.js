@@ -43,9 +43,6 @@ export default [
 
 			// Tes règles
 			'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }]
-
-			// Note: la règle "react-hooks/set-state-in-effect" n'existe pas
-			// dans eslint-plugin-react-hooks officiel. Ne l’active pas ici.
 		}
 	}
 ]
