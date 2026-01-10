@@ -3,13 +3,9 @@ import { UppyContext, useEpisodeTitles, useMainContext } from '../utils/hooks'
 import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 
-export const UppyProvider = ({ children }) => {
-	const [isMovie, setIsMovie] = useState()
+export const UppyProvider = ({ children, isMovie }) => {
 	const { refetchNewSeries, refetchNewMovies } = useMainContext()
 	const [uppyFiles, setUppyFiles] = useState([])
-	const [xhrInitialized, setXhrInitialized] = useState(false)
-	// eslint-disable-next-line
-	const [txSel, setTxSel] = useState({ audioStreams: [], subtitleStreams: [] })
 	const [customTitle, setCustomTitle] = useState('')
 
 	const [newMovie, setNewMovie] = useState(null)
@@ -21,28 +17,31 @@ export const UppyProvider = ({ children }) => {
 	const epTitles = useEpisodeTitles(selectedSeries?.id, seriesFilesMap)
 
 	// Uppy instance
-	const uppy = useMemo(
-		() =>
-			new Uppy({
-				restrictions: {
-					maxFileSize: null,
-					allowedFileTypes: ['video/*']
-				},
-				autoProceed: false
-			}),
-		[]
-	)
+	// On recrée l'instance si isMovie change
+	const uppy = useMemo(() => {
+		const uppyInstance = new Uppy({
+			restrictions: {
+				maxFileSize: null,
+				allowedFileTypes: ['video/*']
+			},
+			autoProceed: false
+		})
 
-	useEffect(() => {
-		uppy.use(XHRUpload, {
+		// On ajoute le plugin XHRUpload directement ici
+		uppyInstance.use(XHRUpload, {
 			endpoint: import.meta.env.VITE_API + '/' + (isMovie ? 'movies' : 'series'),
 			formData: true,
 			bundle: isMovie ? false : true,
 			fieldName: 'file' + (isMovie ? '' : 's[]')
 		})
-		setXhrInitialized(true)
+
+		return uppyInstance
+	}, [isMovie]) // Dépendance ajoutée : isMovie
+
+	// Nettoyage de l'instance quand elle change ou quand le composant est démonté
+	useEffect(() => {
 		return () => uppy.destroy()
-	}, [uppy, isMovie])
+	}, [uppy])
 
 	useEffect(() => {
 		const onComplete = async result => {
@@ -91,21 +90,19 @@ export const UppyProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (isMovie) {
-			const poster = newMovie?.poster || newMovie?.poster_path || ''
-			const title = newMovie?.title || ''
-			const imdbID = newMovie?.imdb_id || ''
-			const rating = newMovie?.vote_average ?? newMovie?.rating ?? ''
-			const isDocu = Array.isArray(newMovie?.genre_ids)
+			const Title = newMovie?.title || ''
+			const Poster = newMovie?.poster || newMovie?.poster_path || ''
+			const Rating = newMovie?.vote_average ?? newMovie?.rating ?? ''
+			const IsDocu = Array.isArray(newMovie?.genre_ids)
 				? newMovie.genre_ids.includes(99)
 				: false
 			uppy.setMeta({
-				tmdbID,
-				imdbID,
-				title,
-				poster,
-				rating,
-				customTitle,
-				isDocu
+				TmdbID: tmdbID,
+				Title,
+				Poster,
+				Rating,
+				CustomTitle: customTitle,
+				IsDocu
 			})
 		} else {
 			if (!selectedSeries) return
@@ -114,7 +111,6 @@ export const UppyProvider = ({ children }) => {
 				const s = parseInt(m.season) || 0
 				const e = parseInt(m.episode) || 0
 				const title = epTitles[s]?.[e] || ''
-				console.log(epTitles, s, e, title)
 				return {
 					index: i,
 					fileName: f.name,
@@ -128,15 +124,15 @@ export const UppyProvider = ({ children }) => {
 				: []
 			const isDocu = genreIds.includes(99)
 			const isKids = genreIds.includes(16) || genreIds.includes(10762)
+			console.log('selectedSeries', selectedSeries)
 			uppy.setMeta({
-				tmdbID: selectedSeries.id,
-				imdbID: selectedSeries?.imdb_id || '',
-				title: selectedSeries.name || '',
-				poster: selectedSeries?.poster_path || '',
-				isDocu,
-				isKids,
-				customTitle,
-				episodes: episodes
+				TmdbID: selectedSeries.id,
+				Title: selectedSeries.name || '',
+				Poster: selectedSeries?.poster_path || '',
+				IsDocu: isDocu,
+				IsKids: isKids,
+				CustomTitle: customTitle,
+				EpisodesJSON: JSON.stringify(episodes)
 			})
 		}
 	}, [
@@ -155,9 +151,7 @@ export const UppyProvider = ({ children }) => {
 		<UppyContext.Provider
 			value={{
 				uppy,
-				setIsMovie,
 				uppyFiles,
-				setTxSel,
 				newMovie,
 				setNewMovie,
 				customTitle,
@@ -166,8 +160,7 @@ export const UppyProvider = ({ children }) => {
 				selectedSeries,
 				setSelectedSeries,
 				seriesFilesMap,
-				setSeriesFilesMap,
-				xhrInitialized
+				setSeriesFilesMap
 			}}
 		>
 			{children}

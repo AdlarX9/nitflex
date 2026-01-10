@@ -3,13 +3,12 @@ import fr_FR from '@uppy/locales/lib/fr_FR.js'
 import Dashboard from '@uppy/react/dashboard'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import SeriesSearch from './SeriesSearch'
 import { useUppyContext } from '../../../utils/hooks.js'
+import MediaSearch from '../MediaSearch.jsx'
 
 const SerieUploader = ({ onSelectionChange }) => {
 	const {
 		uppy,
-		setIsMovie,
 		uppyFiles,
 		selectedSeries,
 		seriesFilesMap,
@@ -17,12 +16,14 @@ const SerieUploader = ({ onSelectionChange }) => {
 		customTitle,
 		setCustomTitle,
 		setSelectedSeries,
-		xhrInitialized
+		setNewMovie
 	} = useUppyContext()
 
 	useEffect(() => {
-		setIsMovie(false)
-	})
+		setNewMovie(null)
+		setSelectedSeries(null)
+		setCustomTitle('')
+	}, [setNewMovie, setSelectedSeries, setCustomTitle])
 
 	// Reflect selection to parent (for layout spacing)
 	useEffect(() => {
@@ -41,7 +42,7 @@ const SerieUploader = ({ onSelectionChange }) => {
 	return (
 		<>
 			<div>
-				<SeriesSearch onSelect={series => setSelectedSeries(series)} />
+				<MediaSearch type="series" onSelect={series => setSelectedSeries(series)} />
 			</div>
 
 			<AnimatePresence mode='wait'>
@@ -138,12 +139,15 @@ const SerieUploader = ({ onSelectionChange }) => {
 								value={customTitle}
 								onChange={e => setCustomTitle(e.target.value)}
 								placeholder={selectedSeries?.name || 'Nom du dossier…'}
+								className='w-full px-5 py-4 rounded-xl bg-gray-900/60 border border-white/10 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/30 outline-none text-lg md:text-xl font-medium placeholder:text-gray-500 transition'
 							/>
 						</motion.div>
 					</motion.div>
 				)}
+			</AnimatePresence>
 
-				{selectedSeries && xhrInitialized && (
+			<AnimatePresence>
+				{selectedSeries && (
 					<motion.div
 						key='dashboard'
 						className='uppy-Root w-full rounded-2xl overflow-hidden border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] backdrop-blur-xl shadow-[0_10px_35px_-10px_rgba(0,0,0,0.55)] z-0'

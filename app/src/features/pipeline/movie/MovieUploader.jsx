@@ -3,16 +3,24 @@ import fr_FR from '@uppy/locales/lib/fr_FR.js'
 import Dashboard from '@uppy/react/dashboard'
 // eslint-disable-next-line
 import { motion, AnimatePresence } from 'framer-motion'
-import MovieSearch from './MovieSearch'
 import { useUppyContext } from '../../../utils/hooks.js'
+import MediaSearch from '../MediaSearch.jsx'
 
 const MovieUploader = ({ onSelectionChange }) => {
-	const { uppy, setIsMovie, newMovie, setNewMovie, customTitle, setCustomTitle, setTmdbID, xhrInitialized } =
-		useUppyContext()
+	const {
+		uppy,
+		newMovie,
+		setNewMovie,
+		customTitle,
+		setCustomTitle,
+		setTmdbID,
+		setSelectedSeries
+	} = useUppyContext()
 
 	useEffect(() => {
-		setIsMovie(true)
-	})
+		setNewMovie(null)
+		setSelectedSeries(null)
+	}, [setNewMovie, setSelectedSeries])
 
 	useEffect(() => {
 		if (newMovie) {
@@ -31,7 +39,7 @@ const MovieUploader = ({ onSelectionChange }) => {
 	return (
 		<>
 			<div>
-				<MovieSearch onSelect={movie => setNewMovie(movie)} />
+				<MediaSearch type="movies" onSelect={movie => setNewMovie(movie)} />
 			</div>
 
 			<AnimatePresence mode='wait'>
@@ -70,7 +78,7 @@ const MovieUploader = ({ onSelectionChange }) => {
 
 			{/* Affiche le Dashboard seulement si le plugin XHRUpload est prêt */}
 			<AnimatePresence>
-				{canUpload && xhrInitialized && (
+				{canUpload && (
 					<motion.div
 						key='dashboard'
 						className='uppy-Root w-full rounded-2xl overflow-hidden border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] backdrop-blur-xl shadow-[0_10px_35px_-10px_rgba(0,0,0,0.55)] z-0'

@@ -23,7 +23,6 @@ import (
 func UploadMovie(c *gin.Context) {
 	type Metadata struct {
 		TmdbID      int     `json:"tmdbID" binding:"required"`
-		ImdbID      string  `json:"imdbID" binding:"required"`
 		Title       string  `json:"title" binding:"required"`
 		Poster      string  `json:"poster" binding:"required"`
 		Rating      float64 `json:"rating" binding:"required"`
@@ -72,7 +71,6 @@ func UploadMovie(c *gin.Context) {
 		FilePath:    dst,
 		Date:        primitive.NewDateTimeFromTime(time.Now()),
 		Format:      filepath.Ext(dst),
-		ImdbID:      metadata.ImdbID,
 		TmdbID:      metadata.TmdbID,
 		Title:       metadata.Title,
 		Poster:      metadata.Poster,

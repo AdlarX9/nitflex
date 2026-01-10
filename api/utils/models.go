@@ -18,7 +18,6 @@ type Movie struct {
 	Title       string             `json:"title" bson:"title"`
 	CustomTitle string             `json:"customTitle" bson:"customTitle"`
 	Format      string             `json:"format" bson:"format"`
-	ImdbID      string             `json:"imdbID" bson:"imdbID"`
 	TmdbID      int                `json:"tmdbID" bson:"tmdbID"`
 	Date        primitive.DateTime `json:"date" bson:"date"`
 	Poster      string             `json:"poster" bson:"poster"`
@@ -48,7 +47,6 @@ type Series struct {
 	Title       string             `json:"title" bson:"title"`
 	CustomTitle string             `json:"-" bson:"customTitle,omitempty"`
 	TmdbID      int                `json:"tmdbID" bson:"tmdbID"`
-	ImdbID      string             `json:"imdbID,omitempty" bson:"imdbID,omitempty"`
 	Poster      string             `json:"poster" bson:"poster"`
 	Date        primitive.DateTime `json:"date" bson:"date"` // When added to library
 	Seasons     []Season           `json:"seasons" bson:"seasons"`

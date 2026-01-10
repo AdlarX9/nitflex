@@ -30,11 +30,10 @@ type EpisodeMeta struct {
 
 type Metadata struct {
 	TmdbID      int           `json:"tmdbID" binding:"required"`
-	ImdbID      string        `json:"imdbID" binding:"required"`
 	Title       string        `json:"title" binding:"required"`
 	Poster      string        `json:"poster" binding:"required"`
-	IsDocu      bool          `json:"isDocu" binding:"required"`
-	IsKids      bool          `json:"isKids" binding:"required"`
+	IsDocu      string        `json:"isDocu" binding:"required"`
+	IsKids      string        `json:"isKids" binding:"required"`
 	CustomTitle string        `json:"customTitle" binding:"required"`
 	Episodes    []EpisodeMeta `json:"episodes"`
 }
@@ -46,6 +45,13 @@ func CreateSeries(c *gin.Context) {
 	if err := c.ShouldBind(&metadata); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid metadata: " + err.Error()})
 		return
+	}
+	episodesJSON := c.PostForm("EpisodesJSON")
+	if episodesJSON != "" {
+		if err := json.Unmarshal([]byte(episodesJSON), &metadata.Episodes); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid episodes JSON: " + err.Error()})
+			return
+		}
 	}
 
 	// get form
@@ -85,7 +91,6 @@ func CreateSeries(c *gin.Context) {
 			Title:       firstNonEmpty(metadata.Title, fmt.Sprintf("Series %d", metadata.TmdbID)),
 			CustomTitle: strings.TrimSpace(metadata.CustomTitle),
 			TmdbID:      metadata.TmdbID,
-			ImdbID:      metadata.ImdbID,
 			Poster:      metadata.Poster,
 			Date:        primitive.NewDateTimeFromTime(time.Now()),
 		}
@@ -164,9 +169,9 @@ func getDstForEpisode(meta EpisodeMeta, metadata Metadata, series utils.Series) 
 	// get destination folder
 	fileName := fmt.Sprintf("%02d%02d - %s%s", meta.SeasonNumber, meta.EpisodeNumber, sanitizeName(meta.Title), ext)
 	var serieFolder string
-	if metadata.IsDocu {
+	if metadata.IsDocu == "true" {
 		serieFolder = filepath.Join(utils.SERIES_DOCU_DIR, series.CustomTitle)
-	} else if metadata.IsKids {
+	} else if metadata.IsKids == "true" {
 		serieFolder = filepath.Join(utils.SERIES_KID_DIR, series.CustomTitle)
 	} else {
 		serieFolder = filepath.Join(utils.SERIES_DIR, series.CustomTitle)

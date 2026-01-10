@@ -110,7 +110,7 @@ const MediaUploader = () => {
 						{mediaType === 'movie' ? 'Identifier le film' : 'Identifier la série'}
 					</p>
 
-					<UppyProvider>
+					<UppyProvider isMovie={mediaType === 'movie'}>
 						{mediaType === 'movie' ? (
 							<MovieUploader onSelectionChange={setHasSelection} />
 						) : (
