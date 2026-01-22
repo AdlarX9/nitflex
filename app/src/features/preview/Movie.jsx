@@ -21,7 +21,7 @@ const Movie = ({ movie, backdropVersion = false, declareMainBackdrop = null }) =
 	const posterExists = movie?.poster && movie.poster !== 'N/A'
 	const { mainBackdropRef, processMainBackdrop } = useMainContext()
 	const [mainBackdrop, setMainBackdrop] = useState(null)
-	const { backdrops } = useGetMovieCovers(movie?.imdbID)
+	const { backdrops } = useGetMovieCovers(movie?.tmdbID)
 
 	useEffect(() => {
 		if (backdropVersion) {

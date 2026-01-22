@@ -154,17 +154,6 @@ export const useAPIAfter = (method, endpoint) => {
 	return { ...mutation, trigger, triggerAsync }
 }
 
-const axiosGetTMDBID = async imdbID => {
-	try {
-		const res = await axios.get(
-			`https://api.themoviedb.org/3/find/${imdbID}?api_key=${TMDB_API_KEY}&external_source=imdb_id`
-		)
-		return res.data?.movie_results?.[0]?.id || null
-	} catch {
-		return null
-	}
-}
-
 const axiosGetMovieCovers = async tmdbID => {
 	try {
 		const res = await axios.get(
@@ -176,7 +165,7 @@ const axiosGetMovieCovers = async tmdbID => {
 	}
 }
 
-export function useGetMovieCovers(imdbID) {
+export function useGetMovieCovers(tmdbID) {
 	const [posters, setPosters] = useState([])
 	const [backdrops, setBackdrops] = useState([])
 	const [logos, setLogos] = useState([])
@@ -187,8 +176,6 @@ export function useGetMovieCovers(imdbID) {
 			setPosters([])
 			setBackdrops([])
 			setLogos([])
-			if (!imdbID) return
-			const tmdbID = await axiosGetTMDBID(imdbID)
 			if (!tmdbID) return
 			const covers = await axiosGetMovieCovers(tmdbID)
 			if (!cancelled && covers) {
@@ -213,7 +200,7 @@ export function useGetMovieCovers(imdbID) {
 		return () => {
 			cancelled = true
 		}
-	}, [imdbID])
+	}, [tmdbID])
 
 	return { posters, backdrops, logos }
 }
