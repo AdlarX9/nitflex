@@ -29,7 +29,7 @@ func UploadMovie(c *gin.Context) {
 		CustomTitle string  `json:"customTitle" binding:"required"`
 		IsDocu      string  `json:"isDocu" binding:"required"`
 	}
-	
+
 	// get metadata
 	var metadata Metadata
 	if err := c.ShouldBind(&metadata); err != nil {

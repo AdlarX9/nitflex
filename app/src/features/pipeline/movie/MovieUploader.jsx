@@ -39,7 +39,7 @@ const MovieUploader = ({ onSelectionChange }) => {
 	return (
 		<>
 			<div>
-				<MediaSearch type="movies" onSelect={movie => setNewMovie(movie)} />
+				<MediaSearch type='movies' onSelect={movie => setNewMovie(movie)} />
 			</div>
 
 			<AnimatePresence mode='wait'>

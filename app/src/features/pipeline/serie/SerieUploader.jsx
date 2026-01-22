@@ -42,7 +42,7 @@ const SerieUploader = ({ onSelectionChange }) => {
 	return (
 		<>
 			<div>
-				<MediaSearch type="series" onSelect={series => setSelectedSeries(series)} />
+				<MediaSearch type='series' onSelect={series => setSelectedSeries(series)} />
 			</div>
 
 			<AnimatePresence mode='wait'>
